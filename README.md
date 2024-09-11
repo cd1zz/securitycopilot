@@ -14,7 +14,7 @@ Click the button below to deploy the Function App. You will be prompted to selec
 
 ### Step 2: Deploy the Logic App
 
-Click the button below to deploy the Logic App. Have your VirusTotal API key ready and your Function App name & resource group. You will enter this information in the deployment screen. 
+Click the button below to deploy the Logic App. Have your Function App name & resource group. You will enter this information in the deployment screen. 
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fcfsphishing_mdti%2Fmain%2Flogicapp_azuredeploy.json)
 
