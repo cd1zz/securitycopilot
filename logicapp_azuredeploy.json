@@ -3,7 +3,6 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "LogicAppName": {
-            "defaultValue": "[concat('PhishingAnalysisV3.1-MDTI-', uniqueString(resourceGroup().id))]",
             "type": "string"
         },
         "FunctionAppRG": {
