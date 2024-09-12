@@ -1,5 +1,5 @@
 # User Submitted Phishing Analysis with Copilot for Security
-This solution demonstrates how Copilot for Security can be used to automate the analysis of user submitted phishing emails. The solution monitors a shared inbox for new emails. When emails are received, the Logic App triggers and begins processing. The process includes a Function App to parse the relevant parts of the email and passes those to Microsoft Defender Threat Intelligence AI plugin for analysis. 
+This solution automates the analysis of user-submitted phishing emails using Copilot for Security. It monitors a shared inbox, triggering a Logic App upon new email arrival. The Logic App processes the email using a Function App, which extracts relevant details, leverages the MDTI Copilot for Security Skills for reputation insights, and sends the results to an email recipient. 
 
 ## Notes
 If you want to change the function app code you can git clone the repo. Every time you change the FunctionApp code, be sure to repackage the FunctionApp.zip file. The zip file is what is referenced when the solution is deployed. You might need a local .python_packages if the "push to deploy" doesn't work with Function App deployment. 
@@ -8,13 +8,13 @@ If you want to change the function app code you can git clone the repo. Every ti
 
 ### Step 1: Deploy the Function App
 
-Click the button below to deploy the Function App. You will be prompted to select or create a resourceGroup, and provide a unique FunctionAppName. FunctionApp names must be unique to the world. Make sure the Function App deploymen is fully deployed before you initiate the Logic App deployment. 
+Click the button below to deploy the Function App. You'll be prompted to select or create a resource group and provide a unique Function App name. Ensure the Function App is fully deployed before starting the Logic App deployment.
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fcfsphishing_mdti%2Fmain%2Ffunctionapp_azuredeploy.json)
 
 ### Step 2: Deploy the Logic App
 
-Click the button below to deploy the Logic App. Have your Function App name & resource group. You will enter this information in the deployment screen. 
+Click the button below to deploy the Logic App. Note your Function App name & resource group from the previous step. You will enter this information in the deployment screen. 
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fcfsphishing_mdti%2Fmain%2Flogicapp_azuredeploy.json)
 
