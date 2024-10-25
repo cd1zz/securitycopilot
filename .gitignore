@@ -1,3 +1,5 @@
 .venv
+.vscode
 FunctionApp/.venv
+FunctionApp/venv
 FunctionApp/.python_packages
