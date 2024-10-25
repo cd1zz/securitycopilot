@@ -412,7 +412,7 @@ def is_image_url(url: str) -> bool:
 
 def clean_urls(urls: List[str]) -> List[str]:
     """
-    Cleans the provided URLs by removing unwanted trailing characters and HTML tags.
+    Cleans the provided URLs by removing unwanted trailing characters, HTML tags, and decoding HTML entities.
 
     Parameters:
     urls (List[str]): A list of URLs to be cleaned.
@@ -423,9 +423,16 @@ def clean_urls(urls: List[str]) -> List[str]:
     cleaned_urls = []
     for url in urls:
         try:
-            # Remove any trailing HTML tags or characters
-            url = re.sub(r'<.*?>$', '', url)  # Remove trailing HTML tags
-            url = url.rstrip('/.,;!')  # Remove trailing punctuation marks
+            # Remove trailing HTML tags
+            url = re.sub(r'<.*?>$', '', url)
+
+            # Remove trailing punctuation and unwanted characters like quotes, parentheses
+            url = re.sub(r"[)'\"]+$", '', url)  # Remove trailing ) or ' or "
+            url = url.rstrip('/.,;!')
+
+            # Decode HTML entities such as &amp;
+            url = urllib.parse.unquote(url)
+
             cleaned_urls.append(url)
         except re.error as e:
             logger.error(f"Regex error cleaning URL {url}: {e}")

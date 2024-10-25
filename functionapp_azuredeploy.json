@@ -158,6 +158,21 @@
               }
           ]
       },
+                  {
+        "type": "Microsoft.Web/sites/config",
+        "apiVersion": "2018-11-01",
+        "name": "[concat(variables('FunctionName'), '/web')]",
+        "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', variables('FunctionName'))]"
+        ],
+        "properties": {
+            "cors": {
+            "allowedOrigins": [
+                "https://portal.azure.com"
+            ]
+            }
+        }
+        },
       {
           "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
           "apiVersion": "2019-06-01",
