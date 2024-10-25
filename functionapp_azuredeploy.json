@@ -6,7 +6,7 @@
           "type": "String"
       }
   },
-  "variables": {        "FunctionName": "[concat(toLower(parameters('FunctionName')), uniqueString(resourceGroup().id))]",		
+  "variables": {"FunctionName": "[concat(toLower(parameters('FunctionName')), uniqueString(resourceGroup().id))]",		
   "StorageAccountName":"[concat('funcapp', uniquestring(resourceGroup().id))]"},
 "resources": [
       {
@@ -134,7 +134,7 @@
               "alwaysOn": true,
               "reserved": true,
                       "siteConfig": {
-       "linuxFxVersion": "python|3.9"
+       "linuxFxVersion": "python|3.11"
       }
           },
           "resources": [
