@@ -7,7 +7,7 @@
       }
   },
   "variables": {"FunctionName": "[concat(toLower(parameters('FunctionName')), uniqueString(resourceGroup().id))]",		
-  "StorageAccountName":"[concat('funcapp', uniquestring(resourceGroup().id))]"},
+  "StorageAccountName":"[concat(uniquestring(resourceGroup().id),'funcapp')]"},
 "resources": [
       {
           "type": "Microsoft.Insights/components",
@@ -158,21 +158,23 @@
               }
           ]
       },
-                  {
-        "type": "Microsoft.Web/sites/config",
-        "apiVersion": "2018-11-01",
-        "name": "[concat(variables('FunctionName'), '/web')]",
-        "dependsOn": [
-            "[resourceId('Microsoft.Web/sites', variables('FunctionName'))]"
-        ],
-        "properties": {
-            "cors": {
-            "allowedOrigins": [
-                "https://portal.azure.com"
-            ]
-            }
+    {
+      "type": "Microsoft.Web/sites/config",
+      "apiVersion": "2018-11-01",
+      "name": "[concat(variables('FunctionName'), '/web')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('FunctionName'))]"
+      ],
+      "properties": {
+        "cors": {
+          "allowedOrigins": [
+            "https://portal.azure.com"
+          ],
+          "supportCredentials": false
         }
-        },
+      }
+    },
       {
           "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
           "apiVersion": "2019-06-01",
