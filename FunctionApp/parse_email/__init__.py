@@ -423,6 +423,9 @@ def clean_urls(urls: List[str]) -> List[str]:
     cleaned_urls = []
     for url in urls:
         try:
+            # Remove any HTML tags using the strip_html_tags function
+            url = strip_html_tags(url)
+            
             # Remove trailing HTML tags
             url = re.sub(r'<.*?>$', '', url)
 
