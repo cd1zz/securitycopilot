@@ -17,6 +17,10 @@ from bs4 import BeautifulSoup
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.DEBUG)
 
+# Define global regex patterns
+URL_PATTERN = r'\bhttp[s]?://[a-zA-Z0-9.\-/?&=%_:~#]+'
+DOMAIN_PATTERN = r'\b[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
+
 # String found in all MSFT safelinks urls
 SAFELINKS_SUB_DOMAIN = "safelinks.protection.outlook.com"
 
@@ -247,18 +251,14 @@ def extract_domains(content: str) -> List[str]:
     """
     logger.info("Extracting domains from email content")
     try:
-        # Pattern to extract domains and URLs
-        domain_pattern = r'\b[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
-        url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-
         # Find all URLs first
-        urls = re.findall(url_pattern, content)
+        urls = re.findall(URL_PATTERN, content)
 
         # Parse domains from URLs
         url_domains = {urllib.parse.urlparse(url).netloc.lower() for url in urls}
 
         # Find all domain patterns directly
-        direct_domains = [domain.lower() for domain in re.findall(domain_pattern, content)]
+        direct_domains = [domain.lower() for domain in re.findall(DOMAIN_PATTERN, content)]
 
         # Combine and clean up
         all_domains = url_domains.union(direct_domains)
@@ -354,12 +354,11 @@ def parse_ip_and_urls(content: str) -> Dict[str, List[str]]:
     """
     logger.info("Parsing email content for IP addresses and URLs")
 
-    # Extract IP addresses using the new `extract_ips` function
+    # Extract IP addresses using the `extract_ips` function
     ipv4_addresses, ipv6_addresses = extract_ips(content)
 
-    # Regex pattern to extract URLs
-    url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    regex_urls = re.findall(url_pattern, content)
+    # Regex pattern to extract URLs - Tweaked to prevent trailing text from being captured
+    regex_urls = re.findall(URL_PATTERN, content)
 
     # Extract URLs using BeautifulSoup
     html_urls = extract_urls_from_html(content)
@@ -412,7 +411,7 @@ def is_image_url(url: str) -> bool:
 
 def clean_urls(urls: List[str]) -> List[str]:
     """
-    Cleans the provided URLs by removing unwanted trailing characters, HTML tags, and decoding HTML entities.
+    Cleans the provided URLs by removing unwanted trailing characters and HTML tags.
 
     Parameters:
     urls (List[str]): A list of URLs to be cleaned.
@@ -425,22 +424,19 @@ def clean_urls(urls: List[str]) -> List[str]:
         try:
             # Remove any HTML tags using the strip_html_tags function
             url = strip_html_tags(url)
-            
-            # Remove trailing HTML tags
-            url = re.sub(r'<.*?>$', '', url)
 
-            # Remove trailing punctuation and unwanted characters like quotes, parentheses
-            url = re.sub(r"[)'\"]+$", '', url)  # Remove trailing ) or ' or "
-            url = url.rstrip('/.,;!')
+            # Remove trailing punctuation or unwanted characters
+            url = re.sub(r'\s+', '', url)  # Remove any whitespace that may be left
 
-            # Decode HTML entities such as &amp;
-            url = urllib.parse.unquote(url)
-
-            cleaned_urls.append(url)
+            # Ensure only the URL part is retained (cut off any extraneous words)
+            url = re.match(r'\bhttp[s]?://[a-zA-Z0-9.\-/?&=%_:~#]+', url)
+            if url:
+                cleaned_urls.append(url.group(0))
         except re.error as e:
             logger.error(f"Regex error cleaning URL {url}: {e}")
         except Exception as e:
             logger.error(f"General error cleaning URL {url}: {e}")
+    
     return cleaned_urls
 
 
