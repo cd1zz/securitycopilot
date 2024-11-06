@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.DEBUG)
 
 # Define global regex patterns
-URL_PATTERN = r'\bhttp[s]?://[a-zA-Z0-9.\-/?&=%_:~#]+(?:\b|(?=[\s.,;!?]))'
+URL_PATTERN =  r'\b(?i:http|https)://[a-zA-Z0-9.\-/?&=%_:~#]+(?:\b|(?=[\s.,;!?]))'
 DOMAIN_PATTERN = r'\b[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
 
 # String found in all MSFT safelinks urls
