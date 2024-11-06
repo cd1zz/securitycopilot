@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.DEBUG)
 
 # Define global regex patterns
-URL_PATTERN = r'\bhttp[s]?://[a-zA-Z0-9.\-/?&=%_:~#]+'
+URL_PATTERN = r'\bhttp[s]?://[a-zA-Z0-9.\-/?&=%_:~#]+(?:\b|(?=[\s.,;!?]))'
 DOMAIN_PATTERN = r'\b[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
 
 # String found in all MSFT safelinks urls
@@ -425,13 +425,12 @@ def clean_urls(urls: List[str]) -> List[str]:
             # Remove any HTML tags using the strip_html_tags function
             url = strip_html_tags(url)
 
-            # Remove trailing punctuation or unwanted characters
-            url = re.sub(r'\s+', '', url)  # Remove any whitespace that may be left
-
             # Ensure only the URL part is retained (cut off any extraneous words)
-            url = re.match(r'\bhttp[s]?://[a-zA-Z0-9.\-/?&=%_:~#]+', url)
-            if url:
-                cleaned_urls.append(url.group(0))
+            match = re.match(URL_PATTERN, url)
+            if match:
+                cleaned_urls.append(match.group(0))
+            else:
+                logger.info(f"Regex did not match URL {url}")
         except re.error as e:
             logger.error(f"Regex error cleaning URL {url}: {e}")
         except Exception as e:
