@@ -610,7 +610,7 @@
                                 "path": "/v2/Mail"
                             },
                             "runAfter": {
-                                "Parse_JSON": [
+                                "Process_JSON": [
                                     "Succeeded"
                                 ]
                             },
