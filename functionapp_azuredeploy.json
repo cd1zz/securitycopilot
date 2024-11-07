@@ -134,7 +134,7 @@
               "alwaysOn": true,
               "reserved": true,
                       "siteConfig": {
-       "linuxFxVersion": "python|3.10"
+       "linuxFxVersion": "python|3.11"
       }
           },
           "resources": [
