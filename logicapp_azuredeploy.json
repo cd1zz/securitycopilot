@@ -596,7 +596,7 @@
                                             "Name": "@concat(body('Process_JSON')?['email_content']?['subject'], '.eml')"
                                         }
                                     ],
-                                    "Body": "<div>@{replace(body('Parse_JSON')?['evaluationResultContent'], '\\n', '<br>')}</div>",
+                                    "Body": "<div>@{replace(body('Process_JSON')?['evaluationResultContent'], '\\n', '<br>')}</div>",
                                     "Importance": "Normal",
                                     "Subject": "Phishing Email Analysis",
                                     "To": "[parameters('PhishingReportEmailAddress')]"
