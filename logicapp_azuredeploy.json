@@ -12,10 +12,10 @@
             "type": "string"
         },
         "PhishingReportEmailAddress": {
-        "type": "string"
-    }
-},
-    
+            "type": "string"
+        }
+    },
+
     "variables": {
         "Office365-1ConnectionName": "[concat('Office365-1-', parameters('LogicAppName'))]",
         "Securitycopilot-1ConnectionName": "[concat('Securitycopilot-1-', parameters('LogicAppName'))]",
@@ -206,20 +206,34 @@
                                     "actions": {
                                         "Decode_Base64_ContentBytes": {
                                             "type": "Compose",
-                                            "inputs": "@base64ToBinary(items('For_each_attachment')?['contentBytes'])"
+                                            "inputs": "@base64ToBinary(item()?['contentBytes'])"
                                         },
                                         "Set_variable_raw_email_msg_binary_decoded": {
                                             "runAfter": {
-                                                "Decode_Base64_ContentBytes": [
+                                                "Compose_2": [
                                                     "Succeeded"
                                                 ]
                                             },
                                             "type": "SetVariable",
                                             "inputs": {
                                                 "name": "raw_email",
-                                                "value": "@outputs('Decode_Base64_ContentBytes')"
+                                                "value": "@string(outputs('Compose_2'))"
                                             }
+                                        },
+                                        "Compose_2": {
+                                            "runAfter": {
+                                                "Decode_Base64_ContentBytes": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "Compose",
+                                            "inputs": "@outputs('Decode_Base64_ContentBytes')"
                                         }
+                                    },
+                                    "runAfter": {
+                                        "Compose_1": [
+                                            "Succeeded"
+                                        ]
                                     },
                                     "else": {
                                         "actions": {}
@@ -228,25 +242,29 @@
                                         "or": [
                                             {
                                                 "equals": [
-                                                    "@item()?['contentType']",
-                                                    "application/vnd.ms-outlook"
+                                                    "@outputs('Compose_1')?['contentType']",
+                                                    "message/rfc822"
                                                 ]
                                             },
                                             {
                                                 "equals": [
-                                                    "@item()?['contentType']",
+                                                    "@outputs('Compose_1')?['contentType']",
                                                     "application/octet-stream"
                                                 ]
                                             },
                                             {
                                                 "equals": [
-                                                    "@item()?['contentType']",
-                                                    "message/rfc822"
+                                                    "@outputs('Compose_1')?['contentType']",
+                                                    "application/vnd.ms-outlook"
                                                 ]
                                             }
                                         ]
                                     },
                                     "type": "If"
+                                },
+                                "Compose_1": {
+                                    "type": "Compose",
+                                    "inputs": "@item()"
                                 }
                             },
                             "runAfter": {
@@ -596,7 +614,7 @@
                                             "Name": "@concat(body('Process_JSON')?['email_content']?['subject'], '.eml')"
                                         }
                                     ],
-                                    "Body": "<div>@{replace(body('Process_JSON')?['evaluationResultContent'], '\\n', '<br>')}</div>",
+                                    "Body": "<div>@{replace(body('Process_JSON')?['evaluationResultContent'], '\\n', '<br>')}</div>\\n<p>Generated with AI. Check for accuracy.</p>",
                                     "Importance": "Normal",
                                     "Subject": "Phishing Email Analysis",
                                     "To": "[parameters('PhishingReportEmailAddress')]"
@@ -610,7 +628,7 @@
                                 "path": "/v2/Mail"
                             },
                             "runAfter": {
-                                "Process_JSON": [
+                                "Finalize_and_score": [
                                     "Succeeded"
                                 ]
                             },
