@@ -3,68 +3,83 @@ import re
 from pdfminer.high_level import extract_text
 from io import BytesIO
 import logging
+import json
 import azure.functions as func
+import traceback
 
 # Azure Function entry point
 def main(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info("Processing request to extract text from PDF.")
-    
-    # Extract base64 PDF string from request
-    base64_string = req.params.get('base64_string')
-    logging.debug(f"Extracted base64_string from params: {base64_string[:30]}..." if base64_string else "No base64_string found in params.")
-    
-    if not base64_string:
-        try:
-            req_body = req.get_json()
-            logging.debug("Extracted request body successfully.")
-        except ValueError as e:
-            logging.error(f"Failed to parse JSON body: {str(e)}")
-            return func.HttpResponse(
-                "Please pass a base64 encoded PDF string in the request",
-                status_code=400
-            )
-        else:
-            base64_string = req_body.get('base64_string')
-            logging.debug(f"Extracted base64_string from JSON body: {base64_string[:30]}..." if base64_string else "No base64_string found in JSON body.")
+    logging.info("Processing request to extract text from base64 encoded PDF string.")
 
-    if not base64_string:
-        logging.warning("No base64_string found in request parameters or body.")
+    try:
+        # Get the request body as raw bytes
+        raw_body = req.get_body()
+        logging.debug(f"Raw request body (as bytes): {raw_body[:100]}...")  # Log first 100 characters for safety
+
+        # Attempt to parse as JSON (if applicable) or assume it's the base64 string directly
+        try:
+            req_body = json.loads(raw_body.decode('utf-8'))
+            logging.debug(f"Extracted request JSON body successfully: {req_body}")
+
+            # Additional check to confirm req_body is a dictionary
+            if not isinstance(req_body, dict):
+                logging.warning(f"Parsed JSON body is not a dictionary. Actual type: {type(req_body)}")
+                return func.HttpResponse(
+                    "Please pass a valid JSON body containing a base64 encoded PDF string.",
+                    status_code=400
+                )
+
+            # Extract base64_string from the JSON body - now looking for 'body' field
+            base64_string = req_body.get('body')
+            if not base64_string:
+                logging.warning("No 'body' field found in JSON request body.")
+                return func.HttpResponse(
+                    "Please pass a base64 encoded PDF string in the request body.",
+                    status_code=400
+                )
+
+        except json.JSONDecodeError:
+            # Assume the raw body is the base64-encoded PDF directly if not valid JSON
+            logging.info("Request body is not JSON. Treating raw body as the base64-encoded PDF string.")
+            base64_string = raw_body.decode('utf-8')
+
+        # Remove data URI prefix if present
+        if base64_string.startswith('data:'):
+            base64_string = base64_string.split(",")[1]
+
+        # Decode the base64 string to get PDF content in bytes
+        pdf_bytes = base64.b64decode(base64_string)
+        logging.info("Successfully decoded base64 string into PDF bytes.")
+        
+        # Extract text from PDF bytes
+        cleaned_text = extract_and_clean_pdf_text(pdf_bytes)
+        logging.info("Text extraction and cleaning completed successfully.")
+
+        # Return the extracted text
+        return func.HttpResponse(cleaned_text, status_code=200)
+
+    except base64.binascii.Error as decode_error:
+        logging.error(f"Base64 decoding failed: {decode_error}")
         return func.HttpResponse(
-            "Please pass a base64 encoded PDF string in the request",
+            "Invalid base64 encoded string.",
             status_code=400
         )
 
-    try:
-        logging.info("Starting text extraction from base64 string.")
-        # Extract the text from the base64 string
-        cleaned_text = extract_and_clean_pdf_text(base64_string)
-        logging.info("Text extraction and cleaning completed successfully.")
-
-        # Return extracted text
-        return func.HttpResponse(cleaned_text, status_code=200)
     except Exception as e:
         logging.error(f"Error occurred while extracting text: {str(e)}")
+        logging.debug(f"Full exception traceback: {traceback.format_exc()}")
         return func.HttpResponse(
             f"An error occurred: {str(e)}",
             status_code=500
         )
 
-def extract_and_clean_pdf_text(base64_string):
+def extract_and_clean_pdf_text(pdf_bytes):
     """
-    Decodes a base64 encoded PDF, extracts text, and performs basic cleanup.
-    :param base64_string: Base64 encoded PDF string
+    Extracts text from a PDF bytes object and performs basic cleanup.
+    :param pdf_bytes: PDF file content in bytes
     :return: Extracted and cleaned text from the PDF
     """
-    logging.debug("Decoding base64 encoded PDF data.")
-    # Decode base64 string to binary PDF data
-    try:
-        pdf_data = base64.b64decode(base64_string)
-        logging.debug("Base64 decoding successful.")
-    except Exception as e:
-        logging.error(f"Failed to decode base64 string: {str(e)}")
-        raise
-
-    pdf_file_like = BytesIO(pdf_data)
+    pdf_file_like = BytesIO(pdf_bytes)
 
     # Extract text from the PDF using pdfminer
     try:

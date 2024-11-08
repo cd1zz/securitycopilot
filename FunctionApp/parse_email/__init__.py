@@ -280,25 +280,50 @@ def extract_domains(content: str) -> List[str]:
 
 def get_attachments(email_message: EmailMessage) -> List[Dict[str, str]]:
     """
-    Retrieves the attachments from an email and calculates their SHA-256 hash.
+    Retrieves the attachments from an email, calculates their SHA-256 hash, 
+    and extracts the attachment as a base64-encoded string along with content type.
 
     Parameters:
     email_message (EmailMessage): The email message object.
 
     Returns:
-    List[Dict[str, str]]: A list of dictionaries containing attachment names and their SHA-256 hash values.
+    List[Dict[str, str]]: A list of dictionaries containing attachment names, 
+                          their SHA-256 hash values, base64-encoded content, and content type.
     """
     attachments = []
+    logger.info("Starting to extract attachments from email.")
+
     for part in email_message.iter_attachments():
         try:
+            logger.info(f"Processing attachment: {part.get_filename()}")
+
             if part.get_filename():
+                # Get the base64 string of the file (without decoding to raw bytes)
+                file_base64 = part.get_payload(decode=False)
+                logger.info(f"Retrieved base64 string for attachment: {part.get_filename()}")
+
+                # Decode base64 to bytes for SHA-256 hash calculation
+                file_bytes = part.get_payload(decode=True)
+                sha256_hash = hashlib.sha256(file_bytes).hexdigest()
+                logger.info(f"Calculated SHA-256 hash for attachment '{part.get_filename()}': {sha256_hash}")
+
+                # Get content type
+                content_type = part.get_content_type()
+                logger.info(f"Content type for attachment '{part.get_filename()}': {content_type}")
+
                 attachment_data = {
                     'attachment_name': part.get_filename(),
-                    'attachment_sha256': hashlib.sha256(part.get_payload(decode=True)).hexdigest()
+                    'attachment_sha256': sha256_hash,
+                    'attachment_base64': file_base64,
+                    'content_type': content_type
                 }
+
                 attachments.append(attachment_data)
+                logger.info(f"Attachment '{part.get_filename()}' processed and added to list.")
         except Exception as e:
-            logger.error(f"Error processing attachment: {e}")
+            logger.error(f"Error processing attachment '{part.get_filename()}': {e}")
+
+    logger.info("Finished extracting attachments from email.")
     return attachments
 
 
