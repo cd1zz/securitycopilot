@@ -680,7 +680,7 @@
                                 "and": [
                                     {
                                         "greater": [
-                                            "@length(body('Process_JSON')?['email_content']?['attachments'][0]?['attachment_base64'])",
+                                            "@length(body('Process_JSON')?['email_content']?['attachments'])",
                                             0
                                         ]
                                     },
@@ -688,6 +688,12 @@
                                         "equals": [
                                             "@body('Process_JSON')?['email_content']?['attachments'][0]?['content_type']",
                                             "application/pdf"
+                                        ]
+                                    },
+                                    {
+                                        "greater": [
+                                            "@length(body('Process_JSON')?['email_content']?['attachments'][0]?['attachment_base64'])",
+                                            0
                                         ]
                                     }
                                 ]
