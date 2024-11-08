@@ -20,7 +20,7 @@
         "Office365-1ConnectionName": "[concat('Office365-1-', parameters('LogicAppName'))]",
         "Securitycopilot-1ConnectionName": "[concat('Securitycopilot-1-', parameters('LogicAppName'))]",
         "FunctionName01": "parse_email",
-        "FunctionName02": "parse_email"
+        "FunctionName02": "parse_pdf"
     },
     "resources": [
         {
