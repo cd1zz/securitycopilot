@@ -1,1 +1,4 @@
 .venv
+venv
+.python_packages
+.vscode
