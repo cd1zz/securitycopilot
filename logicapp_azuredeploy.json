@@ -91,7 +91,8 @@
                                         "method": "post",
                                         "body": {
                                             "PromptContent": "Check the reputation of this file hash: @{body('Process_JSON')?['email_content']?['attachments'][0]?['attachment_sha256']}",
-                                            "SessionId": "@body('Summarize_Email_Intent')?['sessionId']"
+                                            "SessionId": "@body('Summarize_Email_Intent')?['sessionId']",
+                                            "SkillName": "GetFileAnalysis"
                                         },
                                         "path": "/process-prompt"
                                     }
