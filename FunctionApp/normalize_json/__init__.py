@@ -11,6 +11,7 @@ def remove_markdown_notation(input_string):
     # Remove markdown notation, handle both triple backticks and variations like ~~~json
     cleaned_string = re.sub(r'```json\n|\n```', '', input_string)  # Remove both starting and trailing markdown notation for triple backticks
     cleaned_string = re.sub(r'~~~json\n|\n~~~', '', cleaned_string)  # Also remove any ~~~json annotations
+    cleaned_string = re.sub(r'###.*?\n', '', cleaned_string)  # Remove '###' annotations along with anything until the next newline
     logging.debug("Completed markdown notation removal.")
     return cleaned_string.strip()  # Strip leading/trailing whitespace
 

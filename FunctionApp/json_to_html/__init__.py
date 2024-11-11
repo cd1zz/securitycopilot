@@ -1,17 +1,17 @@
 import logging
+from jinja2 import Template
 import azure.functions as func
 
-def create_html_report_from_list(json_list):
-    logging.info("Creating HTML report from the provided JSON list.")
-    
-    # Enhanced HTML Header with CSS
-    html_content = """
+def create_html(json_data):
+
+    # Define HTML structure using the provided CSS
+    html_template = '''
     <html>
     <head>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
         <style>
             body {
-                font-family: Arial, sans-serif;
+                font-family: Aptos, sans-serif;
                 line-height: 1.6;
                 background-color: #f9f9f9;
                 color: #333;
@@ -81,64 +81,92 @@ def create_html_report_from_list(json_list):
         </style>
     </head>
     <body>
-    """
-    
-    # Helper functions to generate HTML for each section
-    def generate_domain_url_section(data):
-        section_html = "<h2>Domain and URL Evaluation</h2><table>"
-        section_html += "<tr><th>Sender Domain</th><th>Reputation Level</th><th>URLs Found</th><th>Overall URL Assessment</th></tr>"
-        if "DomainVerification" in data and "URLEvaluation" in data:
-            domain = data["DomainVerification"].get("SenderDomain", "N/A")
-            reputation = data["DomainVerification"].get("ReputationLevel", "N/A")
-            urls = data["URLEvaluation"].get("URLsFound", [])
-            overall_assessment = data["URLEvaluation"].get("OverallURLAssessment", "N/A")
-            urls_list = "<ul>" + "".join([f"<li>{url['URL']} (Reputation: {url['Reputation']})" for url in urls]) + "</ul>"
-            section_html += f"<tr><td>{domain}</td><td>{reputation}</td><td>{urls_list}</td><td>{overall_assessment}</td></tr>"
-        section_html += "</table><br><hr><br>"
-        return section_html
+        {% for item in json_data %}
+            {% set section_order = ['FinalEvaluation', 'EmailBodyAnalysis', 'AttachmentReview', 'DomainEvaluation', 'URLEvaluation'] %}
+            {% for section in section_order %}
+                {% if section in item %}
+                    {% set value = item[section] %}
+                    {% if section == 'FinalEvaluation' %}
+                    <div class='section'>
+                        <h2><i class="fa-solid fa-magnifying-glass"></i> Final Evaluation</h2>
+                        <p><strong>Classification:</strong> <span class='badge badge-high'>{{ value.Classification }}</span></p>
+                        <p><strong>Confidence Level:</strong> <span class='badge badge-high'>{{ value.ConfidenceLevel }}</span></p>
+                        <p><strong>Overall Assessment Summary:</strong> {{ value.OverallAssessmentSummary }}</p>
+                    </div>
+                    {% elif section == 'EmailBodyAnalysis' %}
+                    <div class='section'>
+                        <h2><i class="fa-solid fa-envelope"></i> Email Body Analysis</h2>
+                        <p><strong>Email Purpose Summary:</strong> {{ value.EmailPurposeSummary }}</p>
+                        <p><strong>Intent Summary:</strong> {{ value.IntentSummary }}</p>
+                        <h3>Phishing Indicators:</h3>
+                        <ul>
+                            {% for indicator in value.PhishingIndicators %}
+                            <li><i class='fas fa-exclamation-circle'></i> {{ indicator }}</li>
+                            {% endfor %}
+                        </ul>
+                        <p><strong>Overall Phishing Likelihood:</strong> <span class='badge badge-high'>{{ value.OverallPhishingLikelihood }}</span></p>
+                    </div>
+                    {% elif section == 'AttachmentReview' %}
+                    <div class='section'>
+                        <h2><i class="fa-solid fa-paperclip"></i> Attachment Review</h2>
+                        <p><strong>Findings:</strong> {{ value.Findings }}</p>
+                        <p><strong>Legitimacy Check:</strong> {{ value.LegitimacyCheck }}</p>
+                    </div>
+                    {% elif section == 'DomainEvaluation' %}
+                    <div class='section'>
+                        <h2><i class="fa-solid fa-globe"></i> Domain Evaluation</h2>
+                        <p><strong>Overall Domain Assessment:</strong> {{ value.OverallDomainAssessment }}</p>
+                        <h3>Domains Found:</h3>
+                        <table>
+                            <tr>
+                                <th>Domain</th>
+                                <th>Reputation</th>
+                                <th>Aligned With Email Intent</th>
+                            </tr>
+                            {% for domain in value.DomainsFound %}
+                            <tr>
+                                <td>{{ domain.Domain }}</td>
+                                <td>{{ domain.Reputation }}</td>
+                                <td>{{ domain.AlignedWithEmailIntent }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+                    {% elif section == 'URLEvaluation' %}
+                    <div class='section'>
+                        <h2><i class="fa-solid fa-link"></i> URL Evaluation</h2>
+                        <p><strong>Overall URL Assessment:</strong> {{ value.OverallUrlAssessment }}</p>
+                        <h3>URLs Found:</h3>
+                        <table>
+                            <tr>
+                                <th>URL</th>
+                                <th>Reputation</th>
+                                <th>Aligned With Email Intent</th>
+                                <th>Redirections</th>
+                            </tr>
+                            {% for url in value.URLsFound %}
+                            <tr>
+                                <td>{{ url.URL }}</td>
+                                <td>{{ url.Reputation }}</td>
+                                <td>{{ url.AlignedWithEmailIntent }}</td>
+                                <td>{{ url.Redirections }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                    </div>
 
-    def generate_final_evaluation_section(data):
-        section_html = "<h2>Final Evaluation</h2><table>"
-        section_html += "<tr><th>Classification</th><th>Confidence Level</th><th>Reasoning Summary</th></tr>"
-        if "FinalEvaluation" in data:
-            classification = data["FinalEvaluation"].get("Classification", "N/A")
-            confidence = data["FinalEvaluation"].get("ConfidenceLevel", "N/A")
-            reasoning = data["FinalEvaluation"].get("Reasoning", {}).get("OverallAssessmentSummary", "N/A")
-            section_html += f"<tr><td>{classification}</td><td>{confidence}</td><td>{reasoning}</td></tr>"
-        section_html += "</table><br><hr><br>"
-        return section_html
-
-    def generate_email_body_analysis_section(data):
-        section_html = "<h2>Email Body Analysis</h2><table>"
-        section_html += "<tr><th>Email Purpose Summary</th><th>Intent Summary</th><th>Phishing Indicators</th><th>Overall Phishing Likelihood</th></tr>"
-        if "EmailBodyAnalysis" in data:
-            purpose = data["EmailBodyAnalysis"].get("EmailPurposeSummary", "N/A")
-            intent = data["EmailBodyAnalysis"].get("IntentSummary", "N/A")
-            indicators = data["EmailBodyAnalysis"].get("PhishingIndicators", [])
-            indicators_list = "<ul>" + "".join([f"<li>{indicator}</li>" for indicator in indicators]) + "</ul>"
-            likelihood = data["EmailBodyAnalysis"].get("OverallPhishingLikelihood", "N/A")
-            section_html += f"<tr><td>{purpose}</td><td>{intent}</td><td>{indicators_list}</td><td>{likelihood}</td></tr>"
-        section_html += "</table><br><hr><br>"
-        return section_html
-
-    # Iterate over JSON list and add content per section in the specified order
-    for item in json_list:
-        if "FinalEvaluation" in item:
-            html_content += generate_final_evaluation_section(item)
-        if "EmailBodyAnalysis" in item:
-            html_content += generate_email_body_analysis_section(item)
-        if "DomainVerification" in item or "URLEvaluation" in item:
-            html_content += generate_domain_url_section(item)
-    
-    # Closing HTML tags
-    html_content += """
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
     </body>
-    </html>
-    """
-    
-    logging.info("HTML report successfully created.")
-    return html_content
+    '''
 
+    # Use Jinja2 Template to render HTML with provided JSON data
+    template = Template(html_template)
+    rendered_html = template.render(json_data=json_data)
+
+    return rendered_html
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Processing request to generate phishing HTML report.')
@@ -157,7 +185,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         # Generate HTML Report using the helper function
-        html_report = create_html_report_from_list(req_body)
+        html_report = create_html(req_body)
 
         # Return HTML Report as response
         logging.info("Returning generated HTML report.")
