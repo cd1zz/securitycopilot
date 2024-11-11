@@ -1,4 +1,3 @@
-import json
 import logging
 import azure.functions as func
 
@@ -83,74 +82,61 @@ def create_html_report_from_list(json_list):
     </head>
     <body>
     """
+    
+    # Helper functions to generate HTML for each section
+    def generate_domain_url_section(data):
+        section_html = "<h2>Domain and URL Evaluation</h2><table>"
+        section_html += "<tr><th>Sender Domain</th><th>Reputation Level</th><th>URLs Found</th><th>Overall URL Assessment</th></tr>"
+        if "DomainVerification" in data and "URLEvaluation" in data:
+            domain = data["DomainVerification"].get("SenderDomain", "N/A")
+            reputation = data["DomainVerification"].get("ReputationLevel", "N/A")
+            urls = data["URLEvaluation"].get("URLsFound", [])
+            overall_assessment = data["URLEvaluation"].get("OverallURLAssessment", "N/A")
+            urls_list = "<ul>" + "".join([f"<li>{url['URL']} (Reputation: {url['Reputation']})" for url in urls]) + "</ul>"
+            section_html += f"<tr><td>{domain}</td><td>{reputation}</td><td>{urls_list}</td><td>{overall_assessment}</td></tr>"
+        section_html += "</table><br><hr><br>"
+        return section_html
 
-    # Iterate through each JSON in the list and generate HTML
-    for index, json_data in enumerate(json_list):
-        logging.info(f"Processing JSON object at index {index}.")
-        try:
-            # Handle Final Evaluation section
-            if "FinalEvaluation" in json_data:
-                logging.info("Adding Final Evaluation section to HTML report.")
-                final_evaluation = json_data["FinalEvaluation"]
-                html_content += "<div class='section'>"
-                html_content += "<h2>Final Evaluation</h2>"
-                html_content += f"<p><strong>Classification:</strong> <span class='badge badge-high'>{final_evaluation['Classification']}</span></p>"
-                html_content += f"<p><strong>Confidence Level:</strong> <span class='badge badge-high'>{final_evaluation['ConfidenceLevel']}</span></p>"
-                html_content += "<h3>Reasoning:</h3><ul>"
-                for indicator in final_evaluation['Reasoning']['IndicatorsSummary']:
-                    html_content += f"<li><i class='fas fa-exclamation-circle'></i> {indicator}</li>"
-                html_content += "</ul>"
-                html_content += f"<p><strong>Domain Reputation Summary:</strong> {final_evaluation['Reasoning']['DomainReputationSummary']}</p>"
-                html_content += f"<p><strong>URL Findings Summary:</strong> {final_evaluation['Reasoning']['URLFindingsSummary']}</p>"
-                html_content += f"<p><strong>Overall Assessment Summary:</strong> {final_evaluation['Reasoning']['OverallAssessmentSummary']}</p>"
-                html_content += "</div>"
+    def generate_final_evaluation_section(data):
+        section_html = "<h2>Final Evaluation</h2><table>"
+        section_html += "<tr><th>Classification</th><th>Confidence Level</th><th>Reasoning Summary</th></tr>"
+        if "FinalEvaluation" in data:
+            classification = data["FinalEvaluation"].get("Classification", "N/A")
+            confidence = data["FinalEvaluation"].get("ConfidenceLevel", "N/A")
+            reasoning = data["FinalEvaluation"].get("Reasoning", {}).get("OverallAssessmentSummary", "N/A")
+            section_html += f"<tr><td>{classification}</td><td>{confidence}</td><td>{reasoning}</td></tr>"
+        section_html += "</table><br><hr><br>"
+        return section_html
 
-            # Handle Domain and URL Evaluation section
-            if "DomainVerification" in json_data:
-                logging.info("Adding Domain and URL Evaluation section to HTML report.")
-                domain_verification = json_data["DomainVerification"]
-                html_content += "<div class='section'>"
-                html_content += "<h2>Domain and URL Evaluation</h2>"
-                html_content += f"<p><strong>Sender Domain:</strong> {domain_verification['SenderDomain']}</p>"
-                html_content += f"<p><strong>Reputation Level:</strong> <span class='badge badge-high'>{domain_verification['ReputationLevel']}</span></p>"
-                html_content += f"<p><strong>Reputation Score:</strong> {domain_verification['ThreatIntelligence']['ReputationScore']}</p>"
-                if "URLEvaluation" in json_data:
-                    logging.info("Adding URL Evaluation details to HTML report.")
-                    url_evaluation = json_data["URLEvaluation"]
-                    html_content += "<h3>URLs Found:</h3><table>"
-                    html_content += "<tr><th>URL</th><th>Reputation</th><th>Matches Domain</th></tr>"
-                    for url in url_evaluation['URLsFound']:
-                        html_content += f"<tr><td>{url['URL']}</td><td>{url['Reputation']}</td><td>{'Yes' if url['MatchesDomain'] else 'No'}</td></tr>"
-                    html_content += "</table>"
-                    html_content += f"<p><strong>Overall URL Assessment:</strong> {url_evaluation['OverallURLAssessment']}</p>"
-                html_content += "</div>"
+    def generate_email_body_analysis_section(data):
+        section_html = "<h2>Email Body Analysis</h2><table>"
+        section_html += "<tr><th>Email Purpose Summary</th><th>Intent Summary</th><th>Phishing Indicators</th><th>Overall Phishing Likelihood</th></tr>"
+        if "EmailBodyAnalysis" in data:
+            purpose = data["EmailBodyAnalysis"].get("EmailPurposeSummary", "N/A")
+            intent = data["EmailBodyAnalysis"].get("IntentSummary", "N/A")
+            indicators = data["EmailBodyAnalysis"].get("PhishingIndicators", [])
+            indicators_list = "<ul>" + "".join([f"<li>{indicator}</li>" for indicator in indicators]) + "</ul>"
+            likelihood = data["EmailBodyAnalysis"].get("OverallPhishingLikelihood", "N/A")
+            section_html += f"<tr><td>{purpose}</td><td>{intent}</td><td>{indicators_list}</td><td>{likelihood}</td></tr>"
+        section_html += "</table><br><hr><br>"
+        return section_html
 
-            # Handle Email Body Analysis section
-            if "EmailBodyAnalysis" in json_data:
-                logging.info("Adding Email Body Analysis section to HTML report.")
-                email_body_analysis = json_data["EmailBodyAnalysis"]
-                html_content += "<div class='section'>"
-                html_content += "<h2>Email Body Analysis</h2>"
-                html_content += f"<p><strong>Intent Summary:</strong> {email_body_analysis['IntentSummary']}</p>"
-                html_content += "<h3>Phishing Indicators:</h3><ul>"
-                for indicator in email_body_analysis['PhishingIndicators']:
-                    html_content += f"<li><i class='fas fa-exclamation-circle'></i> {indicator}</li>"
-                html_content += "</ul>"
-                html_content += f"<p><strong>Overall Phishing Likelihood:</strong> <span class='badge badge-high'>{email_body_analysis['OverallPhishingLikelihood']}</span></p>"
-                html_content += "</div>"
-
-        except KeyError as e:
-            logging.error(f"Missing expected key in JSON object at index {index}: {e}")
-        except Exception as e:
-            logging.error(f"An error occurred while processing JSON object at index {index}: {e}")
-
-    # HTML Footer
+    # Iterate over JSON list and add content per section in the specified order
+    for item in json_list:
+        if "FinalEvaluation" in item:
+            html_content += generate_final_evaluation_section(item)
+        if "EmailBodyAnalysis" in item:
+            html_content += generate_email_body_analysis_section(item)
+        if "DomainVerification" in item or "URLEvaluation" in item:
+            html_content += generate_domain_url_section(item)
+    
+    # Closing HTML tags
     html_content += """
     </body>
     </html>
     """
-
-    logging.info("HTML report creation complete.")
+    
+    logging.info("HTML report successfully created.")
     return html_content
 
 

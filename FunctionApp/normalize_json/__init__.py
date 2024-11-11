@@ -14,16 +14,18 @@ def remove_markdown_notation(input_string):
     logging.debug("Completed markdown notation removal.")
     return cleaned_string.strip()  # Strip leading/trailing whitespace
 
-def remove_nulls(d):
-    logging.debug("Starting removal of null values.")
+def replace_nulls_with_none(d):
+    logging.debug("Starting replacement of null values with 'None'.")
     if isinstance(d, dict):
-        cleaned_dict = {k: remove_nulls(v) for k, v in d.items() if v is not None}
-        logging.debug(f"Cleaned dictionary: {cleaned_dict}")
-        return cleaned_dict
+        replaced_dict = {k: replace_nulls_with_none(v) for k, v in d.items()}
+        logging.debug(f"Replaced dictionary: {replaced_dict}")
+        return replaced_dict
     elif isinstance(d, list):
-        cleaned_list = [remove_nulls(i) for i in d if i is not None]
-        logging.debug(f"Cleaned list: {cleaned_list}")
-        return cleaned_list
+        replaced_list = [replace_nulls_with_none(i) for i in d]
+        logging.debug(f"Replaced list: {replaced_list}")
+        return replaced_list
+    elif d is None:
+        return "None"  # Replace null with the string "None"
     else:
         return d
 
@@ -43,9 +45,9 @@ def main(req: HttpRequest) -> HttpResponse:
         parsed_json = json.loads(clean_json)
         logging.debug(f"Parsed JSON: {parsed_json}")
 
-        # Remove null values
-        parsed_json = remove_nulls(parsed_json)
-        logging.debug(f"JSON after null value removal: {parsed_json}")
+        # Replace null values with the string "None"
+        parsed_json = replace_nulls_with_none(parsed_json)
+        logging.debug(f"JSON after replacing null values with 'None': {parsed_json}")
 
         # Convert it back to a string for the response
         validated_json = json.dumps(parsed_json, indent=4)
