@@ -81,9 +81,9 @@ def create_html(json_data):
         </style>
     </head>
     <body>
-        {% for item in json_data %}
-            {% set section_order = ['FinalEvaluation', 'EmailBodyAnalysis', 'AttachmentReview', 'DomainEvaluation', 'URLEvaluation'] %}
-            {% for section in section_order %}
+        {% set section_order = ['FinalEvaluation', 'EmailBodyAnalysis', 'AttachmentReview', 'DomainEvaluation', 'URLEvaluation'] %}
+        {% for section in section_order %}
+            {% for item in json_data %}
                 {% if section in item %}
                     {% set value = item[section] %}
                     {% if section == 'FinalEvaluation' %}
