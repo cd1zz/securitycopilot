@@ -93,19 +93,30 @@ def create_html(json_data):
                         <p><strong>Confidence Level:</strong> <span class='badge badge-high'>{{ value.ConfidenceLevel }}</span></p>
                         <p><strong>Overall Assessment Summary:</strong> {{ value.OverallAssessmentSummary }}</p>
                     </div>
-                    {% elif section == 'EmailBodyAnalysis' %}
-                    <div class='section'>
-                        <h2><i class="fa-solid fa-envelope"></i> Email Body Analysis</h2>
-                        <p><strong>Email Purpose Summary:</strong> {{ value.EmailPurposeSummary }}</p>
-                        <p><strong>Intent Summary:</strong> {{ value.IntentSummary }}</p>
-                        <h3>Phishing Indicators:</h3>
-                        <ul>
-                            {% for indicator in value.PhishingIndicators %}
-                            <li><i class='fas fa-exclamation-circle'></i> {{ indicator }}</li>
-                            {% endfor %}
-                        </ul>
-                        <p><strong>Overall Phishing Likelihood:</strong> <span class='badge badge-high'>{{ value.OverallPhishingLikelihood }}</span></p>
-                    </div>
+                {% elif section == 'EmailBodyAnalysis' %}
+                <div class='section'>
+                    <h2><i class="fa-solid fa-envelope"></i> Email Body Analysis</h2>
+                    <p><strong>Email Purpose Summary:</strong> {{ value.EmailPurposeSummary }}</p>
+                    <p><strong>Intent Summary:</strong> {{ value.IntentSummary }}</p>
+                    
+                    <h3>Phishing Indicators:</h3>
+                    <ul>
+                        {% for indicator in value.PhishingIndicators %}
+                        <li><i class='fas fa-exclamation-circle'></i> {{ indicator }}</li>
+                        {% endfor %}
+                    </ul>
+                    
+                    {% if value.PositiveIndicators is defined %}
+                    <h3>Positive Indicators:</h3>
+                    <ul>
+                        {% for indicator in value.PositiveIndicators %}
+                        <li><i class='fas fa-check-circle'></i> {{ indicator }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    
+                    <p><strong>Overall Phishing Likelihood:</strong> <span class='badge badge-high'>{{ value.OverallPhishingLikelihood }}</span></p>
+                </div>
                     {% elif section == 'AttachmentReview' %}
                     <div class='section'>
                         <h2><i class="fa-solid fa-paperclip"></i> Attachment Review</h2>

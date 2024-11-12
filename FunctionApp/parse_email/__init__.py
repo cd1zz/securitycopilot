@@ -612,6 +612,29 @@ def parse_email(raw_email: bytes) -> Dict:
         return None
 
 
+def dedupe_to_base_urls(urls):
+    """
+    Deduplicates URLs by extracting and keeping only the unique base parts in the form 'http(s)://subdomain.domain.tld'.
+
+    Parameters:
+    urls (List[str]): List of URLs to deduplicate.
+
+    Returns:
+    List[str]: List of unique base URLs.
+    """
+    unique_bases = set()
+    for url in urls:
+        parsed_url = urllib.parse.urlparse(url)
+        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+        if base_url not in unique_bases:
+            unique_bases.add(base_url)
+            logger.info(f"Adding unique base URL: {base_url}")
+        else:
+            logger.info(f"Duplicate base URL skipped: {base_url}")
+    
+    return list(unique_bases)
+
+
 def recursive_parse(content):
     """
     Recursively parses email content to extract domains, IP addresses, and URLs.
@@ -680,10 +703,20 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         if parsed_email_data:
             all_domains, all_ip_addresses, all_urls = recursive_parse(parsed_email_data)
 
+            # Convert all_urls to a list for deduplication
+            url_list = list(all_urls)
+
+            # Apply base URL deduplication if URL list length exceeds 20
+            if len(url_list) > 20:
+                url_list = dedupe_to_base_urls(url_list)
+                logger.info(f"Deduplicated URL count: {len(url_list)}")
+            else:
+                logger.info("URL count is 20 or below; skipping deduplication")
+
             result = {
                 "email_content": parsed_email_data,
                 "ip_addresses": list(all_ip_addresses),
-                "urls": list(all_urls),
+                "urls": url_list,
                 "domains": list(all_domains),
             }
 
