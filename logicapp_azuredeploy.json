@@ -147,7 +147,7 @@
                                     "inputs": {
                                         "host": {
                                             "connection": {
-                                                "name": "@parameters('$connections')['securitycopilot']['connectionId']"
+                                                "name": "@parameters('$connections')['securitycopilot-1']['connectionId']"
                                             }
                                         },
                                         "method": "post",
@@ -874,7 +874,12 @@
                                     "Succeeded"
                                 ]
                             },
-                            "type": "Foreach"
+                            "type": "Foreach",
+                            "runtimeConfiguration": {
+                                "concurrency": {
+                                    "repetitions": 1
+                                }
+                            }
                         },
                         "Initialize_final_json_array": {
                             "runAfter": {
@@ -926,7 +931,7 @@
                             "inputs": {
                                 "host": {
                                     "connection": {
-                                        "name": "@parameters('$connections')['office365']['connectionId']"
+                                        "name": "@parameters('$connections')['office365-1']['connectionId']"
                                     }
                                 },
                                 "method": "post",
@@ -936,7 +941,7 @@
                                     "Body": "@body('JSON_to_HTML_Report')",
                                     "Attachments": [
                                         {
-                                            "Name": "@{concat(body('Process_JSON')?['email_content']?['subject'], '.eml')}\n",
+                                            "Name": "@{concat(body('Process_JSON')?['email_content']?['subject'], '.eml')}",
                                             "ContentBytes": "@base64(variables('raw_email'))"
                                         }
                                     ],
