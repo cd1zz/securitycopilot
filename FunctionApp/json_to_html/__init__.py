@@ -168,9 +168,9 @@ def create_html(json_data):
                     </div>
                     {% elif section == 'URLEvaluation' %}
                     <div class='section'>
-                        <h2>🔗 URL Evaluation</h2>
+                        <h2>URL Evaluation</h2>
                         <p><strong>Overall URL Assessment:</strong> {{ value.OverallUrlAssessment }}</p>
-                        <h3>URLs Found:</h3>
+                        <h3>🔗 URLs Found:</h3>
                         <table>
                             <tr>
                                 <th>URL</th>

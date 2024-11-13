@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.DEBUG)
 
 # Define global regex patterns
-URL_PATTERN =  r'\b(?i:http|https)://[a-zA-Z0-9.\-/?&=%_:~#]+(?:\b|(?=[\s.,;!?]))'
+#URL_PATTERN =  r'\b(?i:http|https)://[a-zA-Z0-9.\-/?&=%_:~#]+(?:\b|(?=[\s.,;!?]))'
+URL_PATTERN = r'\bhttps?://[a-zA-Z0-9\-._~:/?#[\]@!$&\'()*+,;=%]+'
 DOMAIN_PATTERN = r'\b[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
 
 # String found in all MSFT safelinks urls
@@ -239,6 +240,7 @@ def extract_urls_from_html(content: str) -> List[str]:
         return []
 
 
+
 def extract_domains(content: str) -> List[str]:
     """
     Extracts domain names from the email content.
@@ -250,24 +252,34 @@ def extract_domains(content: str) -> List[str]:
     List[str]: A list of valid domain names found in the content, or an empty list if an error occurs.
     """
     logger.info("Extracting domains from email content")
+    logger.debug(f"Incoming content for domain extraction: {content}")
     try:
         # Find all URLs first
         urls = re.findall(URL_PATTERN, content)
+        logger.debug(f"Found URLs: {urls}")
 
-        # Parse domains from URLs
-        url_domains = {urllib.parse.urlparse(url).netloc.lower() for url in urls}
+        # Decode URLs and parse domains
+        url_domains = set()
+        for url in urls:
+            decoded_url = urllib.parse.unquote(url)
+            extracted_domain = tldextract.extract(decoded_url).fqdn.lower()
+            logger.debug(f"Original URL: {url}, Decoded URL: {decoded_url}, Extracted Domain: {extracted_domain}")
+            url_domains.add(extracted_domain)
 
-        # Find all domain patterns directly
-        direct_domains = [domain.lower() for domain in re.findall(DOMAIN_PATTERN, content)]
+        # Find all direct domain patterns and parse without URL decoding
+        direct_domains = set()
+        for domain in re.findall(DOMAIN_PATTERN, content):
+            extracted_domain = tldextract.extract(domain).fqdn.lower()
+            logger.debug(f"Direct match domain: {domain}, Extracted Domain: {extracted_domain}")
+            direct_domains.add(extracted_domain)
 
-        # Combine and clean up
-        all_domains = url_domains.union(direct_domains)
-
+        # Combine and filter valid domains
         valid_domains = {
-            f"{extracted.domain}.{extracted.suffix}"
-            for domain in all_domains
-            if (extracted := tldextract.extract(domain)).domain and extracted.suffix
+            domain for domain in url_domains.union(direct_domains)
+            if domain and '.' in domain  # Ensures valid domain format
         }
+        
+        logger.debug(f"Final list of valid domains: {valid_domains}")
 
         return list(valid_domains)
     except re.error as e:
@@ -276,7 +288,6 @@ def extract_domains(content: str) -> List[str]:
     except Exception as e:
         logger.error(f"General error extracting domains: {e}")
         return []
-
 
 def get_attachments(email_message: EmailMessage) -> List[Dict[str, str]]:
     """
