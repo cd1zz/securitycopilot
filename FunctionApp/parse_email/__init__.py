@@ -689,10 +689,29 @@ def recursive_parse(content):
 
     return all_domains, all_ip_addresses, all_urls
 
+
 def clean_excessive_newlines(text):
     # Replace multiple consecutive newlines (2 or more) with a single newline
     cleaned_text = re.sub(r'\n{2,}', '\n', text)
     return cleaned_text
+
+
+def clean_domains(domains: set) -> set:
+    """
+    Removes leading '2f' or '40' (case-insensitive) from each domain in the provided set.
+
+    Parameters:
+    domains (set): A set of domain strings to be cleaned.
+
+    Returns:
+    set: A set of cleaned domains with no leading '2f' or '40'.
+    """
+    cleaned_domains = set()
+    for domain in domains:
+        # Remove leading '2f' or '40' (case-insensitive)
+        cleaned_domain = re.sub(r'^(?i:2f|40)', '', domain)
+        cleaned_domains.add(cleaned_domain)
+    return cleaned_domains
 
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
@@ -718,6 +737,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         if parsed_email_data:
             all_domains, all_ip_addresses, all_urls = recursive_parse(parsed_email_data)
+
+            # Clean domains to remove any leading '2f' or '40'
+            all_domains = clean_domains(all_domains)
 
             # Convert all_urls to a list for deduplication
             url_list = list(all_urls)
