@@ -8,7 +8,6 @@ def create_html(json_data):
     html_template = '''
     <html>
     <head>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
         <style>
             body {
                 font-family: Aptos, sans-serif;
@@ -55,22 +54,6 @@ def create_html(json_data):
             td {
                 text-align: center;
             }
-            .badge {
-                display: inline-block;
-                padding: 5px 10px;
-                font-size: 0.9em;
-                color: white;
-                border-radius: 3px;
-            }
-            .badge-high {
-                background-color: #d9534f;
-            }
-            .badge-medium {
-                background-color: #f0ad4e;
-            }
-            .badge-low {
-                background-color: #5bc0de;
-            }
             .section {
                 margin-bottom: 30px;
                 padding: 15px;
@@ -88,46 +71,86 @@ def create_html(json_data):
                     {% set value = item[section] %}
                     {% if section == 'FinalEvaluation' %}
                     <div class='section'>
-                        <h2><i class="fa-solid fa-magnifying-glass"></i> Final Evaluation</h2>
-                        <p><strong>Classification:</strong> <span class='badge badge-high'>{{ value.Classification }}</span></p>
-                        <p><strong>Confidence Level:</strong> <span class='badge badge-high'>{{ value.ConfidenceLevel }}</span></p>
-                        <p><strong>Overall Assessment Summary:</strong> {{ value.OverallAssessmentSummary }}</p>
+                        <h2>Final Evaluation</h2>
+                        <p><strong>Classification:</strong> 
+                            <span style="
+                                {% if value.Classification == 'PHISHING' %}
+                                    background-color: #d9534f;
+                                {% elif value.Classification == 'SUSPICIOUS' %}
+                                    background-color: #f0ad4e;
+                                {% elif value.Classification == 'BENIGN' %}
+                                    background-color: #5bc0de;
+                                {% else %}
+                                    background-color: #cccccc; /* Default color */
+                                {% endif %}
+                                color: white; padding: 5px 10px; border-radius: 3px; display: inline-block;">
+                                {{ value.Classification }}
+                            </span>
+                        </p>
+                        <p><strong>Confidence Level:</strong> 
+                            <span style="
+                                {% if value.ConfidenceLevel == 'High' %}
+                                    background-color: #0033cc;
+                                {% elif value.ConfidenceLevel == 'Medium' %}
+                                    background-color: #4d79ff;
+                                {% elif value.ConfidenceLevel == 'Low' %}
+                                    background-color: #b3c6ff;
+                                {% else %}
+                                    background-color: #cccccc; /* Default color */
+                                {% endif %}
+                                color: white; padding: 5px 10px; border-radius: 3px; display: inline-block;">
+                                {{ value.ConfidenceLevel }}
+                            </span>
+                        </p>
+                        <p><strong>🔍 Overall Assessment Summary:</strong> {{ value.OverallAssessmentSummary }}</p>
                     </div>
-                {% elif section == 'EmailBodyAnalysis' %}
-                <div class='section'>
-                    <h2><i class="fa-solid fa-envelope"></i> Email Body Analysis</h2>
-                    <p><strong>Email Purpose Summary:</strong> {{ value.EmailPurposeSummary }}</p>
-                    <p><strong>Intent Summary:</strong> {{ value.IntentSummary }}</p>
-                    
-                    <h3>Phishing Indicators:</h3>
-                    <ul>
-                        {% for indicator in value.PhishingIndicators %}
-                        <li><i class='fas fa-exclamation-circle'></i> {{ indicator }}</li>
-                        {% endfor %}
-                    </ul>
-                    
-                    {% if value.PositiveIndicators is defined %}
-                    <h3>Positive Indicators:</h3>
-                    <ul>
-                        {% for indicator in value.PositiveIndicators %}
-                        <li><i class='fas fa-check-circle'></i> {{ indicator }}</li>
-                        {% endfor %}
-                    </ul>
-                    {% endif %}
-                    
-                    <p><strong>Overall Phishing Likelihood:</strong> <span class='badge badge-high'>{{ value.OverallPhishingLikelihood }}</span></p>
-                </div>
+                    {% elif section == 'EmailBodyAnalysis' %}
+                    <div class='section'>
+                        <h2>Email Body Analysis</h2>
+                        <p><strong>✉️ Email Purpose Summary:</strong> {{ value.EmailPurposeSummary }}</p>
+                        <p><strong>Intent Summary:</strong> {{ value.IntentSummary }}</p>
+
+                        <h3>Phishing Indicators:</h3>
+                        <ul>
+                            {% for indicator in value.PhishingIndicators %}
+                            <li>⚠️ {{ indicator }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% if value.PositiveIndicators is defined %}
+                        <h3>Positive Indicators:</h3>
+                        <ul>
+                            {% for indicator in value.PositiveIndicators %}
+                            <li>✔️ {{ indicator }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                        <p><strong>Overall Phishing Likelihood:</strong> 
+                            <span style="
+                                {% if value.OverallPhishingLikelihood == 'High' %}
+                                    background-color: #4d79ff;
+                                {% elif value.OverallPhishingLikelihood == 'Medium' %}
+                                    background-color: #4d79ff;
+                                {% elif value.OverallPhishingLikelihood == 'Low' %}
+                                    background-color: #b3c6ff;
+                                {% else %}
+                                    background-color: #cccccc; /* Default color */
+                                {% endif %}
+                                color: white; padding: 5px 10px; border-radius: 3px; display: inline-block;">
+                                {{ value.OverallPhishingLikelihood }}
+                            </span>
+                        </p>
+                    </div>
                     {% elif section == 'AttachmentReview' %}
                     <div class='section'>
-                        <h2><i class="fa-solid fa-paperclip"></i> Attachment Review</h2>
-                        <p><strong>Findings:</strong> {{ value.Findings }}</p>
+                        <h2>Attachment Review</h2>
+                        <p><strong>📎 Findings:</strong> {{ value.Findings }}</p>
                         <p><strong>Legitimacy Check:</strong> {{ value.LegitimacyCheck }}</p>
                     </div>
                     {% elif section == 'DomainEvaluation' %}
                     <div class='section'>
-                        <h2><i class="fa-solid fa-globe"></i> Domain Evaluation</h2>
+                        <h2>Domain Evaluation</h2>
                         <p><strong>Overall Domain Assessment:</strong> {{ value.OverallDomainAssessment }}</p>
-                        <h3>Domains Found:</h3>
+                        <h3>🌐 Domains Found:</h3>
                         <table>
                             <tr>
                                 <th>Domain</th>
@@ -145,7 +168,7 @@ def create_html(json_data):
                     </div>
                     {% elif section == 'URLEvaluation' %}
                     <div class='section'>
-                        <h2><i class="fa-solid fa-link"></i> URL Evaluation</h2>
+                        <h2>🔗 URL Evaluation</h2>
                         <p><strong>Overall URL Assessment:</strong> {{ value.OverallUrlAssessment }}</p>
                         <h3>URLs Found:</h3>
                         <table>
@@ -165,14 +188,13 @@ def create_html(json_data):
                             {% endfor %}
                         </table>
                     </div>
-
                     {% endif %}
                 {% endif %}
             {% endfor %}
         {% endfor %}
     </body>
+    </html>
     '''
-
     # Use Jinja2 Template to render HTML with provided JSON data
     template = Template(html_template)
     rendered_html = template.render(json_data=json_data)

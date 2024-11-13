@@ -678,6 +678,11 @@ def recursive_parse(content):
 
     return all_domains, all_ip_addresses, all_urls
 
+def clean_excessive_newlines(text):
+    # Replace multiple consecutive newlines (2 or more) with a single newline
+    cleaned_text = re.sub(r'\n{2,}', '\n', text)
+    return cleaned_text
+
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     """
@@ -720,8 +725,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 "domains": list(all_domains),
             }
 
-            # Apply the strip_html_tags function to the email content's body
+            # Apply the strip_html_tags function to the email content's body and remove excessive newlines
             result["email_content"]["body"] = strip_html_tags(result["email_content"]["body"])
+            result["email_content"]["body"] = clean_excessive_newlines(result["email_content"]["body"])
 
             json_result = json.dumps(result, indent=4)
             return func.HttpResponse(json_result, mimetype="application/json")
