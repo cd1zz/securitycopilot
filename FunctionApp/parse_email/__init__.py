@@ -51,7 +51,8 @@ URL_SHORTENER_PROVIDERS = [
     "tiny.cc",
     "qlink.me",
     "po.st",
-    "short.io"
+    "short.io",
+    "shorturl.at"
 ]
 
 
