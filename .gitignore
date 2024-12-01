@@ -1,6 +1,6 @@
-phishinglogicapp/.vscode
-phishinglogicapp/local.settings.json
-phishinglogicapp/testutils/
-funcapp_backup/
-sample_emails/
-.vscode/
+/phishinglogicapp/.vscode
+/phishinglogicapp/local.settings.json
+/phishinglogicapp/testutils/
+/funcapp_backup/
+/sample_emails/
+/.vscode/
