@@ -1,0 +1,69 @@
+{
+    "behavioral_triggers": {
+        "tone": "Neutral",
+        "justification": "The email language is professional and lacks urgency.",
+        "alignment_with_purpose": "Yes, it aligns with the email’s stated purpose of providing delivery information."
+    },
+    "logical_coherence": {
+        "is_consistent": true,
+        "contradictions_or_vagueness": "None identified.",
+        "logical_actions": "The email requests actions consistent with its purpose."
+    },
+    "intent_verification": {
+        "likely_intent": "Provide delivery status update.",
+        "risk_assessment": "Minimal risk based on the content and links."
+    },
+    "attachment_analysis": {
+        "is_relevant": false,
+        "content_analysis": "No attachments present.",
+        "risks": "None."
+    },
+    "url_analysis": {
+        "url_categorization": {
+            "primary_action_urls": [
+                "https://tools.usps.com/go/TrackConfirmAction_input?utm_source=outfordelivery&utm_medium=email&utm_co...",
+                "https://tools.usps.com/go/TrackConfirmAction?tLabels=92419999921245165050041351&utm_source=outfordel..."
+            ],
+            "informational_urls": [
+                "https://www.usps.com/?utm_source=outfordelivery&utm_medium=email&utm_content=eagle-logo&utm_campaign...",
+                "https://informeddelivery.usps.com/box/pages/intro/start.action?utm_source=outfordelivery&utm_medium=...",
+                "https://faq.usps.com",
+                "https://www.usps.com/help/contact-us.htm",
+                "https://about.usps.com/who/legal/privacy-policy/"
+            ],
+            "stylistic_framework_urls": [
+                "https://play.google.com/store/apps/details?id=com.usps.app",
+                "https://itunes.apple.com/us/app/usps-mobile/id339597578?mt=8",
+                "http://www.facebook.com/usps",
+                "http://www.youtube.com/usps",
+                "http://pinterest.com/uspsstamps/",
+                "http://www.twitter.com/usps",
+                "https://www.instagram.com/uspostalservice/"
+            ]
+        },
+        "primary_action_validation": {
+            "relevance": true,
+            "domain_alignment": true,
+            "necessity": true,
+            "risks": "None."
+        },
+        "informational_url_validation": {
+            "purpose": "Provide additional information and services.",
+            "alignment": "Matches the sender organization.",
+            "risks": "None."
+        },
+        "stylistic_framework_url_validation": {
+            "typicality": "Consistent with common email formatting.",
+            "risks": "None."
+        }
+    },
+    "pretense_vs_intent_mapping": {
+        "stated_purpose": "Provide delivery status update.",
+        "true_intent": "Provide delivery status update.",
+        "gaps": "None."
+    },
+    "final_assessment": {
+        "category": "BENIGN",
+        "rationale": "All elements of the email align with its stated purpose and intent."
+    }
+}
