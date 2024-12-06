@@ -1,0 +1,192 @@
+**Version**: 1.3  
+**Last Updated**: 2024-12-03  
+
+---
+
+### Security Incident Response Plan (SIRP)  
+**Audience**: Security Operations Team  
+**Scope**: This plan applies to all Microsoft Windows and Azure environments leveraging the Microsoft security stack and the Copilot for Security Enrichment Plugin Suite.  
+
+---
+
+### **1. Preparation**  
+**Objective**: Ensure readiness for effective incident handling.
+
+1. **Policies and Procedures**:  
+   - **Input**: Policy documents.  
+   - **Action**: Review and update incident response policies annually.  
+   - **Output**: Centralized, up-to-date policies stored in SharePoint.
+
+2. **Security Tools and Configurations**:  
+   - **Input**: Inventory of tools (e.g., Sentinel, Defender, Copilot for Security).  
+   - **Action**:  
+     - Validate integration of tools and Sentinel playbooks for automated responses.  
+     - Ensure enrichment plugins from the **Copilot for Security Plugin Suite** are available and functional.  
+   - **Output**: Report of validated tools and integrations.
+
+3. **Team Training and Assignments**:  
+   - **Input**: RACI model template.  
+   - **Action**:  
+     - Assign roles and responsibilities using the RACI model.  
+     - Conduct quarterly tabletop exercises simulating scenarios like phishing and ransomware attacks.  
+     - Train analysts on using enrichment tools (e.g., Email, Device, and URL enrichment plugins).  
+   - **Output**: Team roster, training schedule, and enhanced proficiency with enrichment tools.  
+
+---
+
+### **2. Detection and Analysis**  
+**Objective**: Identify and analyze incidents promptly.
+
+1. **Monitoring**:  
+   - **Input**: Alerts from Microsoft Sentinel.  
+   - **Action**: Continuously monitor alerts and use advanced hunting queries to detect anomalies.  
+   - **Output**: List of suspicious activities from tables like **DeviceProcessEvents**, **EmailEvents**, and **DeviceNetworkEvents**.
+
+   **Example Query** (Credential Phishing Detection):
+   ```kql
+   EmailEvents
+   | where UrlCount > 0 and Urls contains "phishing-site.com"
+   ```
+
+2. **Enrichment** (New Section):  
+   - **Input**: Alerts or suspicious entities (e.g., URLs, emails, files, devices).  
+   - **Action**:  
+     - Use the **URL Enrichment plugin** to analyze click patterns and
+
+correlate URL activity with security events.  
+     - Leverage the **Email Enrichment plugin** to investigate email interactions based on sender, recipient, and domain activity.  
+     - Apply the **File Enrichment plugin** to identify potentially malicious files and assess their threat level.  
+     - Use the **Device Enrichment plugin** to analyze logon events, vulnerabilities, and activity patterns on affected devices.  
+   - **Output**: Detailed insights into enriched entities for targeted investigation.
+
+3. **Alert Triage**:  
+   - **Input**: Alerts prioritized by severity.  
+   - **Action**: Escalate critical alerts to Tier 2 analysts.  
+   - **Output**: Incident priority list.
+
+4. **Data Collection**:  
+   - **Input**: Logs from Azure AD, Sentinel, and Defender.  
+   - **Action**:  
+     - Retrieve sign-in logs and correlate with anomalies.  
+     - Save artifacts to **Azure Blob Storage**.  
+   - **Output**: Centralized evidence repository.
+
+5. **Analysis**:  
+   - **Input**: Collected evidence.  
+   - **Action**:  
+     - Investigate suspicious files using **Defender ATP Sandbox**.  
+     - Correlate incidents using KQL queries.  
+   - **Output**: Root cause report.
+
+---
+
+### **3. Containment**  
+**Objective**: Limit the incident's spread and impact.
+
+1. **Short-Term Containment**:  
+   - **Input**: Affected devices or user accounts.  
+   - **Action**:  
+     - Isolate devices using **Defender for Endpoint**:  
+       ```powershell
+       Invoke-MpWDOScan -ScanType Full
+       ```  
+     - Block malicious IPs in **Defender Firewall**.  
+     - Use the **Incident Enrichment plugin** to identify related alerts for the incident and adjust containment measures accordingly.  
+   - **Output**: Isolated and mitigated threats.
+
+2. **Communication**:  
+   - **Input**: Stakeholder contact list.  
+   - **Action**: Notify stakeholders via **Microsoft Teams**.  
+   - **Output**: Communication log in **Azure DevOps**.
+
+3. **Incident Scope Assessment**:  
+   - **Input**: Logs from affected systems.  
+   - **Action**: Use advanced hunting to assess the attack’s entry point and affected assets.  
+   - **Output**: List of impacted users and systems.
+
+---
+
+### **4. Eradication**  
+**Objective**: Remove the root cause and backdoors.
+
+1. **Remediation**:  
+   - **Input**: Vulnerability scan results.  
+   - **Action**: Apply patches via **Windows Update for Business**.  
+   - **Output**: Updated and secured systems.
+
+2. **Root Cause Analysis**:  
+   - **Input**: Logs and evidence.  
+   - **Action**:  
+     - Analyze root cause using **Sentinel Workbooks**.  
+     - Run automated playbooks to remove persistent threats.  
+   - **Output**: Root cause documentation.
+
+3. **Threat Removal**:  
+   - **Input**: Artifacts like malicious files.  
+   - **Action**: Delete files via PowerShell or Defender Live Response.  
+   - **Output**: Cleaned systems.
+
+---
+
+### **5. Recovery**  
+**Objective**: Restore systems and services to normal operations.
+
+1. **System Restoration**:  
+   - **Input**: Azure Backup snapshots.  
+   - **Action**: Restore critical systems and validate integrity.  
+   - **Output**: Fully operational systems.
+
+2. **System Hardening**:  
+   - **Input**: Security policies.  
+   - **Action**:  
+     - Enforce **Azure Conditional Access** policies.  
+     - Enable MFA for all privileged accounts.  
+   - **Output**: Hardened environment.
+
+3. **Testing**:  
+   - **Input**: Restored systems.  
+   - **Action**: Conduct functionality tests and monitor behavior using **Azure Monitor**.  
+   - **Output**: Recovery validation report.
+
+---
+
+### **6. Post-Incident Activity**  
+**Objective**: Document and learn from the incident.
+
+1. **Incident Reporting**:  
+   - **Input**: Incident logs and evidence.  
+   - **Action**: Prepare and share a detailed report via Power BI.  
+   - **Output**: Comprehensive incident report.
+
+2. **Review and Improvement**:  
+   - **Input**: Post-mortem meeting agenda.  
+   - **Action**: Identify gaps and update Sentinel rules.  
+   - **Output**: Updated incident response process.
+
+3. **Training**:  
+   - **Input**: Lessons learned.  
+   - **Action**: Share findings and conduct new training sessions.  
+   - **Output**: Improved team readiness.
+
+---
+
+### **Tools Overview**  
+The **Copilot for Security Enrichment Plugin Suite** offers the following tools to enhance security investigations:  
+
+- **User Enrichment**: Correlate user activity with security events.  
+- **URL Enrichment**: Analyze click patterns and track URL interactions.  
+- **Incident Enrichment**: Correlate and retrieve alerts linked to specific incidents.  
+- **File Enrichment**: Identify potentially malicious files and recommend remediation steps.  
+- **Email Enrichment**: Investigate email interactions based on domains, recipients, and senders.  
+- **Device Enrichment**: Analyze device activity patterns, vulnerabilities, and logon events.  
+
+---
+
+### **Common Scenarios**  
+| **Scenario**          | **Steps**                                                                                     |
+|------------------------|-----------------------------------------------------------------------------------------------|
+| **Phishing Attack**    | Use **Email Enrichment** to identify recipients of phishing emails and correlate sender activity. |
+| **Ransomware Attack**  | Isolate affected devices, enrich alerts with **Incident Enrichment**, and restore systems.    |
+| **Malware Infection**  | Block hashes in Defender, enrich file insights with **File Enrichment**, and validate recovery. |
+| **Insider Threat**     | Enrich user behavior with **User Enrichment** and restrict access to sensitive files.         |
+
