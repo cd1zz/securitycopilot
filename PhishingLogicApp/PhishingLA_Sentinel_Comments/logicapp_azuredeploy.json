@@ -3,28 +3,22 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "LogicAppName": {
-            "type": "String",
-            "defaultValue": "Enter Logic App Name"
+            "type": "String"
         },
         "IntegrationAccountName": {
-            "type": "String",
-            "defaultValue": "Enter Integration Account Name"
+            "type": "String"
         },
         "FunctionAppName": {
-            "type": "String",
-            "defaultValue": "Enter Function App Name"
+            "type": "String"
         },
         "FunctionAppResourceGroup": {
-            "type": "String",
-            "defaultValue": "Enter Function App Resource Group"
+            "type": "String"
         },
         "LogAnalyticsWorkspaceName": {
-            "type": "String",
-            "defaultValue": "Enter log analytics workspace name"
+            "type": "String"
         },
         "LogAnalyticsWorkspaceId": {
-            "type": "String",
-            "defaultValue": "Enter log analytics workspace id"
+            "type": "String"
         }
     },
     "variables": {
@@ -1145,7 +1139,10 @@
                             "inputs": {
                                 "uri": "https://graph.microsoft.com/v1.0/users/@{body('Process_parseEmail_JSON')?['email_content']?['receiver']}",
                                 "method": "GET",
-                                "authentication": {},
+                                "authentication": {
+                                    "type": "ManagedServiceIdentity",
+                                    "identity": ""
+                                },
                                 "retryPolicy": {
                                     "type": "none"
                                 }
@@ -1244,7 +1241,10 @@
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureMonitorLogs-ConnectionName'))]",
                                 "connectionName": "[variables('AzureMonitorLogs-ConnectionName')]",
                                 "connectionProperties": {
-                                    "authentication": {}
+                                    "authentication": {
+                                        "type": "ManagedServiceIdentity",
+                                        "identity": ""
+                                    }
                                 }
                             },
                             "azuresentinel": {
