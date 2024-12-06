@@ -1,6 +1,3 @@
-Here is the updated Markdown file for your project, modified to align with the new GPT core prompt for structured analysis and detailed phishing email investigation:
-
-```markdown
 # User Submitted Phishing Analysis with Security Copilot
 Author: Craig Freyman
 
@@ -113,10 +110,3 @@ The email analysis output follows this JSON structure for consistent reporting:
 
 ### Deployment Notes
 If you want to change the Function App code, clone the repository and modify it locally. Repackage the `FunctionApp.zip` file for deployment. Ensure the `.python_packages` folder is included for proper dependency management.
-
----
-
-This updated Markdown file reflects the enhanced structured analysis and organizational context for phishing email detection.
-``` 
-
-Let me know if you need additional adjustments or edits!
