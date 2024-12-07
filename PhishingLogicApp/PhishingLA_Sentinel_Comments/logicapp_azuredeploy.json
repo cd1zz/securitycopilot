@@ -186,7 +186,7 @@
                 "type": "UserAssigned", // Configures the Logic App to use a User-Assigned Managed Identity (UAMI)
                 "userAssignedIdentities": {
                     // Dynamically constructs the resource ID for the User-Assigned Managed Identity
-                    "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentity'))]": {}
+                    //"[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentity'))]": {}
                 }
             },
             "dependsOn": [
