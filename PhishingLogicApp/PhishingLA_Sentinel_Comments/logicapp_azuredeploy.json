@@ -5,7 +5,8 @@
     "parameters": {
         // The subscription ID where resources will be deployed
         "SubscriptionId": {
-            "type": "String"
+            "type": "String",
+            "defaultValue": "[subscription().id]"
         },
         // The name of the Logic App to be deployed
         "LogicAppName": {
@@ -19,13 +20,18 @@
         "ManagedServiceIdentity": {
             "type": "String"
         },
+        "ManagedServiceIdentityResourceGroup": {
+            "type": "String",
+            "defaultValue": "[resourceGroup().name]"
+        },
         // The name of the Azure Function App that will be called by the Logic App
         "FunctionAppName": {
             "type": "String"
         },
         // The name of the resource group where the Function App is deployed
         "FunctionAppResourceGroup": {
-            "type": "String"
+            "type": "String",
+            "defaultValue": "[resourceGroup().name]"
         },
         // The name of the Log Analytics Workspace for monitoring and logging
         "LogAnalyticsWorkspaceName": {
@@ -186,7 +192,7 @@
                 "type": "UserAssigned", // Configures the Logic App to use a User-Assigned Managed Identity (UAMI)
                 "userAssignedIdentities": {
                     // Dynamically constructs the resource ID for the User-Assigned Managed Identity
-                    "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentity'))]": {}
+                    "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/',parameters('ManagedServiceIdentityResourceGroup'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentity'))]": {}
                 }
             },
             "dependsOn": [
@@ -1339,7 +1345,7 @@
                                 "connectionProperties": {
                                     "authentication": {
                                         "type": "ManagedServiceIdentity", // Specifies that this connection uses a User-Assigned Managed Identity for authentication
-                                        "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().location, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('ManagedServiceIdentity'))]" // Dynamically constructs the resource ID for the managed identity
+                                        "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('ManagedServiceIdentity'))]" // Dynamically constructs the resource ID for the managed identity
                                     }
                                 }
                             },
