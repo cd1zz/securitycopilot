@@ -5,8 +5,7 @@
     "parameters": {
         // The subscription ID where resources will be deployed
         "SubscriptionId": {
-            "type": "String",
-            "defaultValue": "[subscription().id]"
+            "type": "String"
         },
         // The name of the Logic App to be deployed
         "LogicAppName": {
@@ -21,8 +20,7 @@
             "type": "String"
         },
         "ManagedServiceIdentityResourceGroup": {
-            "type": "String",
-            "defaultValue": "[resourceGroup().name]"
+            "type": "String"
         },
         // The name of the Azure Function App that will be called by the Logic App
         "FunctionAppName": {
@@ -30,8 +28,7 @@
         },
         // The name of the resource group where the Function App is deployed
         "FunctionAppResourceGroup": {
-            "type": "String",
-            "defaultValue": "[resourceGroup().name]"
+            "type": "String"
         },
         // The name of the Log Analytics Workspace for monitoring and logging
         "LogAnalyticsWorkspaceName": {
