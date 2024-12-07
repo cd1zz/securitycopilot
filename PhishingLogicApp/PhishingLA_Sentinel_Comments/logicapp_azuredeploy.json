@@ -24,7 +24,7 @@
         "ManagedServiceIdentity": {
             "type": "String",
             "metadata": {
-                "description": "The User-Assigned Managed Identity (UAMI) to provide permissions to resources. Must be created prior to deployment. Grant 'Reader' and 'Microsoft Sentinel Reader' Azure roles."
+                "description": "The User-Assigned Managed Identity (UAMI) to provide permissions to resources. UAMI must be created prior to deployment. Grant 'Reader' and 'Microsoft Sentinel Reader' Azure roles."
             }
         },
         "ManagedServiceIdentityResourceGroup": {
