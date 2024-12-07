@@ -3,42 +3,62 @@
     "contentVersion": "1.0.0.0",
     // Parameter definitions: allows passing values during deployment to make the template reusable
     "parameters": {
-        // The subscription ID where resources will be deployed
         "SubscriptionId": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The subscription ID where resources will be deployed."
+            }
         },
-        // The name of the Logic App to be deployed
         "LogicAppName": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The name of the Logic App to be deployed."
+            }
         },
-        // The name of the Integration Account to link with the Logic App
         "IntegrationAccountName": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The name of the Integration Account to link with the Logic App. Required for running inline code for regex purposes."
+            }
         },
-        // The User-Assigned Managed Identity (UAMI) to provide permissions to resources
         "ManagedServiceIdentity": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The User-Assigned Managed Identity (UAMI) to provide permissions to resources. Must be created prior to deployment. Grant 'Reader' and 'Microsoft Sentinel Reader' Azure roles."
+            }
         },
         "ManagedServiceIdentityResourceGroup": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The name of the resource group where the Managed Identity is located."
+            }
         },
-        // The name of the Azure Function App that will be called by the Logic App
         "FunctionAppName": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The name of the Azure Function App created prior, that will be called by the Logic App."
+            }
         },
-        // The name of the resource group where the Function App is deployed
         "FunctionAppResourceGroup": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The name of the resource group where the Function App is deployed."
+            }
         },
-        // The name of the Log Analytics Workspace for monitoring and logging
         "LogAnalyticsWorkspaceName": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The name of the Log Analytics Workspace for where Sentinel lives."
+            }
         },
-        // The resource ID of the Log Analytics Workspace
         "LogAnalyticsWorkspaceId": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The workspace ID of the Log Analytics Sentinel Workspace."
+            }
         }
     },
+
 
     // Variable definitions: dynamically constructs resource names and other values
     "variables": {
