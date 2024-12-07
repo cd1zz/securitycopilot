@@ -1339,7 +1339,7 @@
                                 "connectionProperties": {
                                     "authentication": {
                                         "type": "ManagedServiceIdentity", // Specifies that this connection uses a User-Assigned Managed Identity for authentication
-                                        "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('ManagedServiceIdentity'))]" // Dynamically constructs the resource ID for the managed identity
+                                        "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().location, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('ManagedServiceIdentity'))]" // Dynamically constructs the resource ID for the managed identity
                                     }
                                 }
                             },
