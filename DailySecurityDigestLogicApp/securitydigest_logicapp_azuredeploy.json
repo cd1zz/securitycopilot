@@ -1,0 +1,272 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "LogicAppName": {
+            "type": "String",
+            "metadata": {
+                "description": "The name of the Logic App to be deployed."
+            }
+        },
+        "ReportEmailedTo": {
+            "type": "String",
+            "metadata": {
+                "description": "Email or distribution address to send the final report."
+            }
+        },
+        "SubscriptionId": {
+            "type": "String",
+            "metadata": {
+                "description": "The subscription ID where resources will be deployed."
+            }
+        }
+    },
+    "variables": {
+        // Creates a name for the Office 365 connection, appending the Logic App name for uniqueness
+        "Office365-ConnectionName": "[concat('Office365-1-', parameters('LogicAppName'))]",
+
+        // Creates a name for the Security Copilot connection, appending the Logic App name for uniqueness
+        "Securitycopilot-ConnectionName": "[concat('Securitycopilot-1-', parameters('LogicAppName'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('LogicAppName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "Recurrence": {
+                            "recurrence": {
+                                "interval": 24,
+                                "frequency": "Hour"
+                            },
+                            "evaluatedRecurrence": {
+                                "interval": 24,
+                                "frequency": "Hour"
+                            },
+                            "type": "Recurrence"
+                        }
+                    },
+                    "actions": {
+                        "High_Sev_Incidents": {
+                            "runAfter": {},
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['securitycopilot']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "body": {
+                                    "PromptContent": "How many high severity incidents are open right now?"
+                                },
+                                "path": "/process-prompt"
+                            }
+                        },
+                        "Summarize_incidents": {
+                            "runAfter": {
+                                "High_Sev_Incidents": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['securitycopilot']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "body": {
+                                    "PromptContent": "Summarize each incident. Include the title and the incident url.",
+                                    "SessionId": "@body('High_Sev_Incidents')?['sessionId']"
+                                },
+                                "path": "/process-prompt"
+                            }
+                        },
+                        "Threat_Intel": {
+                            "runAfter": {
+                                "Summarize_incidents": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['securitycopilot']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "body": {
+                                    "PromptContent": "Which threats should I focus on based on their exposure scores?",
+                                    "SessionId": "@body('High_Sev_Incidents')?['sessionId']",
+                                    "SkillName": "FindThreatIntelligence"
+                                },
+                                "path": "/process-prompt"
+                            }
+                        },
+                        "New_CVEs": {
+                            "runAfter": {
+                                "Threat_Intel": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['securitycopilot']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "body": {
+                                    "PromptContent": "Summarize the top five recent critical CVEs published.",
+                                    "SessionId": "@body('High_Sev_Incidents')?['sessionId']",
+                                    "Skillsets": [
+                                        "ThreatIntelligence.DTI"
+                                    ],
+                                    "SkillName": "GetCvesByKeywordSearchDti"
+                                },
+                                "path": "/process-prompt"
+                            }
+                        },
+                        "Risky_users": {
+                            "runAfter": {
+                                "New_CVEs": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['securitycopilot']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "body": {
+                                    "PromptContent": "Who are my riskiest users?",
+                                    "SessionId": "@body('High_Sev_Incidents')?['sessionId']"
+                                },
+                                "path": "/process-prompt"
+                            }
+                        },
+                        "HTML_Summary_Report": {
+                            "runAfter": {
+                                "Risky_users": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['securitycopilot']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "body": {
+                                    "PromptContent": "/AskGpt\n\nGenerate a daily security update in HTML format using the following template. Ensure that each section is updated dynamically with new content, but the structure remains consistent.\n\n**HTML Template:**\n\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Daily Security Update</title>\n    <style>\n        body { font-family: Arial, sans-serif; background-color: #f4f7fa; color: #333; }\n        .container { max-width: 800px; margin: auto; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }\n        h1 { color: #2a3b4f; text-align: center; }\n        h2 { color: #4e5d6c; border-bottom: 1px solid #dcdde1; padding-bottom: 5px; }\n        .section { margin-bottom: 20px; }\n        .incident, .threat-intel, .cve, .risky-user {\n            background-color: #f9fbfd; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #527a99;\n        }\n        .header { font-weight: bold; color: #333; }\n        ul { padding-left: 20px; color: #333; }\n        .incident { border-left-color: #ff6b6b; }\n        .threat-intel { border-left-color: #ffa94d; }\n        .cve { border-left-color: #5ca9c9; }\n        .risky-user { border-left-color: #8c9ccf; }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <h1>Daily Security Update</h1>\n        \n        <div class=\"section\">\n            <h2>High Severity Incidents</h2>\n            <!-- Loop through each high severity incident and display it in this section -->\n            <div class=\"incident\">\n                <p><span class=\"header\">Incident ID:</span> [Incident_ID]</p>\n                <p><span class=\"header\">Description:</span> [Description]</p>\n                <p><span class=\"header\">Date Opened:</span> [Date_Opened]</p>\n                <p><span class=\"header\">Status:</span> [Status]</p>\n                <p><span class=\"header\">Key Findings:</span> [Key_Findings]</p>\n            </div>\n            <!-- Repeat the .incident div for each incident -->\n        </div>\n        \n        <div class=\"section\">\n            <h2>New Threat Intelligence Updates</h2>\n            <!-- Loop through each threat intelligence update and display it in this section -->\n            <div class=\"threat-intel\">\n                <p><span class=\"header\">Date:</span> [Update_Date]</p>\n                <p><span class=\"header\">Threat Type:</span> [Threat_Type]</p>\n                <p><span class=\"header\">Summary:</span> [Provide a brief summary here in a few sentences]</p>\n                <ul>\n                    <li><span class=\"header\">Key Point 1:</span> [Description, with reference if applicable]</li>\n                    <li><span class=\"header\">Key Point 2:</span> [Description, with reference if applicable]</li>\n                    <li><span class=\"header\">Key Point 3:</span> [Description, with reference if applicable]</li>\n                    <!-- Add more bullet points as needed -->\n                </ul>\n                <p><span class=\"header\">Source:</span> [Source]</p>\n            </div>\n            <!-- Repeat the .threat-intel div for each update -->\n        </div>\n\n        <div class=\"section\">\n            <h2>New Critical CVEs</h2>\n            <!-- Loop through each critical CVE and display it in this section -->\n            <div class=\"cve\">\n                <p><span class=\"header\">CVE ID:</span> [CVE_ID]</p>\n                <p><span class=\"header\">Severity:</span> [Severity]</p>\n                <p><span class=\"header\">Description:</span> [Description]</p>\n                <p><span class=\"header\">Affected Systems:</span> [Affected_Systems]</p>\n                <p><span class=\"header\">Mitigation:</span> [Mitigation]</p>\n            </div>\n            <!-- Repeat the .cve div for each CVE -->\n        </div>\n        \n        <div class=\"section\">\n            <h2>Riskiest Entra Users</h2>\n            <!-- Loop through each risky user and display it in this section -->\n            <div class=\"risky-user\">\n                <p><span class=\"header\">User ID:</span> [User_ID]</p>\n                <p><span class=\"header\">Risk Level:</span> [Risk_Level]</p>\n                <p><span class=\"header\">Notable Activities:</span> [Notable_Activities]</p>\n                <p><span class=\"header\">Recommended Actions:</span> [Recommended_Actions]</p>\n            </div>\n            <!-- Repeat the .risky-user div for each user -->\n        </div>\n    </div>\n</body>\n</html>\n\n\n**Instructions:**\n\n1. **Replace the placeholders** (e.g., `[Incident_ID]`, `[Description]`, etc.) with the actual data from today's session.\n2. **Loop through** each relevant item in each section so that each high severity incident, threat intelligence update, and risky user appears within its respective template block.\n3. Ensure the final output adheres to this HTML structure for consistent daily updates.\n\n---",
+                                    "SessionId": "@body('High_Sev_Incidents')?['sessionId']"
+                                },
+                                "path": "/process-prompt"
+                            }
+                        },
+                        "Send_an_email_(V2)": {
+                            "runAfter": {
+                                "Parse_JSON": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['office365']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "body": {
+                                    "To": "[parameters('ReportEmailedTo')]",
+                                    "Subject": "Daily Security Briefing",
+                                    "Body": "<br><div>@{replace(body('Parse_JSON')?['evaluationResultContent'], '\\n', '<br>')}</div><p></p>",
+                                    "Importance": "Normal"
+                                },
+                                "path": "/v2/Mail"
+                            }
+                        },
+                        "Parse_JSON": {
+                            "runAfter": {
+                                "HTML_Summary_Report": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('HTML_Summary_Report')",
+                                "schema": {
+                                    "properties": {
+                                        "evaluationResultContent": {
+                                            "type": "string"
+                                        },
+                                        "evaluationResultType": {
+                                            "type": "string"
+                                        },
+                                        "promptContent": {
+                                            "type": "string"
+                                        },
+                                        "sessionId": {
+                                            "type": "string"
+                                        },
+                                        "skillName": {
+                                            "type": "string"
+                                        },
+                                        "skillSources": {
+                                            "type": "array"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            // Office 365 connection
+                            // Provides access to Office 365 APIs for email and other services
+                            "office365": {
+                                "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]", // Dynamically constructs the API reference for Office 365
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office365-ConnectionName'))]", // References the specific Office 365 connection instance
+                                "connectionName": "[variables('Office365-ConnectionName')]" // Uses the variable to define the connection name
+                            },
+
+                            // Security Copilot connection
+                            // Connects to Security Copilot for advanced security analysis
+                            "securitycopilot": {
+                                "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/securitycopilot')]", // Dynamically constructs the API reference for Security Copilot
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Securitycopilot-ConnectionName'))]", // References the specific Security Copilot connection instance
+                                "connectionName": "[variables('Securitycopilot-ConnectionName')]" // Uses the variable to define the connection name
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}
