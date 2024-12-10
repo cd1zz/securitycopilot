@@ -756,34 +756,6 @@
                                 }
                             }
                         },
-                        "Initialize_variable_defender_incident": {
-                            "runAfter": {},
-                            "type": "InitializeVariable",
-                            "inputs": {
-                                "variables": [
-                                    {
-                                        "name": "is_defender_incident",
-                                        "type": "boolean"
-                                    }
-                                ]
-                            }
-                        },
-                        "Initialize_variable_systemalertid_query_results": {
-                            "runAfter": {
-                                "Generate_HTML_report_from_JSON": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "InitializeVariable",
-                            "inputs": {
-                                "variables": [
-                                    {
-                                        "name": "systemalertid_query_results",
-                                        "type": "array"
-                                    }
-                                ]
-                            }
-                        },
                         "Initialize_variable_recipient_upn": {
                             "runAfter": {
                                 "Process_parseEmail_JSON": [
