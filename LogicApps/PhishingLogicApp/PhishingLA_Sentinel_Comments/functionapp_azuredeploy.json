@@ -33,6 +33,7 @@
             },
             "kind": "StorageV2",
             "properties": {
+                "minimumTlsVersion": "TLS1_2",
                 "networkAcls": {
                     "bypass": "AzureServices",
                     "virtualNetworkRules": [
@@ -177,18 +178,6 @@
                     ],
                     "supportCredentials": false
                 }
-            }
-        },
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-            "apiVersion": "2019-06-01",
-            "name": "[concat(variables('StorageAccountName'), '/default/azure-webjobs-hosts')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
-            ],
-            "properties": {
-                "publicAccess": "None"
             }
         },
         {
