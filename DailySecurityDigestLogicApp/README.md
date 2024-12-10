@@ -15,8 +15,8 @@ This Logic App automates the creation and delivery of a daily security update, s
 
 1. **Azure Subscription:** Ensure you have an active Azure subscription.
 2. **Connections:**
-   - Office 365 for email delivery.
-   - Security Copilot for data retrieval and analysis.
+   - Office 365 for email delivery. Created on deployment. 
+   - Security Copilot for data retrieval and analysis. Security Copilot and SCUs must already be provisioned. 
 3. **Parameters:**
    - `LogicAppName`: The name of the Logic App.
    - `ReportEmailedTo`: The email address to send the report.
