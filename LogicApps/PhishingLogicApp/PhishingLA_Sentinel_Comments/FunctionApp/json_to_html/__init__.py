@@ -1,11 +1,18 @@
 import logging
-from urllib.parse import unquote
 from jinja2 import Template
+from urllib.parse import unquote
 import azure.functions as func
 
-def create_html(json_data):
 
-    # Define HTML structure using the provided CSS
+CATEGORY_STYLES = {
+    "PHISHING": "background-color: #d9534f; color: white; padding: 5px 10px; text-transform: uppercase;",
+    "JUNK/SPAM": "background-color: #f0ad4e; color: white; padding: 5px 10px; text-transform: uppercase;",
+    "LEGITIMATE": "background-color: #5cb85c; color: white; padding: 5px 10px; text-transform: uppercase;",
+    "SUSPICIOUS": "background-color: #f0ad4e; color: white; padding: 5px 10px; text-transform: uppercase;",
+    "DEFAULT": "background-color: #cccccc; color: white; padding: 5px 10px; text-transform: uppercase;"
+}
+
+def create_html(json_data):
     html_template = '''
     <html>
     <head>
@@ -21,60 +28,6 @@ def create_html(json_data):
                 color: #4CAF50;
                 border-bottom: 2px solid #4CAF50;
                 padding-bottom: 5px;
-            }
-            h3 {
-                color: #2196F3;
-                margin-top: 10px;
-            }
-            p {
-                font-size: 1em;
-            }
-            ul {
-                list-style-type: none;
-                padding-left: 0;
-            }
-
-            ul li {
-                margin: 5px 0;
-            }
-
-            .styled-list-item {
-                border-left: 5px solid #2196F3;
-                padding: 10px;
-                margin: 5px 0;
-                background: #e7f3fe;
-                border-radius: 4px;
-                word-break: break-word;
-            }
-            .section {
-                margin-bottom: 30px;
-                padding: 15px;
-                background-color: #ffffff;
-                border-radius: 8px;
-                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            }
-            .classification {
-                color: white;
-                padding: 5px 10px;
-                border-radius: 3px;
-                display: inline-block;
-                text-transform: uppercase;
-            }
-
-            .phishing {
-                background-color: #d9534f; /* Red for malicious/phishing */
-            }
-            .junk-spam {
-                background-color: #f0ad4e; /* Orange for junk/spam */
-            }
-            .legitimate {
-                background-color: #5cb85c; /* Green for legitimate */
-            }
-            .suspicious {
-                background-color: #f0ad4e; /* Yellow for suspicious */
-            }
-            .default {
-                background-color: #cccccc; /* Gray for default/unknown */
             }
         </style>
     </head>
@@ -93,7 +46,7 @@ def create_html(json_data):
         ] %}
         {% for section in section_order %}
             {% if section in json_data %}
-                <div class='section'>
+                <div class="section">
                     <h2>{{ section.replace('_', ' ').title() }}</h2>
                     
                     {% if 'description' in json_data[section] %}
@@ -103,12 +56,8 @@ def create_html(json_data):
                     {% if section == 'final_assessment' %}
                         <p>
                             <strong>Category:</strong>
-                            <span class="classification{% if json_data[section]['category']|upper == 'PHISHING' %} phishing
-                            {% elif json_data[section]['category']|upper == 'JUNK/SPAM' %} junk-spam
-                            {% elif json_data[section]['category']|upper == 'LEGITIMATE' %} legitimate
-                            {% elif json_data[section]['category']|upper == 'SUSPICIOUS' %} suspicious
-                            {% else %} default{% endif %}">
-                            {{ json_data[section]['category']|upper if json_data[section]['category'] else 'N/A' }}
+                            <span style="{{ category_styles.get(json_data[section]['category']|upper, category_styles['DEFAULT']) }}">
+                                {{ json_data[section]['category']|upper if json_data[section]['category'] else 'N/A' }}
                             </span>
                         </p>
                         <p><strong>Rationale:</strong> {{ json_data[section]['rationale'] if json_data[section]['rationale'] else 'N/A' }}</p>
@@ -161,14 +110,13 @@ def create_html(json_data):
             {% endif %}
         {% endfor %}
     </body>
-
-    </html>    
+    </html>
     '''
-    # Use Jinja2 Template to render HTML with provided JSON data
+    
+    # Render template
     template = Template(html_template)
-    rendered_html = template.render(json_data=json_data)
+    return template.render(json_data=json_data, category_styles=CATEGORY_STYLES)
 
-    return rendered_html
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Processing request to generate phishing HTML report.')
