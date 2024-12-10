@@ -1,6 +1,9 @@
-/phishinglogicapp/.vscode
-/phishinglogicapp/FunctionApp/local.settings.json
-/phishinglogicapp/FunctionApp/testutils/
-/funcapp_backup/
-/sample_emails/
-/.vscode/
+# Ignore .vscode folder in any directory
+**/.vscode/
+
+# Ignore local.settings.json in any directory
+**/local.settings.json
+
+# Ignore .eml and .msg files in any directory
+**/*.eml
+**/*.msg
