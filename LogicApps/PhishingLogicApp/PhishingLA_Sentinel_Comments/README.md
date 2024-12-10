@@ -54,7 +54,7 @@ Click the button below to deploy the Logic App. You will be prompted to input th
 - **LogAnalyticsWorkspaceName**: The name of the Log Analytics Workspace associated with Sentinel.
 - **LogAnalyticsWorkspaceId**: The workspace ID of the Log Analytics Sentinel Workspace.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FPhishingLogicApp%2FPhishingLA_Sentinel_Comments%2Flogicapp_azuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Sentinel_Comments%2Flogicapp_azuredeploy.json)
 
 #### Notes:
 1. Ensure that all prerequisite resources, such as the Managed Identity, Integration Account, and Function App, are created and configured before deploying the Logic App.
