@@ -155,7 +155,7 @@
                         "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2019-06-01').keys[0].value, ';EndpointSuffix=core.windows.net')]",
                         "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2019-06-01').keys[0].value, ';EndpointSuffix=core.windows.net')]",
                         "WEBSITE_CONTENTSHARE": "[toLower(variables('FunctionName'))]",
-                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/cd1zz/securitycopilot/raw/refs/heads/main/LogicApps/PhishingLogicApp/PhishingLA_Sentinel_Comments/FunctionApp.zip",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/LogicApps/PhishingLogicApp/PhishingLA_Sentinel_Comments/functionapp_azuredeploy.json",
                         "SCM_DO_BUILD_DURING_DEPLOYMENT": true
 
                     }
