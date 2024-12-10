@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import unquote
 from jinja2 import Template
 import azure.functions as func
 
@@ -102,19 +103,12 @@ def create_html(json_data):
                     {% if section == 'final_assessment' %}
                         <p>
                             <strong>Category:</strong>
-                            <span class="classification 
-                                {% if json_data[section]['category']|upper == 'PHISHING' %}
-                                    phishing
-                                {% elif json_data[section]['category']|upper == 'JUNK/SPAM' %}
-                                    junk-spam
-                                {% elif json_data[section]['category']|upper == 'LEGITIMATE' %}
-                                    legitimate
-                                {% elif json_data[section]['category']|upper == 'SUSPICIOUS' %}
-                                    suspicious
-                                {% else %}
-                                    default
-                                {% endif %}">
-                                {{ json_data[section]['category']|upper if json_data[section]['category'] else 'N/A' }}
+                            <span class="classification{% if json_data[section]['category']|upper == 'PHISHING' %} phishing
+                            {% elif json_data[section]['category']|upper == 'JUNK/SPAM' %} junk-spam
+                            {% elif json_data[section]['category']|upper == 'LEGITIMATE' %} legitimate
+                            {% elif json_data[section]['category']|upper == 'SUSPICIOUS' %} suspicious
+                            {% else %} default{% endif %}">
+                            {{ json_data[section]['category']|upper if json_data[section]['category'] else 'N/A' }}
                             </span>
                         </p>
                         <p><strong>Rationale:</strong> {{ json_data[section]['rationale'] if json_data[section]['rationale'] else 'N/A' }}</p>
@@ -194,13 +188,15 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         # Generate HTML Report using the helper function
         html_report = create_html(req_body)
+        html_report = unquote(html_report)
 
         # Return HTML Report as response
         logging.info("Returning generated HTML report.")
         return func.HttpResponse(
             html_report,
             status_code=200,
-            mimetype="text/html"
+            mimetype="text/html",
+            charset="utf-8"
         )
 
     except ValueError as e:

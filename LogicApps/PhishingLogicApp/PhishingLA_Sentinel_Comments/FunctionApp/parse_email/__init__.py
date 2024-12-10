@@ -4,6 +4,7 @@ import hashlib
 import tldextract
 import ipaddress
 import logging
+import traceback
 from email import policy
 from email.parser import BytesParser
 from email.message import EmailMessage
@@ -767,6 +768,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     Returns:
     func.HttpResponse: The HTTP response object containing parsed email data or an error message.
     """
+    logger = logging.getLogger("AzureFunction")
     logger.info('Python HTTP trigger function processed a request.')
 
     try:
@@ -813,10 +815,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     except ValueError as e:
         logger.error(f"Value error processing request: {e}")
+        logger.debug("Stack Trace:", exc_info=True)
         return func.HttpResponse(f"Value error: {e}", status_code=400)
     except TypeError as e:
         logger.error(f"Type error processing request: {e}")
+        logger.debug("Stack Trace:", exc_info=True)
         return func.HttpResponse(f"Type error: {e}", status_code=400)
     except Exception as e:
         logger.error(f"General error processing request: {e}")
-        return func.HttpResponse(f"Error: {e}", status_code=500)
+        logger.debug("Stack Trace:", exc_info=True)
+        return func.HttpResponse(f"Error: {e}\n{traceback.format_exc()}", status_code=500)
