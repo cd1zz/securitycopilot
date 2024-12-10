@@ -196,7 +196,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             html_report,
             status_code=200,
             mimetype="text/html",
-            charset="utf-8"
+            headers={
+                "Content-Type": "text/html; charset=utf-8"
+            }
         )
 
     except ValueError as e:
