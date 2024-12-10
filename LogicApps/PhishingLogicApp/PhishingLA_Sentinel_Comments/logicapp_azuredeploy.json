@@ -18,7 +18,7 @@
         "IntegrationAccountName": {
             "type": "String",
             "metadata": {
-                "description": "The name of the Integration Account to link with the Logic App. Required for running inline code for regex purposes."
+                "description": "The name of the Integration Account to link with the Logic App. Required for running inline code for regex purposes. Created during this deployment."
             }
         },
         "ManagedServiceIdentity": {
@@ -36,7 +36,7 @@
         "FunctionAppName": {
             "type": "String",
             "metadata": {
-                "description": "The name of the Azure Function App created prior, that will be called by the Logic App."
+                "description": "The name of the Azure Function App created during previous Function App deployment."
             }
         },
         "FunctionAppResourceGroup": {
