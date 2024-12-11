@@ -468,3 +468,39 @@ SkillGroups:
             | where UserPrincipalName == "{{upn}}"
             | project UserPrincipalName, TimeGenerated, PreviousTime, IPAddress, PreviousIPAddress, DistanceMiles, TimeDifferenceHours, VelocityMph, Country, PreviousCountry
 
+      - Name: Suspicious Mailbox Activities
+        DisplayName: User Enrichment - Suspicious Mailbox Activities
+          Description: |-
+          - Investigate any recent Mailbox Permission for this User
+          - Are there any rules created or modified that could redirect or filter emails in a suspicious manner?
+          - Focus on identifying any newly created rules that may redirect incoming emails to unusual folders or external addresses, as this could indicate an attempt to manipulate email flow for malicious purposes
+          - If no anomalies are found, confirm the user's activity is consistent.
+        Inputs:
+          - Name: upn
+            Description: User principle name. i.e., mscott@test.com
+            Required: true
+        Settings:
+          Target: Defender
+          Template: |-
+            // Mailbox Investigation of suspicious users. To detect potential suspicious activities, we filter Exchange Online action types that could be used for exfiltration and BEC. This allows us to investigate whether the targeted end-user is involved in any suspicious actions.
+            // Examine activities of a user from Suspicious Mailbox actions and UPN risk in Entra Id and Defender          
+            let UPN = "{{upn}}"; // Replace with the specific users email
+            let TimeFrame = ago(30d);
+            // Identify the most frequently used IP address for the user.
+            CloudAppEvents
+             | where TimeGenerated > TimeFrame
+              | extend parsed = parse_json(RawEventData)
+              | where ActionType in ("Add-MailboxPermission", "New-ManagementRoleAssignment", "Add-MailboxFolderPermission", "New-InboxRule", "Set-InboxRule", "Set-Mailbox", "New-TransportRule", "Set-TransportRule")
+              | where isnotempty(RawEventData.UserId)
+              | where isnotempty(RawEventData.ObjectId)
+              | extend parsed = parse_json(RawEventData)
+              | extend UPN = tostring(parsed.UserId)
+              | where upn =~ upn        
+              | extend Parameters = parsed.Parameters
+              | mv-expand Parameters
+              | extend Name = tostring(Parameters.Name)
+              | extend Value = tostring(Parameters.Value)
+              | extend packed = pack(Name, Value)
+              | where Parameters has_any("DeleteMessage") or (Parameters has_any("MoveToFolder") and Parameters has_any("Conversation History"))
+              | summarize PackedInfo = make_bag(packed), ActionType=any(ActionType) by UPN, AccountObjectId, IPAddress, ISP, ReportId, TimeGenerated
+              | evaluate bag_unpack(PackedInfo)
