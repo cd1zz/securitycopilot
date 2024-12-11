@@ -1,9 +1,6 @@
-# Ignore .vscode folder in any directory
 **/.vscode/
-
-# Ignore local.settings.json in any directory
+**/.venv/
+**/venv/
 **/local.settings.json
-
-# Ignore .eml and .msg files in any directory
 **/*.eml
 **/*.msg
