@@ -496,7 +496,7 @@ SkillGroups:
               | where isnotempty(RawEventData.ObjectId)
               | extend parsed = parse_json(RawEventData)
               | extend UPN = tostring(parsed.UserId)
-              | where upn =~ upn        
+              | where UPN =~ UPN        
               | extend Parameters = parsed.Parameters
               | mv-expand Parameters
               | extend Name = tostring(Parameters.Name)
