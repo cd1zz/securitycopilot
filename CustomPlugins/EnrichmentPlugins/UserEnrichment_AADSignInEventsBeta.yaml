@@ -27,7 +27,7 @@ SkillGroups:
           This skill enables security analysts to detect and respond to potential sign-in threats effectively.
         Description: Identify unusual sign-in patterns for a specific user based on anomalies such as high-risk locations, login failures, and sudden changes in device, application, or IP address usage. Highlights deviations from normal behavior and provides recommendations for security actions.
         Inputs:
-          - Name: upn
+          - Name: UPN
             Description: User principal name, e.g., mscott@woodgrove.ms
             Required: true
         Settings:
@@ -37,19 +37,24 @@ SkillGroups:
             // It analyzes login patterns, focusing on anomalies such as high failure rates, sign-ins from unfamiliar IPs or devices, or abnormal client applications.
             // Deviations from the usual patterns may indicate suspicious activity, prompting security actions like MFA review or password reset.
             // The output includes IP addresses, device IDs, and user agents to assist in identifying unusual behavior.
-            let UPN = "{{upn}}";  // Replace with the specific users upn
+            let UPN = {{UPN}}";  // Replace with the specific users upn
             let TimeFrame = ago(30d);
             // Retrieve and summarize the user's login activity, focusing on successful vs failed attempts and identifying unusual patterns.
             AADSignInEventsBeta
             | where TimeGenerated > TimeFrame
+            | where LogonType !contains "nonInteractiveUser"
             | where AccountUpn == UPN
-            | summarize FirstSeen = min(TimeGenerated), LastObserved = max(TimeGenerated), SuccessfullCount = count(ErrorCode = 0), FailureCount = count(ErrorCode != 0)
-            by AccountUpn, IPAddress, City, State, Country, DeviceName, UserAgent, ClientAppUsed, Application
+            | summarize
+                FirstSeen = min(TimeGenerated),
+                LastObserved = max(TimeGenerated),
+                SuccessfullCount = sumif(1, ErrorCode == "0"),
+                FailureCount = sumif(1, ErrorCode != "0")
+            by AccountUpn, IPAddress, Country, City, State, DeviceName, UserAgent, ClientAppUsed, Application
 
       - Name: PasswordChangeCount
         DisplayName: Password Change Count
         DescriptionForModel: |- 
-          Performs a KQL query on the `AADSignInEventsBeta` table to track password changes for a specified user within the last 7 days. Key features include:
+          Performs a KQL query on the `AuditLogs` table to track password changes for a specified user within the last 7 days. Key features include:
             - **Password Change Detection**: Identifies the number of password changes and their timing.
             - **Anomaly Detection**: Highlights unusual patterns such as:
               - Multiple password changes within a short timeframe.
@@ -199,7 +204,7 @@ SkillGroups:
       - Name: UserSigninBaseline
         DisplayName: User Baseline Information
         DescriptionForModel: |- 
-          Performs a KQL query on the `SigninLogs` table to create a baseline of typical user sign-in activity for the past 30 days. Key features include:
+          Performs a KQL query on the `AADSignInEventsBeta` table to create a baseline of typical user sign-in activity for the past 30 days. Key features include:
 
           - **Baseline Data**:
             - Most frequently used `IPAddress`: Identifies the typical network used for sign-ins.
@@ -242,15 +247,15 @@ SkillGroups:
                 | project IPAddress
             );
             // Identify the most frequently used location (e.g., city, country) for the user.
-                        let MostCommonLocation = toscalar(
-                            AADSignInEventsBeta
-                            | where Timestamp > TimeFrame
-                            | where AccountUpn =~ UPN
-                            | extend Location = strcat(City, ", ", State, ", ", Country)
-                            | summarize LocationCount = count() by Location
-                            | top 1 by LocationCount desc
-                            | project Location
-                        );
+            let MostCommonLocation = toscalar(
+                AADSignInEventsBeta
+                | where Timestamp > TimeFrame
+                | where AccountUpn =~ UPN
+                | extend Location = strcat(City, ", ", State, ", ", Country)
+                | summarize LocationCount = count() by Location
+                | top 1 by LocationCount desc
+                | project Location
+            );
             // Identify the most frequently used device ID for the user.
             let MostCommonDeviceId = toscalar(
                 AADSignInEventsBeta
@@ -412,23 +417,15 @@ SkillGroups:
           Template: |-
             // Mailbox Investigation of suspicious users. To detect potential suspicious activities, we filter Exchange Online action types that could be used for exfiltration and BEC. This allows us to investigate whether the targeted end-user is involved in any suspicious actions.
             // Examine activities of a user from Suspicious Mailbox actions and UPN risk in Entra Id and Defender          
-            let UPN = "{{upn}}"; // Replace with the specific users email
-            let TimeFrame = ago(30d);
-            // Identify the most frequently used IP address for the user.
-            CloudAppEvents
-             | where TimeGenerated > TimeFrame
-              | extend parsed = parse_json(RawEventData)
-              | where ActionType in ("Add-MailboxPermission", "New-ManagementRoleAssignment", "Add-MailboxFolderPermission", "New-InboxRule", "Set-InboxRule", "Set-Mailbox", "New-TransportRule", "Set-TransportRule")
-              | where isnotempty(RawEventData.UserId)
-              | where isnotempty(RawEventData.ObjectId)
-              | extend parsed = parse_json(RawEventData)
-              | extend UPN = tostring(parsed.UserId)
-              | where UPN =~ UPN        
-              | extend Parameters = parsed.Parameters
-              | mv-expand Parameters
-              | extend Name = tostring(Parameters.Name)
-              | extend Value = tostring(Parameters.Value)
-              | extend packed = pack(Name, Value)
-              | where Parameters has_any("DeleteMessage") or (Parameters has_any("MoveToFolder") and Parameters has_any("Conversation History"))
-              | summarize PackedInfo = make_bag(packed), ActionType=any(ActionType) by UPN, AccountObjectId, IPAddress, ISP, ReportId, TimeGenerated
-              | evaluate bag_unpack(PackedInfo)
+            let upn = "{{upn}}";
+            let TimePeriod = 30d;
+            let CompromisedUser = UserMailBox;
+            OfficeActivity
+            | where TimeGenerated >= ago(TimePeriod)
+            | extend EST = datetime_utc_to_local(TimeGenerated, "US/Eastern")
+            | where tolower(UserId) in (CompromisedUser)
+            | where Operation in ("Add-MailboxPermission", "New-ManagementRoleAssignment", "Add-MailboxFolderPermission", "New-InboxRule", "Set-InboxRule", "Set-Mailbox", "New-TransportRule", "Set-TransportRule")
+            | extend Name_ = tostring(parse_json(Parameters)[3].Name)
+            | extend Value_ = tostring(parse_json(Parameters)[3].Value)
+            | extend Value2_ = tostring(parse_json(Parameters)[4].Value)
+            | extend Value4_ = tostring(parse_json(Parameters)[4].Value)
