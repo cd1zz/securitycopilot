@@ -37,7 +37,7 @@ SkillGroups:
             // It analyzes login patterns, focusing on anomalies such as high failure rates, sign-ins from unfamiliar IPs or devices, or abnormal client applications.
             // Deviations from the usual patterns may indicate suspicious activity, prompting security actions like MFA review or password reset.
             // The output includes IP addresses, device IDs, and user agents to assist in identifying unusual behavior.
-            let UPN = {{UPN}}";  // Replace with the specific users upn
+            let UPN = "{{UPN}}";  // Replace with the specific users upn
             let TimeFrame = ago(30d);
             // Retrieve and summarize the user's login activity, focusing on successful vs failed attempts and identifying unusual patterns.
             AADSignInEventsBeta
