@@ -21,7 +21,7 @@
                 "description": "The name of the Integration Account to link with the Logic App. Required for running inline code for regex purposes. Created during this deployment."
             }
         },
-        "ManagedServiceIdentity": {
+        "ManagedServiceIdentityName": {
             "type": "String",
             "metadata": {
                 "description": "The User-Assigned Managed Identity (UAMI) to provide permissions to resources. UAMI must be created prior to deployment. Grant 'Reader' and 'Microsoft Sentinel Reader' Azure roles."
@@ -74,46 +74,32 @@
     "variables": {
         // Creates a name for the Office 365 connection, appending the Logic App name for uniqueness
         "Office365-ConnectionName": "[concat('Office365-1-', parameters('LogicAppName'))]",
-
         // Creates a name for the Security Copilot connection, appending the Logic App name for uniqueness
         "Securitycopilot-ConnectionName": "[concat('Securitycopilot-1-', parameters('LogicAppName'))]",
-
         // Creates a name for the Conversion Service connection, appending the Logic App name for uniqueness
         "ConversionService-ConnectionName": "[concat('ConversionService-1-', parameters('LogicAppName'))]",
-
         // Creates a name for the Azure Sentinel connection, appending the Logic App name for uniqueness
         "AzureSentinel-ConnectionName": "[concat('AzureSentinel-1-', parameters('LogicAppName'))]",
-
         // Creates a name for the Azure Monitor Logs connection, appending the Logic App name for uniqueness
         "AzureMonitorLogs-ConnectionName": "[concat('AzureMonitorLogs-1-', parameters('LogicAppName'))]",
-
         // The name of the Azure Function used for parsing email
         "FunctionName01": "parse_email",
-
         // The name of the Azure Function used for normalizing JSON
         "FunctionName02": "normalize_json",
-
         // The name of the Azure Function used for converting JSON to HTML
         "FunctionName03": "json_to_html"
     },
     "resources": [
         {
             // Azure Monitor Logs connection resource
-            // Connects the Logic App to Azure Monitor Logs for logging and monitoring
             "apiVersion": "2016-06-01",
             "name": "[variables('AzureMonitorLogs-ConnectionName')]", // Name dynamically constructed using Logic App name
             "type": "microsoft.web/connections",
             "kind": "V1",
             "location": "[resourceGroup().location]", // Uses the location of the resource group
-            "identity": {
-                "type": "UserAssigned", // Configures the Logic App to use a User-Assigned Managed Identity (UAMI)
-                "userAssignedIdentities": {
-                    // Dynamically constructs the resource ID for the User-Assigned Managed Identity
-                    "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/',parameters('ManagedServiceIdentityResourceGroup'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentity'))]": {}
-                }
-            },
             "properties": {
                 "displayName": "[variables('AzureMonitorLogs-ConnectionName')]", // Display name matches the connection name
+                "parameterValueType": "Alternative",
                 "authenticatedUser": {}, // No explicit user defined (uses managed identity)
                 "overallStatus": "Ready", // Indicates readiness of the connection
                 "statuses": [
@@ -122,7 +108,10 @@
                     }
                 ],
                 "connectionState": "Enabled", // Connection is enabled for use
-                "parameterValueSet": {},
+                "parameterValueSet": {
+                    "name": "managedIdentityAuth",
+                    "values": {}
+                },
                 "api": {
                     "category": "Standard", // Standard API connection category
                     "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]", // References Azure Monitor Logs API
@@ -134,7 +123,6 @@
         },
         {
             // Office 365 connection resource
-            // Connects the Logic App to Office 365 for email operations
             "type": "Microsoft.Web/connections",
             "apiVersion": "2016-06-01",
             "name": "[variables('Office365-ConnectionName')]", // Name dynamically constructed using Logic App name
@@ -151,7 +139,6 @@
         },
         {
             // Security Copilot connection resource
-            // Connects the Logic App to Security Copilot for security analysis
             "type": "Microsoft.Web/connections",
             "apiVersion": "2016-06-01",
             "name": "[variables('Securitycopilot-ConnectionName')]", // Name dynamically constructed using Logic App name
@@ -166,8 +153,7 @@
             }
         },
         {
-            // Conversion Service connection resource
-            // Connects the Logic App to Conversion Service for data conversion tasks
+            // Conversion Service connection resource - required for inline javascript regex
             "type": "Microsoft.Web/connections",
             "apiVersion": "2016-06-01",
             "name": "[variables('ConversionService-ConnectionName')]", // Name dynamically constructed using Logic App name
@@ -183,20 +169,19 @@
         },
         {
             // Azure Sentinel connection resource
-            // Connects the Logic App to Azure Sentinel for security incident management
             "type": "Microsoft.Web/connections",
             "apiVersion": "2016-06-01",
             "name": "[variables('AzureSentinel-ConnectionName')]", // Name dynamically constructed using Logic App name
             "location": "[resourceGroup().location]", // Uses the location of the resource group
             "kind": "V1",
-            "identity": {
-                "type": "UserAssigned", // Configures the Logic App to use a User-Assigned Managed Identity (UAMI)
-                "userAssignedIdentities": {
-                    // Dynamically constructs the resource ID for the User-Assigned Managed Identity
-                    "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/',parameters('ManagedServiceIdentityResourceGroup'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentity'))]": {}
-                }
-            },
             "properties": {
+                "parameterValueType": "Alternative",
+                "connectionState": "Enabled",
+                "authenticatedUser": {},
+                "parameterValueSet": {
+                    "name": "managedIdentityAuth",
+                    "values": {}
+                },
                 "displayName": "[variables('AzureSentinel-ConnectionName')]", // Display name matches the connection name
                 "customParameterValues": {}, // No custom parameters required for this connection
                 "api": {
@@ -206,7 +191,6 @@
         },
         {
             // Integration Account resource
-            // Provides integration account capabilities to the Logic App
             "type": "Microsoft.Logic/integrationAccounts",
             "apiVersion": "2016-06-01",
             "name": "[parameters('IntegrationAccountName')]", // Name provided as a parameter
@@ -220,17 +204,15 @@
             "tags": {} // No tags applied to this resource
         },
         {
-            // Logic App workflow resource
             // This section defines the Logic App itself, including its name, location, identity, dependencies, and properties
             "type": "Microsoft.Logic/workflows", // Resource type for Logic Apps
             "apiVersion": "2017-07-01", // Specifies the API version to use for this resource
             "name": "[parameters('LogicAppName')]", // Logic App name is provided dynamically as a parameter
             "location": "[resourceGroup().location]", // Logic App is deployed in the same location as the resource group
             "identity": {
-                "type": "UserAssigned", // Configures the Logic App to use a User-Assigned Managed Identity (UAMI)
+                "type": "UserAssigned",
                 "userAssignedIdentities": {
-                    // Dynamically constructs the resource ID for the User-Assigned Managed Identity
-                    "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/',parameters('ManagedServiceIdentityResourceGroup'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentity'))]": {}
+                    "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]": {}
                 }
             },
             "dependsOn": [
@@ -1268,7 +1250,7 @@
                                 "method": "GET",
                                 "authentication": {
                                     "type": "ManagedServiceIdentity",
-                                    "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentity'))]",
+                                    "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentityName'))]",
                                     "audience": "https://graph.microsoft.com/"
 
                                 },
@@ -1351,7 +1333,6 @@
                     "$connections": {
                         "value": {
                             // Office 365 connection
-                            // Provides access to Office 365 APIs for email and other services
                             "office365-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]", // Dynamically constructs the API reference for Office 365
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office365-ConnectionName'))]", // References the specific Office 365 connection instance
@@ -1359,7 +1340,6 @@
                             },
 
                             // Security Copilot connection
-                            // Connects to Security Copilot for advanced security analysis
                             "securitycopilot-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/securitycopilot')]", // Dynamically constructs the API reference for Security Copilot
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('Securitycopilot-ConnectionName'))]", // References the specific Security Copilot connection instance
@@ -1367,7 +1347,6 @@
                             },
 
                             // Conversion Service connection
-                            // Connects to Conversion Service for data conversion tasks
                             "conversionservice-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/conversionservice')]", // Dynamically constructs the API reference for Conversion Service
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('ConversionService-ConnectionName'))]", // References the specific Conversion Service connection instance
@@ -1375,7 +1354,6 @@
                             },
 
                             // Azure Monitor Logs connection
-                            // Connects to Azure Monitor Logs for logging and monitoring
                             "azuremonitorlogs-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]", // Dynamically constructs the API reference for Azure Monitor Logs
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureMonitorLogs-ConnectionName'))]", // References the specific Azure Monitor Logs connection instance
@@ -1383,23 +1361,22 @@
                                 "connectionProperties": {
                                     "authentication": {
                                         "type": "ManagedServiceIdentity", // Specifies that this connection uses a User-Assigned Managed Identity for authentication
-                                        "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('ManagedServiceIdentity'))]" // Dynamically constructs the resource ID for the managed identity
+                                        "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('ManagedServiceIdentityName'))]" // Dynamically constructs the resource ID for the managed identity
                                     }
                                 }
                             },
 
                             // Azure Sentinel connection
-                            // Connects to Azure Sentinel for security monitoring and incident management
                             "azuresentinel-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]", // Dynamically constructs the API reference for Azure Sentinel
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureSentinel-ConnectionName'))]", // References the specific Azure Sentinel connection instance
                                 "connectionName": "[variables('AzureSentinel-ConnectionName')]",
                                 "connectionProperties": {
                                     "authentication": {
-                                        "type": "ManagedServiceIdentity", // Specifies that this connection uses a User-Assigned Managed Identity for authentication
-                                        "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('ManagedServiceIdentity'))]" // Dynamically constructs the resource ID for the managed identity
+                                        "type": "ManagedServiceIdentity",
+                                        "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('ManagedServiceIdentityName'))]" // Dynamically constructs the resource ID for the managed identity
                                     }
-                                } // Uses the variable to define the connection name
+                                }
                             }
                         }
                     }
