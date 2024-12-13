@@ -138,7 +138,8 @@ No action needed.
 ---
 
 ### Step 4: Enable the Logic App
-The Logic App is deployed in a disabled state. Go to the Logic App Overview and click the "Enable" button when you are ready to test. 
+
+The Logic App is deployed in a disabled state. Go to the Logic App Overview and click the "Enable" button when you are ready to test.
 
 ---
 
