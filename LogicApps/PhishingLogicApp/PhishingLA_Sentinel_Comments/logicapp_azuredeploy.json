@@ -21,7 +21,13 @@
                 "description": "The name of the Integration Account to link with the Logic App. Required for running inline code for regex purposes. Created during this deployment."
             }
         },
-        "ManagedServiceIdentityName": {
+        "ManagedIdentityName": {
+            "type": "String",
+            "metadata": {
+                "description": "The User-Assigned Managed Identity (UAMI) to provide permissions to resources. UAMI must be created prior to deployment. Grant 'Reader' and 'Microsoft Sentinel Reader' Azure roles."
+            }
+        },
+        "ManagedIdentityResourceGroupName": {
             "type": "String",
             "metadata": {
                 "description": "The User-Assigned Managed Identity (UAMI) to provide permissions to resources. UAMI must be created prior to deployment. Grant 'Reader' and 'Microsoft Sentinel Reader' Azure roles."
@@ -205,7 +211,7 @@
             "identity": {
                 "type": "UserAssigned",
                 "userAssignedIdentities": {
-                    "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]": {}
+                    "[resourceId(parameters('ManagedIdentityResourceGroupName'), 'Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedIdentityName'))]": {}
                 }
             },
             "dependsOn": [
@@ -1243,7 +1249,7 @@
                                 "method": "GET",
                                 "authentication": {
                                     "type": "ManagedServiceIdentity",
-                                    "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]",
+                                    "identity": "[resourceId(parameters('ManagedIdentityResourceGroupName'), 'Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedIdentityName'))]",
                                     "audience": "https://graph.microsoft.com/"
 
                                 },
@@ -1354,7 +1360,7 @@
                                 "connectionProperties": {
                                     "authentication": {
                                         "type": "ManagedServiceIdentity", // Specifies that this connection uses a User-Assigned Managed Identity for authentication
-                                        "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]"
+                                        "identity": "[resourceId(parameters('ManagedIdentityResourceGroupName'), 'Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedIdentityName'))]"
                                     }
                                 }
                             },
@@ -1367,7 +1373,7 @@
                                 "connectionProperties": {
                                     "authentication": {
                                         "type": "ManagedServiceIdentity",
-                                        "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]"
+                                        "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedIdentityName'))]"
                                     }
                                 }
                             }
