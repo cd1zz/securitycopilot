@@ -57,6 +57,12 @@
                 "description": "The workspace ID of the Log Analytics Sentinel Workspace."
             }
         },
+                "LogAnalyticsResourceGroup": {
+            "type": "String",
+            "metadata": {
+                "description": "The resource group name of the Log Analytics Sentinel Workspace."
+            }
+        },
         "SharedMailboxAddress": {
             "type": "String",
             "metadata": {
@@ -995,7 +1001,7 @@
                                         "path": "/queryDataV2",
                                         "queries": {
                                             "subscriptions": "[parameters('SubscriptionId')]",
-                                            "resourcegroups": "[resourceGroup().name]",
+                                            "resourcegroups": "[parameters('LogAnalyticsResourceGroup')]",
                                             "resourcetype": "Log Analytics Workspace",
                                             "resourcename": "[parameters('LogAnalyticsWorkspaceName')]"
                                         }
@@ -1015,7 +1021,7 @@
                                             }
                                         },
                                         "method": "get",
-                                        "path": "[concat('/Incidents/subscriptions/@{encodeURIComponent(''', parameters('SubscriptionId'), ''')}/resourceGroups/@{encodeURIComponent(''', resourceGroup().name,''')}/workspaces/@{encodeURIComponent(''', parameters('LogAnalyticsWorkspId')  ,''')}/alerts/@{encodeURIComponent(variables(''systemalertid_query_results'')[0][''SystemAlertId''])}')]"
+                                        "path": "[concat('/Incidents/subscriptions/@{encodeURIComponent(''', parameters('SubscriptionId'), ''')}/resourceGroups/@{encodeURIComponent(''', parameters('LogAnalyticsResourceGroup'),''')}/workspaces/@{encodeURIComponent(''', parameters('LogAnalyticsWorkspId')  ,''')}/alerts/@{encodeURIComponent(variables(''systemalertid_query_results'')[0][''SystemAlertId''])}')]"
                                     }
                                 },
                                 "Add_comment_to_incident_(V3)_armid": {
@@ -1087,7 +1093,7 @@
                                                 "path": "/queryDataV2",
                                                 "queries": {
                                                     "subscriptions": "[parameters('SubscriptionId')]",
-                                                    "resourcegroups": "[resourceGroup().name]",
+                                                    "resourcegroups": "[parameters('LogAnalyticsResourceGroup')]",
                                                     "resourcetype": "Log Analytics Workspace",
                                                     "resourcename": "[parameters('LogAnalyticsWorkspaceName')]"
                                                 }
