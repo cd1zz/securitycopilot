@@ -1,0 +1,210 @@
+Descriptor:
+  Name: Purview DLP Advanced Hunting 
+  DisplayName: Purview Enrichment - DLP alerts for specific user
+  Description: This query will return the DLP alerts for a user and summarize it based on the affected content. This can be used to understand risky activities. Is the user actively attempting to defeat the controls by sending the content in different ways.
+
+SkillGroups:
+  - Format: KQL
+    Skills:
+      - Name: DLPAlertsSpecificUser
+        DisplayName: Purview Enrichment - DLP alerts for specific user
+        Description: This query will return the DLP alerts for a user and summarize it based on the affected content. This can be used to understand risky activities. Is the user actively attempting to defeat the controls by sending the content in different ways.
+        DescriptionForModel: This KQL query is designed to retrieve Data Loss Prevention (DLP) alerts for a specific user within Microsoft Purview, focusing on potential email violations. It provides details on sensitive information types, policy names, recipients, and workloads (such as email or Microsoft Teams) associated with DLP matches. By identifying email-related violations, the query enables further KQL analysis based on recipients or other email-specific metadata.
+        Inputs:
+          - Name: userid
+            Description: userid
+            Required: true
+        Settings:
+          Target: Defender
+          Template: |-
+            let user = ('{{userid}}');
+            CloudAppEvents
+            | where ActionType has "DLPRuleMatch" or ActionType has "DLPRuleUndo"
+            | where tolower(user) == tolower(RawEventData.UserId) 
+            | extend PolicyName_ = tostring(parse_json(tostring(RawEventData.PolicyDetails))[0].PolicyName)
+            | extend SensitiveInformationTypeName_ = tostring(parse_json(tostring(parse_json(tostring(parse_json(tostring(parse_json(tostring(RawEventData.PolicyDetails))[0].Rules))[0].ConditionsMatched)).SensitiveInformation))[0].SensitiveInformationTypeName)
+            | extend FileName_ = tostring(parse_json(tostring(RawEventData.SharePointMetaData)).FileName)
+            | extend RuleName_ = tostring(parse_json(tostring(parse_json(tostring(RawEventData.PolicyDetails))[0].Rules))[0].RuleName)
+            | extend Severity_ = tostring(parse_json(tostring(parse_json(tostring(RawEventData.PolicyDetails))[0].Rules))[0].Severity)
+            | extend Attachments_ = tostring(parse_json(tostring(RawEventData.Item)).Attachments)
+            | extend Recipients = strcat("To:",RawEventData.ExchangeMetaData.To, " CC:",RawEventData.ExchangeMetaData.CC," BCC:",RawEventData.ExchangeMetaData.BCC) 
+            | extend SharePointMetaData_SiteCollectionUrl_s  = tostring(parse_json(tostring(RawEventData.SharePointMetaData)).SiteCollectionUrl)
+            | extend Documents = iff(isempty(FileName_), Attachments_, FileName_) 
+            | join kind = leftouter 
+                ( 
+                CloudAppEvents 
+            | where RawEventData.Operation == "SecureLinkUsed" or RawEventData.Operation == "AddedToSecureLink" 
+            | extend SourceFileName = tostring(RawEventData.SourceFileName) 
+            | extend SharePointMetaData_SiteCollectionUrl_s = tostring(RawEventData.SiteUrl)
+            | extend UserId = tostring(RawEventData.UserId) 
+            | extend TargetUserOrGroupName = tostring(RawEventData.TargetUserOrGroupName) 
+                        | summarize by SharePointMetaData_SiteCollectionUrl_s,SourceFileName,TargetUserOrGroupName
+                        | summarize TargetUserOrGroupName = make_list(strcat(TargetUserOrGroupName)) by SharePointMetaData_SiteCollectionUrl_s,SourceFileName
+                        | summarize take_any(TargetUserOrGroupName) by SourceFileName,SharePointMetaData_SiteCollectionUrl_s
+            |project SourceFileName, SharePointMetaData_SiteCollectionUrl_s, TargetUserOrGroupName
+                ) 
+                on SharePointMetaData_SiteCollectionUrl_s   
+            | extend TargetUsers = iff(isnotempty(tostring(TargetUserOrGroupName)), tostring(TargetUserOrGroupName), Recipients)
+            | extend Subject = tostring(parse_json(tostring(RawEventData.ExchangeMetaData)).Subject)
+            | extend PolicyName_EndPoint = tostring(parse_json(tostring(RawEventData.PolicyDetails))[0].PolicyName)
+            | extend PolicyName = iff(isempty(PolicyName_), PolicyName_EndPoint, PolicyName_)   
+            | extend Workload = tostring(RawEventData.Workload)
+            | extend Object = tostring(RawEventData.ObjectId)
+            | join kind=leftouter
+            (
+            CloudAppEvents
+            | where ActionType has "DLPRuleMatch" or ActionType has "DLPRuleUndo"
+            | where RawEventData.Workload has "Endpoint"
+            | extend SensitiveInfoTypeName_ = tostring(parse_json(tostring(parse_json(tostring(RawEventData.EndpointMetaData)).SensitiveInfoTypeData))[0].SensitiveInfoTypeName)
+            | extend EndPointFile = tostring(RawEventData.ObjectId)
+            | project EndPointFile,SensitiveInfoTypeName_
+            )
+            on $left.Object == $right.EndPointFile
+            | extend Documents = iff(isempty(Documents), EndPointFile, Documents) 
+            | extend SensitiveInformationType = iff(isempty(SensitiveInformationTypeName_), SensitiveInfoTypeName_, SensitiveInformationTypeName_) 
+            | extend EndpointOperation_ = tostring(parse_json(tostring(RawEventData.EndpointMetaData)).EndpointOperation)
+            | extend TargetDomain = tostring(parse_json(tostring(RawEventData.EndpointMetaData)).TargetDomain)
+            | extend Target = iff(isempty(tostring(TargetDomain)), TargetUsers, tostring(TargetDomain))   
+            | project  Timestamp,ActionType,Workload,PolicyName,SensitiveInformationType,Documents,Target,Subject,EndpointOperation_,Severity_
+            | summarize arg_max(Timestamp, *) by Workload,PolicyName,SensitiveInformationType,Documents,Target
+            | project  Timestamp,ActionType,Workload,PolicyName,SensitiveInformationType,Documents,Target,Subject,EndpointOperation_,Severity_
+            | sort by Timestamp
+      - Name: DocumentAccessEnrichment
+        DisplayName: Purview Enrichment - Document Access History
+        Description: This query identifies who has access or has accessed a specific document in SharePoint or OneDrive for Business. It returns external access and file sharing history based on a time range defined in advanced hunting. Useful for validating who files have been shared with in the context of SharePoint and OneDrive DLP alerts.
+        Inputs:
+          - Name: filename
+            Description: Name of the document to track
+            Required: true
+          - Name: useraccount
+            Description: User account that triggered the DLP Policy
+            Required: true
+        Settings:
+          Target: Defender
+          Template: |-
+            let document = "{{filename}}"; 
+            let user = ('{{useraccount}}'); 
+            let DLP = ( CloudAppEvents
+                | where RawEventData.Workload in ('SharePoint', 'OneDrive')
+                | where ActionType == "DLPRuleMatch" 
+                | extend FilePathUrl_ = url_decode(tostring(RawEventData.SharePointMetaData.FilePathUrl))
+                | extend path = parse_path(FilePathUrl_)
+                | where path.Filename has document
+                | extend DirectoryPath = tostring(path.DirectoryPath)
+                | summarize by DirectoryPath );
+            let officedata = (
+                CloudAppEvents
+                | where RawEventData.Operation == "SecureLinkUsed" or RawEventData.Operation == "AddedToSecureLink"
+                | extend ObjectId_ = tostring(RawEventData.ObjectId)
+                | where ObjectId_ has_any (DLP)
+                | extend SharePointMetaData_SiteCollectionUrl = tostring(RawEventData.SiteUrl)
+                | extend SharePointMetaData_FileName = tostring((RawEventData.SourceFileName))
+                | extend Account = tostring(RawEventData.UserId)
+                | extend Targetsplit = split(Account, "#")
+                | extend TargetUserOrGroupName = iff(isempty(RawEventData.TargetUserOrGroupName), Targetsplit[1], RawEventData.TargetUserOrGroupName)
+                | extend TargetUserOrGroupName = tolower(TargetUserOrGroupName)
+                | summarize by SharePointMetaData_FileName, SharePointMetaData_SiteCollectionUrl, TargetUserOrGroupName, ObjectId_, Account);
+            let dlpmain = (
+                CloudAppEvents
+                | where ActionType == "DLPRuleMatch"
+                | where RawEventData.Workload == "OneDrive" or RawEventData.Workload == "SharePoint"
+                | extend FilePathUrl_ = url_decode(tostring(RawEventData.SharePointMetaData.FilePathUrl))
+                | extend path = parse_path(FilePathUrl_)
+                | where path.Filename has document
+                | extend Account = tostring(RawEventData.UserId)
+                | where Account has user
+                | extend ObjectId_ = url_decode(tostring(ObjectName))
+                | extend SharePointMetaData_SiteCollectionUrl = tostring((RawEventData.SharePointMetaData.SiteCollectionUrl))
+                | where tolower(RawEventData.UserId) == tolower(Account)
+                | where RawEventData.Workload in ('SharePoint', 'OneDrive')
+                | extend SourceFileName = tostring(RawEventData.SourceFileName));
+            let folder = (dlpmain
+                | join kind = leftouter
+                  (officedata
+                      | summarize by SharePointMetaData_SiteCollectionUrl, SharePointMetaData_FileName, TargetUserOrGroupName, ObjectId_
+                      | summarize TargetUserOrGroupName = make_list(strcat(TargetUserOrGroupName)) by ObjectId_, SharePointMetaData_SiteCollectionUrl, SharePointMetaData_FileName
+                      | summarize take_any(TargetUserOrGroupName) by ObjectId_, SharePointMetaData_SiteCollectionUrl, SharePointMetaData_FileName
+                      | join kind = leftouter
+                      (officedata
+                          | summarize by SharePointMetaData_SiteCollectionUrl, SharePointMetaData_FileName, TargetUserOrGroupName, ObjectId_
+                          | extend Domsplit = split(TargetUserOrGroupName, "@")
+                          | extend domain = Domsplit[1]
+                          | summarize TargetDomain = make_list(strcat(domain)) by SharePointMetaData_FileName, ObjectId_
+                          | summarize take_any(TargetDomain) by SharePointMetaData_FileName, ObjectId_)
+                      on ObjectId_)
+                  on ObjectId_);
+            let files = (folder
+                | join kind = leftouter
+                  (officedata
+                  | summarize TargetUserOrGroupName = make_list(strcat(TargetUserOrGroupName)) by SharePointMetaData_FileName, SharePointMetaData_SiteCollectionUrl
+                  | summarize take_any(TargetUserOrGroupName) by SharePointMetaData_FileName, SharePointMetaData_SiteCollectionUrl
+                  | join kind = leftouter
+                      (officedata
+                      | summarize by SharePointMetaData_SiteCollectionUrl, SharePointMetaData_FileName, TargetUserOrGroupName
+                      | extend Domsplit = split(TargetUserOrGroupName, "@")
+                      | extend domain = Domsplit[1]
+                      | summarize TargetDomain = make_list(strcat(domain)) by SharePointMetaData_FileName
+                      | summarize take_any(TargetDomain) by SharePointMetaData_FileName)
+                  on SharePointMetaData_FileName)
+                on SharePointMetaData_FileName, SharePointMetaData_SiteCollectionUrl
+            | extend TargetUserOrGroupName = TargetUserOrGroupName1
+            | extend TargetDomain = TargetDomain1
+            | where TargetUserOrGroupName != "");
+            union folder, files
+            | extend FileName = tostring(parse_json(tostring(RawEventData.SharePointMetaData)).FileName)
+            | summarize arg_max(Timestamp, *) by ObjectId_, Account, tostring(RawEventData.Id)
+            | extend FileNameEncoded = url_encode(FileName)
+            | extend MDALink = (strcat('https://security.microsoft.com/cloudapps/files?filename=eq(',FileNameEncoded,')')) //Use this link to view older operations directly from Microsoft Defender for Cloud Apps
+            | project Timestamp,FileName,Target= TargetUserOrGroupName,SPOD_Path = ObjectId_,RawEventData,MDALink
+            | sort by Timestamp
+      - Name: UserDeviceApplicationSensitiveData
+        DisplayName: Purview Enrichment - Endpoint Sensitive Data Analysis
+        Description: This query returns endpoint events generated by a specific user to provide insights into the applications and devices used in correlation with sensitive data processing. Useful for investigations involving endpoint DLP events.
+        Inputs:
+          - Name: userEmail
+            Description: Email of the user to investigate
+            Required: true
+        Settings:
+          Target: Defender
+          Template: |-
+            let User = ("{{userEmail}}");
+            let AppEvents = (CloudAppEvents
+            | where parse_json(tostring(RawEventData.SensitiveInfoTypeData)) != ""
+            | where parse_json(tostring(RawEventData.SensitiveInfoTypeData)) != "[]"
+            | extend sit = parse_json(tostring(RawEventData.SensitiveInfoTypeData))
+            | mv-expand sit
+            | extend UserId = tolower(RawEventData.UserId)
+            | extend SensitiveInfoTypeName = tostring(sit.SensitiveInfoTypeName)
+            | extend document = tostring(RawEventData.ObjectId)
+            );
+            AppEvents
+            | where UserId == User
+            | extend ObjectId = tostring(RawEventData.ObjectId)
+            | extend DeviceName = tostring(RawEventData.DeviceName)
+            | extend Application = tostring(RawEventData.Application)
+            | summarize count = count() by document, Application, SensitiveInfoTypeName, ActionType, DeviceName
+            | order by ActionType
+      - Name: DLPDataAnomalyDetection
+        DisplayName: Purview Enrichment - DLP Anomaly Detection
+        Description: This query utilizes built-in advanced Kusto functions to detect anomalies in DLP alert patterns. It helps identify irregular patterns in the usage of sensitive content and labels, providing insights for forecasting and machine learning applications. It's particularly useful for monitoring and triggering alerts based on outlier detection.
+        Settings:
+          Target: Defender
+          Template: |-
+            let data = (CloudAppEvents
+            | where ActionType == "DlpRuleMatch"
+            | extend UserId = tostring(RawEventData.UserId)
+            | summarize EventCount=count() by UserId, bin(Timestamp,30m)
+            | order by Timestamp
+            | summarize EventCount=make_list(EventCount),TimeGenerated=make_list(Timestamp) by UserId
+            | extend outliers=series_decompose_anomalies(EventCount)
+            | mv-expand TimeGenerated, EventCount, outliers
+            | where outliers == 1
+            | distinct UserId);
+            CloudAppEvents
+            | extend UserId = tostring(RawEventData.UserId)
+            | where UserId in (data)
+            | extend ChartName = strcat(UserId)
+            | summarize EventCount=count() by ChartName, bin(Timestamp, 30m)
+            | render timechart
+
+
