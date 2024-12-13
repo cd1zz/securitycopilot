@@ -27,12 +27,6 @@
                 "description": "The User-Assigned Managed Identity (UAMI) to provide permissions to resources. UAMI must be created prior to deployment. Grant 'Reader' and 'Microsoft Sentinel Reader' Azure roles."
             }
         },
-        "ManagedServiceIdentityResourceGroup": {
-            "type": "String",
-            "metadata": {
-                "description": "The name of the resource group where the Managed Identity is located."
-            }
-        },
         "FunctionAppName": {
             "type": "String",
             "metadata": {
@@ -92,12 +86,12 @@
     "resources": [
         {
             // Azure Monitor Logs connection resource
-            "apiVersion": "2016-06-01",
+            "apiVersion": "2018-07-01-preview",
             "name": "[variables('AzureMonitorLogs-ConnectionName')]", // Name dynamically constructed using Logic App name
             "type": "microsoft.web/connections",
             "kind": "V1",
             "location": "[resourceGroup().location]", // Uses the location of the resource group
-                        "identity": {
+            "identity": {
                 "type": "UserAssigned",
                 "userAssignedIdentities": {
                     "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]": {}
@@ -113,7 +107,10 @@
                     }
                 ],
                 "connectionState": "Enabled", // Connection is enabled for use
-                "parameterValueSet": {},
+                "parameterValueSet": {
+                    "name": "managedIdentityAuth",
+                    "values": {}
+                },
                 "api": {
                     "category": "Standard", // Standard API connection category
                     "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]", // References Azure Monitor Logs API
@@ -172,21 +169,25 @@
         {
             // Azure Sentinel connection resource
             "type": "Microsoft.Web/connections",
-            "apiVersion": "2016-06-01",
+            "apiVersion": "2018-07-01-preview",
             "name": "[variables('AzureSentinel-ConnectionName')]", // Name dynamically constructed using Logic App name
             "location": "[resourceGroup().location]", // Uses the location of the resource group
             "kind": "V1",
-                        "identity": {
+            "identity": {
                 "type": "UserAssigned",
                 "userAssignedIdentities": {
                     "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]": {}
                 }
             },
             "properties": {
-                "parameterValueType": {},
+                "statuses": [
+                    {
+                        "status": "Ready"
+                    }
+                ],
+                "parameterValueType": "Alternative",
                 "connectionState": "Enabled",
                 "authenticatedUser": {},
-                "parameterValueSet": {},
                 "displayName": "[variables('AzureSentinel-ConnectionName')]", // Display name matches the connection name
                 "customParameterValues": {}, // No custom parameters required for this connection
                 "api": {
