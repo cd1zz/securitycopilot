@@ -87,6 +87,8 @@ az functionapp deployment source config-zip --resource-group yourresourcegroup -
 ```
 Download the ZIP file before running this command.
 
+---
+
 ### Step 2: Deploy the Logic App
 
 Click the button below to deploy the Logic App. You will be prompted to input the following parameters during deployment:
@@ -105,6 +107,8 @@ Click the button below to deploy the Logic App. You will be prompted to input th
 - **DestinationForHTMLReport**: Email address where the HTML report should be sent.
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Sentinel_Comments%2Flogicapp_azuredeploy.json)
+
+---
 
 ### Step 3: Enable API Connections
 
@@ -131,9 +135,11 @@ From the Logic App designer, confirm that the "Alert - Get incident from systema
 5. **Conversion Service**
 No action needed.
 
+---
 
-### Step4: Enable the Logic App
+### Step 4: Enable the Logic App
 The Logic App is deployed in a disabled state. Go to the Logic App Overview and click the "Enable" button when you are ready to test. 
+
 ---
 
 ## Workflow Overview
