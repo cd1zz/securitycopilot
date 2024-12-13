@@ -1,7 +1,9 @@
 # User Submitted Phishing Analysis with Security Copilot
 Author: Craig Freyman
 
-This solution automates the analysis of user submitted phishing emails using Security Copilot. It is highly flexible and can work with or without integration with Microsoft Defender for Office 365 Report Phishing capability. 
+This solution automates the analysis of user-submitted phishing emails using Security Copilot. It is highly flexible and can work with or without integration with Microsoft Defender for Office 365 Report Phishing capability.
+
+---
 
 ### **Integration with Defender (Optional)**
 If Microsoft Defender for Office 365 is used, emails reported by users via the **Report Phishing** button are forwarded to a configured shared mailbox, and Defender creates an associated incident. This Logic App can monitor that shared mailbox, process the submitted emails, and automatically add the analysis results to the associated Defender or Sentinel incidents. The mailbox configuration can be set up in Defender by following the guidelines [here](https://learn.microsoft.com/en-us/defender-office-365/submissions-user-reported-messages-custom-mailbox).
@@ -26,6 +28,30 @@ This flexibility allows organizations to deploy the solution in a variety of con
 
 ---
 
+## Prerequisites
+
+Before deploying the solution, ensure the following prerequisites are met:
+
+### Managed Identity
+1. Create a **User-Assigned Managed Identity (UAMI)** in Azure.
+2. Assign the following roles to the Managed Identity:
+   - **Azure Reader**: Provides read-only access to Azure resources.
+   - **Microsoft Sentinel Reader**: Allows the Logic App to read Sentinel data for analysis and incident updates.
+   - **Graph API Access**: Assign the `Directory.Read.All` permission (Read Directory data) in the Microsoft Graph API. This enables the solution to pull Entra profile data and integrate it into the Security Copilot analysis.
+
+### Shared Mailbox
+1. Configure an Office 365 shared mailbox where phishing emails will be submitted. https://learn.microsoft.com/en-us/microsoft-365/admin/email/create-a-shared-mailbox?view=o365-worldwide
+2. Ensure that the mailbox is accessible via the Logic App and has the necessary API connections set up.
+
+### Additional Resources
+1. Ensure an **Azure Function App** is created and available for deployment.
+2. Verify that a **Log Analytics Workspace** is configured for Sentinel integration.
+3. Ensure **Security Copilot** has been properrly deployed.
+
+Note: Ensure you have the required permissions and access to create and manage the above resources in your Azure environment.
+
+---
+
 ## Deploy the Solution
 
 ### Step 1: Deploy the Function App
@@ -40,25 +66,76 @@ az functionapp deployment source config-zip --resource-group yourresourcegroup -
 ```
 Download the ZIP file before running this command.
 
-### Step 2: Deploy the Logic App
+### Step 2: Create a Managed Identity
+
+Before deploying the Logic App, create a User-Assigned Managed Identity (UAMI) in Azure with the following roles:
+
+1. **Azure Reader**: Provides read-only access to Azure resources.
+2. **Microsoft Sentinel Reader**: Allows the Logic App to read Sentinel data for analysis and incident updates.
+3. **Graph API Access**: Assign the `Directory.Read.All` permission (Read Directory data) in the Microsoft Graph API. This enables the solution to pull Entra profile data and integrate it into the Security Copilot analysis. The following powershell run by a Security Administrator assigns the Graph permission to the managed identity: 
+```powershell
+$TenantID="your tenant id"
+$GraphAppId = "00000003-0000-0000-c000-000000000000"
+$DisplayNameOfMSI="read-entra-profiles"
+$PermissionName = "Directory.Read.All"
+
+# Install the module
+Install-Module AzureAD
+Connect-AzureAD -TenantId $TenantID
+$MSI = (Get-AzureADServicePrincipal -Filter "displayName eq '$DisplayNameOfMSI'")
+Start-Sleep -Seconds 10
+$GraphServicePrincipal = Get-AzureADServicePrincipal -Filter "appId eq '$GraphAppId'"
+$AppRole = $GraphServicePrincipal.AppRoles | `
+Where-Object {$_.Value -eq $PermissionName -and $_.AllowedMemberTypes -contains "Application"}
+New-AzureAdServiceAppRoleAssignment -ObjectId $MSI.ObjectId -PrincipalId $MSI.ObjectId `
+-ResourceId $GraphServicePrincipal.ObjectId -Id $AppRole.Id
+```
+
+Ensure the Managed Identity is in the correct resource group and note the name and resource group for use in subsequent deployment steps.
+
+### Step 3: Deploy the Logic App
 
 Click the button below to deploy the Logic App. You will be prompted to input the following parameters during deployment:
 
 - **SubscriptionId**: The Azure subscription ID where the resources will be deployed.
-- **LogicAppName**: The name you want to assign to the Logic App.
-- **IntegrationAccountName**: The name of the Integration Account to link with the Logic App. This is required for running inline code, such as regex parsing.
-- **ManagedServiceIdentity**: The name of the User-Assigned Managed Identity (UAMI) that provides the Logic App with necessary permissions. This must be created prior to deployment and assigned the "Reader" and "Microsoft Sentinel Reader" roles.
-- **ManagedServiceIdentityResourceGroup**: The name of the resource group where the Managed Identity is located.
+- **LogicAppName**: The name of the Logic App to be deployed.
+- **IntegrationAccountName**: The name of the Integration Account to link with the Logic App. Required for running inline code for regex purposes. Created during this deployment.
+- **ManagedIdentityName**: The User-Assigned Managed Identity (UAMI) to provide permissions to resources. UAMI must be created prior to deployment. Grant 'Reader,' 'Microsoft Sentinel Reader,' and Graph API `Directory.Read.All` permissions.
+- **ManagedIdentityResourceGroupName**: The resource group where the Managed Identity is located.
 - **FunctionAppName**: The name of the Azure Function App created earlier, which will be called by the Logic App.
 - **FunctionAppResourceGroup**: The name of the resource group where the Function App is deployed.
 - **LogAnalyticsWorkspaceName**: The name of the Log Analytics Workspace associated with Sentinel.
 - **LogAnalyticsWorkspaceId**: The workspace ID of the Log Analytics Sentinel Workspace.
+- **LogAnalyticsResourceGroup**: The resource group name of the Log Analytics Sentinel Workspace.
+- **SharedMailboxAddress**: Email address of the shared O365 mailbox.
+- **DestinationForHTMLReport**: Email address where the HTML report should be sent.
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Sentinel_Comments%2Flogicapp_azuredeploy.json)
 
-#### Notes:
-1. Ensure that all prerequisite resources, such as the Managed Identity, Integration Account, and Function App, are created and configured before deploying the Logic App.
-2. If you encounter issues during deployment, double-check the parameter values for accuracy and ensure that permissions are correctly configured.
+### Step 4: Enable API Connections
+
+After deploying the Logic App, open the Logic App Designer in the Azure portal. Enable the following API connections:
+
+1. **Office 365 Shared Inbox**
+![alt text](image.png)
+
+Authorize with an account that has been added as a member to the shared mailbox.
+![alt text](image-1.png)
+
+Save the connection and confirm Status:
+![alt text](image-2.png)
+2. **Security Copilot**
+Authorize Security Copilot with an account that has been granted access to Security Copilot. Authorize, and Save the connection.
+![alt text](image-3.png)
+
+3. **Azure Monitor Logs Actions**
+From the Logic App designer, confirm that the "Query to get systemalertid" is assigned to your managed identity and that there are no errors. 
+
+4. **Sentinel Actions**
+From the Logic App designer, confirm that the "Alert - Get incident from systemalertid" is assigned to your managed identity and that there are no errors. 
+
+5. **Conversion Service**
+No action needed.
 
 ---
 
@@ -100,70 +177,11 @@ Click the button below to deploy the Logic App. You will be prompted to input th
 
 ---
 
-## Configuration Steps
-
-### 1. Initialize API Connections
-- Open the Logic App and configure the following API connections:
-  - **Office 365**
-  - **Security Copilot**
-  - **Azure Sentinel**
-  - **Conversion Service**
-
-### 2. Enable the Logic App
-- Ensure the Logic App is enabled to start processing emails.
-
-### 3. Update Permissions
-- Assign the Managed Service Identity (UAMI) required permissions, such as:
-  - **Reader**
-  - **Microsoft Sentinel Reader**
-
-### 4. Function App Customization (Optional)
-- Modify the Function App code if necessary.
-- Repackage it into a `.zip` file for deployment, ensuring all dependencies are included.
-
----
-
-## Example Output
-
-### Structured JSON Report
-The following is an example of the JSON output generated by Security Copilot during the analysis:
-```json
-{
-  "email_summary": {
-    "subject": "Urgent Payment Request",
-    "content_summary": "Request to approve a wire transfer."
-  },
-  "behavioral_triggers": {
-    "tone": "Urgent",
-    "alignment_with_purpose": "FALSE"
-  },
-  "logical_coherence": {
-    "is_consistent": "FALSE",
-    "contradictions": ["Mismatch between sender domain and content."]
-  },
-  "contextual_integrity": {
-    "plausibility": "FALSE",
-    "issues": ["Suspicious domain in URL."]
-  },
-  "intent_verification": {
-    "likely_intent": "Phishing",
-    "risk_assessment": "High"
-  },
-  "final_assessment": {
-    "category": "Phishing",
-    "rationale": "Clear indicators of malicious intent."
-  }
-}
-```
-
-### HTML Report
-An HTML version of the report is emailed to the recipient and included in Sentinel incident comments.
-
----
-
 ## Notes
+
 - Regularly review and update the Function App code to maintain compatibility with dependencies.
 - Ensure all necessary API connections and permissions are properly configured.
 - For manual deployments, confirm the Logic App uses the correct Function App and managed identity.
 
 For questions or troubleshooting, please refer to the [GitHub repository](https://github.com/cd1zz/securitycopilot) for documentation and support.
+

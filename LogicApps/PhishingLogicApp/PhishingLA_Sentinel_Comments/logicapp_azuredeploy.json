@@ -998,7 +998,7 @@
                                             "timerangetype": "d",
                                             "timerange": 14
                                         },
-                                        "path": "/queryDataV2",
+                                        "path": "/queryData",
                                         "queries": {
                                             "subscriptions": "[parameters('SubscriptionId')]",
                                             "resourcegroups": "[parameters('LogAnalyticsResourceGroup')]",
@@ -1090,7 +1090,7 @@
                                                     "timerangetype": "d",
                                                     "timerange": 14
                                                 },
-                                                "path": "/queryDataV2",
+                                                "path": "/queryData",
                                                 "queries": {
                                                     "subscriptions": "[parameters('SubscriptionId')]",
                                                     "resourcegroups": "[parameters('LogAnalyticsResourceGroup')]",
