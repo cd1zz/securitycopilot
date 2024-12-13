@@ -409,23 +409,33 @@ SkillGroups:
           - Focus on identifying any newly created rules that may redirect incoming emails to unusual folders or external addresses, as this could indicate an attempt to manipulate email flow for malicious purposes
           - If no anomalies are found, confirm the user's activity is consistent.
         Inputs:
-          - Name: upn
-            Description: User principle name. i.e., mscott@test.com
+          - Name: UserMailBox
+            Description: User mailbox name. i.e., mscott@woodgrove.ms
             Required: true
         Settings:
           Target: Defender
           Template: |-
-            // Mailbox Investigation of suspicious users. To detect potential suspicious activities, we filter Exchange Online action types that could be used for exfiltration and BEC. This allows us to investigate whether the targeted end-user is involved in any suspicious actions.
-            // Examine activities of a user from Suspicious Mailbox actions and UPN risk in Entra Id and Defender          
-            let upn = "{{upn}}";
+            // The following data is used by expert SOC Analysts specializing in threat hunting mailbox-based attacks. The output will be used to analyzing mailbox activity, specifically rule changes that may indicate compromise. Common adversary techniques involve creating new email rules that redirect messages to an RSS feed folder or similar locations as well as forwarding and deleting sensitive information. Keywords that may indicate a potential risk within the parameters JSON indicating keywords include 'RSS','alert', 'daemon', 'did you', 'hack', 'hacked', 'hacker', 'helpdesk', 'IT', 'link', 'mimecast', 'phish', 'scam', 'security', 'suspicious', 'password', 'secret', 'key', and 'token'. Additionally, consider any other keywords or patterns that may represent Indicators of Compromise (IoCs) based on current or evolving threats.
+            // 1. For each user, assess whether the analyzed actions are likely related to a user's mailbox being compromised.
+            // 2. For each action analyzed, provide a risk confidence score using the following levels 'Low', 'Medium', 'High', 'Critical'.
+            // 3. For each risk confidence score, offer a brief explanation for the assigned confidence score, citing specific keywords, patterns, or behaviors observed in the data.
+            // 4. For each rule outlined within the parameters JSON, provide a summary.
+            // Example response in bullet format for each user:
+            // UserId: [User email address denoted as UserId]
+            // Risk Confidence Level: [Low/Medium/High/Critical]
+            // Reasoning: [Include identified patterns, matched keywords, or anomalous behaviors identified from the Operation and Paremeters JSON.]            
+            // Date, time, & mailbox operation: [Timestamps from TimeGenerated]
+            // Parameters Rule Summary: [Provide a summary of each rule identified within the parameters JSON field]
+            // Client IP: [IP address denoted as ClientIP_WithoutPort]
+            let UserMailBox = "{{UserMailBox}}";
             let TimePeriod = 30d;
-            let CompromisedUser = UserMailBox;
             OfficeActivity
             | where TimeGenerated >= ago(TimePeriod)
             | extend EST = datetime_utc_to_local(TimeGenerated, "US/Eastern")
-            | where tolower(UserId) in (CompromisedUser)
-            | where Operation in ("Add-MailboxPermission", "New-ManagementRoleAssignment", "Add-MailboxFolderPermission", "New-InboxRule", "Set-InboxRule", "Set-Mailbox", "New-TransportRule", "Set-TransportRule")
-            | extend Name_ = tostring(parse_json(Parameters)[3].Name)
-            | extend Value_ = tostring(parse_json(Parameters)[3].Value)
-            | extend Value2_ = tostring(parse_json(Parameters)[4].Value)
-            | extend Value4_ = tostring(parse_json(Parameters)[4].Value)
+            | where tolower(UserId) in (UserMailBox)
+            | where Operation in ("Add-MailboxPermission", "New-InboxRule", "Set-InboxRule")
+            // Operations less commonly used by attackers: "Set-Mailbox", "New-TransportRule", "Set-TransportRule")            
+            // Operations rarely used by attackers: "Add-MailboxPermission", "New-ManagementRoleAssignment"
+            | extend ClientIP_WithoutPort = split(ClientIP, ":")[0]
+            | project TimeGenerated, UserId, Operation, Parameters, ClientIP_WithoutPort
+            // Parameters data in JSON denotes the mailbox rule that have been created.
