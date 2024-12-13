@@ -100,11 +100,18 @@
         {
             // Azure Monitor Logs connection resource
             // Connects the Logic App to Azure Monitor Logs for logging and monitoring
-            "apiVersion": "2018-07-01-preview",
+            "apiVersion": "2016-06-01",
             "name": "[variables('AzureMonitorLogs-ConnectionName')]", // Name dynamically constructed using Logic App name
             "type": "microsoft.web/connections",
             "kind": "V1",
             "location": "[resourceGroup().location]", // Uses the location of the resource group
+            "identity": {
+                "type": "UserAssigned", // Configures the Logic App to use a User-Assigned Managed Identity (UAMI)
+                "userAssignedIdentities": {
+                    // Dynamically constructs the resource ID for the User-Assigned Managed Identity
+                    "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/',parameters('ManagedServiceIdentityResourceGroup'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentity'))]": {}
+                }
+            },
             "properties": {
                 "displayName": "[variables('AzureMonitorLogs-ConnectionName')]", // Display name matches the connection name
                 "authenticatedUser": {}, // No explicit user defined (uses managed identity)
@@ -115,10 +122,7 @@
                     }
                 ],
                 "connectionState": "Enabled", // Connection is enabled for use
-                "parameterValueSet": {
-                    "name": "managedIdentityAuth", // Authentication uses managed identity
-                    "values": {}
-                },
+                "parameterValueSet": {},
                 "api": {
                     "category": "Standard", // Standard API connection category
                     "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]", // References Azure Monitor Logs API
@@ -185,6 +189,13 @@
             "name": "[variables('AzureSentinel-ConnectionName')]", // Name dynamically constructed using Logic App name
             "location": "[resourceGroup().location]", // Uses the location of the resource group
             "kind": "V1",
+            "identity": {
+                "type": "UserAssigned", // Configures the Logic App to use a User-Assigned Managed Identity (UAMI)
+                "userAssignedIdentities": {
+                    // Dynamically constructs the resource ID for the User-Assigned Managed Identity
+                    "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/',parameters('ManagedServiceIdentityResourceGroup'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentity'))]": {}
+                }
+            },
             "properties": {
                 "displayName": "[variables('AzureSentinel-ConnectionName')]", // Display name matches the connection name
                 "customParameterValues": {}, // No custom parameters required for this connection
@@ -197,7 +208,7 @@
             // Integration Account resource
             // Provides integration account capabilities to the Logic App
             "type": "Microsoft.Logic/integrationAccounts",
-            "apiVersion": "2019-05-01",
+            "apiVersion": "2016-06-01",
             "name": "[parameters('IntegrationAccountName')]", // Name provided as a parameter
             "location": "[resourceGroup().location]", // Uses the location of the resource group
             "sku": {
@@ -231,7 +242,7 @@
                 "[resourceId('Microsoft.Web/connections', variables('AzureSentinel-ConnectionName'))]" // Depends on the Azure Sentinel connection
             ],
             "properties": {
-                "state": "Enabled", // Enables the Logic App upon deployment
+                "state": "Disabled", //User required to enable the logicapp
                 "integrationAccount": {
                     // Links the Logic App to an existing Integration Account
                     "id": "[resourceId('Microsoft.Logic/integrationAccounts', parameters('IntegrationAccountName'))]" // Dynamically references the Integration Account using its name parameter
@@ -1382,7 +1393,13 @@
                             "azuresentinel-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]", // Dynamically constructs the API reference for Azure Sentinel
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureSentinel-ConnectionName'))]", // References the specific Azure Sentinel connection instance
-                                "connectionName": "[variables('AzureSentinel-ConnectionName')]" // Uses the variable to define the connection name
+                                "connectionName": "[variables('AzureSentinel-ConnectionName')]",
+                                "connectionProperties": {
+                                    "authentication": {
+                                        "type": "ManagedServiceIdentity", // Specifies that this connection uses a User-Assigned Managed Identity for authentication
+                                        "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('ManagedServiceIdentity'))]" // Dynamically constructs the resource ID for the managed identity
+                                    }
+                                } // Uses the variable to define the connection name
                             }
                         }
                     }
