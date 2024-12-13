@@ -36,11 +36,11 @@ SkillGroups:
             // It retrieves user activity, including the time of click and additional context like network or threat details.
             let urlToSearch = "{{url}}";
             UrlClickEvents
-            | where TimeGenerated >= ago(30d)
+            | where TimeStamp >= ago(30d)
             | where Url has urlToSearch
             // Uncomment this for customers
             //| where IsClickedThrough == true
-            | project TimeGenerated, Url, ActionType, AccountUpn, Workload, NetworkMessageId, ThreatTypes, IPAddress, IsClickedThrough, UrlChain, ReportId
+            | project TimeStamp, Url, ActionType, AccountUpn, Workload, NetworkMessageId, ThreatTypes, IPAddress, IsClickedThrough, UrlChain, ReportId
 
       - Name: UrlClickCount
         DisplayName: URL Click Count Last 30 Days
@@ -72,7 +72,7 @@ SkillGroups:
           Performs a KQL query to correlate a specific URL with multiple security-related events over the last 30 days. Key features include:
           - **Event Correlation**: Aggregates data from URL click events, security alerts, email events, and network events.
           - **Details Provided**:
-            - `TimeGenerated`: Timestamp of the event.
+            - `TimeStamp`: Timestamp of the event.
             - `AccountUpn`: User associated with the event.
             - `Url`: URL involved in the event.
             - `EventType`: Type of event (e.g., URL click, security alert, email event, or network event).
@@ -94,7 +94,7 @@ SkillGroups:
             let urlClicks = UrlClickEvents
                 | where Timestamp >= ago(timeframe)
                 | where Url has targetUrl
-                | project TimeGenerated, AccountUpn, Url, EventType = "UrlClickEvent", AlertId = "", IncidentId = "";
+                | project TimeStamp, AccountUpn, Url, EventType = "UrlClickEvent", AlertId = "", IncidentId = "";
 
             // Find security alerts where the URL is mentioned in the RemoteUrl field
             let alertsContainingUrl = AlertEvidence
@@ -105,7 +105,7 @@ SkillGroups:
                     | extend ExtendedPropertiesJson = parse_json(ExtendedProperties)
                     | project VendorOriginalId, IncidentId = tostring(ExtendedPropertiesJson.IncidentId)
                 ) on $left.AlertId == $right.VendorOriginalId
-                | project TimeGenerated, AccountUpn, Url = tostring(RemoteUrl), EventType = "AlertEvidence", AlertId = VendorOriginalId, IncidentId;
+                | project TimeStamp, AccountUpn, Url = tostring(RemoteUrl), EventType = "AlertEvidence", AlertId = VendorOriginalId, IncidentId;
 
             // Find email events related to the target URL using EmailUrlInfo and EmailEvents
             let emailUrlInfo = EmailUrlInfo
@@ -116,22 +116,22 @@ SkillGroups:
             let emailEvents = EmailEvents
                 | where Timestamp >= ago(timeframe)
                 | where NetworkMessageId in (emailUrlInfo)
-                | project TimeGenerated, AccountUpn = RecipientEmailAddress, Url = targetUrl, EventType = "EmailEvent", AlertId = "", IncidentId = "";
+                | project TimeStamp, AccountUpn = RecipientEmailAddress, Url = targetUrl, EventType = "EmailEvent", AlertId = "", IncidentId = "";
 
             // Find network events where the URL is accessed via RemoteUrl in network connections
             let deviceNetworkEvents = DeviceNetworkEvents
                 | where Timestamp >= ago(timeframe)
                 | where RemoteUrl has targetUrl
-                | project TimeGenerated, AccountUpn = InitiatingProcessAccountName, Url = RemoteUrl, EventType = "DeviceNetworkEvent", AlertId = "", IncidentId = "";
+                | project TimeStamp, AccountUpn = InitiatingProcessAccountName, Url = RemoteUrl, EventType = "DeviceNetworkEvent", AlertId = "", IncidentId = "";
 
             // Combine all results from the different tables (URL clicks, alerts, email events, network events)
             urlClicks
             | union isfuzzy=true alertsContainingUrl, emailEvents, deviceNetworkEvents
             // Order the combined results by the event timestamp for easy analysis
-            | order by TimeGenerated desc
+            | order by TimeStamp desc
             // Return only distinct rows to avoid duplicates
-            | distinct TimeGenerated, AccountUpn, Url, EventType, AlertId, IncidentId
+            | distinct TimeStamp, AccountUpn, Url, EventType, AlertId, IncidentId
             // If any `IncidentId`s are present, highlight them for the user
-            | summarize Alerts = make_list(IncidentId) by Url, AccountUpn, TimeGenerated, EventType, AlertId
+            | summarize Alerts = make_list(IncidentId) by Url, AccountUpn, TimeStamp, EventType, AlertId
             | extend IncidentNotes = iff(array_length(Alerts) > 0, strcat("Related incidents have been observed: ", tostring(Alerts)), "")
 

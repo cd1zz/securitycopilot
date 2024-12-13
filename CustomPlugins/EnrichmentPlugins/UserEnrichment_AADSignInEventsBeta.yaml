@@ -41,12 +41,12 @@ SkillGroups:
             let TimeFrame = ago(30d);
             // Retrieve and summarize the user's login activity, focusing on successful vs failed attempts and identifying unusual patterns.
             AADSignInEventsBeta
-            | where TimeGenerated > TimeFrame
+            | where TimeStamp > TimeFrame
             | where LogonType !contains "nonInteractiveUser"
             | where AccountUpn == UPN
             | summarize
-                FirstSeen = min(TimeGenerated),
-                LastObserved = max(TimeGenerated),
+                FirstSeen = min(TimeStamp),
+                LastObserved = max(TimeStamp),
                 SuccessfullCount = sumif(1, ErrorCode == "0"),
                 FailureCount = sumif(1, ErrorCode != "0")
             by AccountUpn, IPAddress, Country, City, State, DeviceName, UserAgent, ClientAppUsed, Application
@@ -78,15 +78,15 @@ SkillGroups:
             let TimeFrame = ago(7d);
             let upn = "{{upn}}";  // Replace with the specific users upn
             AuditLogs
-            | where TimeGenerated > TimeFrame
+            | where TimeStamp > TimeFrame
             | where OperationName == "Change user password"
             | extend TargetResourcesJson = parse_json(tostring(TargetResources))
             | mv-expand TargetResource = TargetResourcesJson
             | extend userPrincipalName = tostring(TargetResource.userPrincipalName)
             | where userPrincipalName == upn
-            | summarize PasswordChangeCount = count() by bin(TimeGenerated, 1d), userPrincipalName
-            | project TimeGenerated, PasswordChangeCount, userPrincipalName
-            | order by TimeGenerated desc
+            | summarize PasswordChangeCount = count() by bin(TimeStamp, 1d), userPrincipalName
+            | project TimeStamp, PasswordChangeCount, userPrincipalName
+            | order by TimeStamp desc
 
       - Name: RecentMFAChanges
         DisplayName: Recent MFA Changes
