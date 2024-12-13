@@ -10,7 +10,7 @@ SkillGroups:
   - Format: KQL
     Skills:
       - Name: UnusualSigninActivity
-        DisplayName: Unusual Sign-in Activity
+        DisplayName: Unusual Signin Activity
         DescriptionForModel: |- 
           Performs a KQL query on the `AADSignInEventsBeta` table to analyze the last 30 days of sign-in activity for a specified user. Key features include:
           - **Anomaly Detection**: Identifies unusual login patterns such as:
