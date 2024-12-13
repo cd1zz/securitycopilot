@@ -108,10 +108,7 @@
                     }
                 ],
                 "connectionState": "Enabled", // Connection is enabled for use
-                "parameterValueSet": {
-                    "name": "managedIdentityAuth",
-                    "values": {}
-                },
+                "parameterValueSet": {},
                 "api": {
                     "category": "Standard", // Standard API connection category
                     "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]", // References Azure Monitor Logs API
@@ -178,10 +175,7 @@
                 "parameterValueType": "Alternative",
                 "connectionState": "Enabled",
                 "authenticatedUser": {},
-                "parameterValueSet": {
-                    "name": "managedIdentityAuth",
-                    "values": {}
-                },
+                "parameterValueSet": {},
                 "displayName": "[variables('AzureSentinel-ConnectionName')]", // Display name matches the connection name
                 "customParameterValues": {}, // No custom parameters required for this connection
                 "api": {
