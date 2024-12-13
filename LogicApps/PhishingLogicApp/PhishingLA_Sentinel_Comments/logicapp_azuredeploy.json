@@ -1243,7 +1243,7 @@
                                 "method": "GET",
                                 "authentication": {
                                     "type": "ManagedServiceIdentity",
-                                    "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('ManagedServiceIdentityName'))]",
+                                    "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]",
                                     "audience": "https://graph.microsoft.com/"
 
                                 },
@@ -1354,7 +1354,7 @@
                                 "connectionProperties": {
                                     "authentication": {
                                         "type": "ManagedServiceIdentity", // Specifies that this connection uses a User-Assigned Managed Identity for authentication
-                                        "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('ManagedServiceIdentityName'))]" // Dynamically constructs the resource ID for the managed identity
+                                        "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]"
                                     }
                                 }
                             },
@@ -1367,7 +1367,7 @@
                                 "connectionProperties": {
                                     "authentication": {
                                         "type": "ManagedServiceIdentity",
-                                        "identity": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('ManagedServiceIdentityName'))]" // Dynamically constructs the resource ID for the managed identity
+                                        "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]"
                                     }
                                 }
                             }
