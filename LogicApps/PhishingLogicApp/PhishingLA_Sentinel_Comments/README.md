@@ -42,8 +42,8 @@ Before deploying the solution, ensure the following prerequisites are met:
   The following powershell run by a Security Administrator assigns the Graph permission to the managed identity: 
   ```powershell
   $TenantID="your tenant id"
-  $GraphAppId = "00000003-0000-0000-c000-000000000000"
   $DisplayNameOfMSI="your managed id name"
+  $GraphAppId = "00000003-0000-0000-c000-000000000000"
   $PermissionName = "Directory.Read.All"
 
   # Install the module
