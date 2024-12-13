@@ -195,9 +195,9 @@ SkillGroups:
             | extend UserId = tostring(RawEventData.UserId)
             | summarize EventCount=count() by UserId, bin(Timestamp,30m)
             | order by Timestamp
-            | summarize EventCount=make_list(EventCount),TimeGenerated=make_list(Timestamp) by UserId
+            | summarize EventCount=make_list(EventCount),Timestamp=make_list(Timestamp) by UserId
             | extend outliers=series_decompose_anomalies(EventCount)
-            | mv-expand TimeGenerated, EventCount, outliers
+            | mv-expand Timestamp, EventCount, outliers
             | where outliers == 1
             | distinct UserId);
             CloudAppEvents
