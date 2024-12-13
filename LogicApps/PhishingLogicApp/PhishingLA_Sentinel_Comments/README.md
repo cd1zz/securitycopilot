@@ -43,7 +43,7 @@ Before deploying the solution, ensure the following prerequisites are met:
   ```powershell
   $TenantID="your tenant id"
   $GraphAppId = "00000003-0000-0000-c000-000000000000"
-  $DisplayNameOfMSI="read-entra-profiles"
+  $DisplayNameOfMSI="your managed id name"
   $PermissionName = "Directory.Read.All"
 
   # Install the module
