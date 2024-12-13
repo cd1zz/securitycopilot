@@ -1373,7 +1373,8 @@
                                 "connectionProperties": {
                                     "authentication": {
                                         "type": "ManagedServiceIdentity",
-                                        "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedIdentityName'))]"
+                                        "identity":"[resourceId(parameters('ManagedIdentityResourceGroupName'), 'Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedIdentityName'))]"
+
                                     }
                                 }
                             }
