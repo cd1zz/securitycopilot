@@ -97,9 +97,14 @@
             "type": "microsoft.web/connections",
             "kind": "V1",
             "location": "[resourceGroup().location]", // Uses the location of the resource group
+                        "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                    "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]": {}
+                }
+            },
             "properties": {
                 "displayName": "[variables('AzureMonitorLogs-ConnectionName')]", // Display name matches the connection name
-                "parameterValueType": "Alternative",
                 "authenticatedUser": {}, // No explicit user defined (uses managed identity)
                 "overallStatus": "Ready", // Indicates readiness of the connection
                 "statuses": [
@@ -171,8 +176,14 @@
             "name": "[variables('AzureSentinel-ConnectionName')]", // Name dynamically constructed using Logic App name
             "location": "[resourceGroup().location]", // Uses the location of the resource group
             "kind": "V1",
+                        "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                    "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('ManagedServiceIdentityName'))]": {}
+                }
+            },
             "properties": {
-                "parameterValueType": "Alternative",
+                "parameterValueType": {},
                 "connectionState": "Enabled",
                 "authenticatedUser": {},
                 "parameterValueSet": {},
