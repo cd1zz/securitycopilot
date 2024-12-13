@@ -39,6 +39,27 @@ Before deploying the solution, ensure the following prerequisites are met:
    - **Microsoft Sentinel Reader**: Allows the Logic App to read Sentinel data for analysis and incident updates.
    - **Graph API Access**: Assign the `Directory.Read.All` permission (Read Directory data) in the Microsoft Graph API. This enables the solution to pull Entra profile data and integrate it into the Security Copilot analysis.
 
+  The following powershell run by a Security Administrator assigns the Graph permission to the managed identity: 
+  ```powershell
+  $TenantID="your tenant id"
+  $GraphAppId = "00000003-0000-0000-c000-000000000000"
+  $DisplayNameOfMSI="read-entra-profiles"
+  $PermissionName = "Directory.Read.All"
+
+  # Install the module
+  Install-Module AzureAD
+  Connect-AzureAD -TenantId $TenantID
+  $MSI = (Get-AzureADServicePrincipal -Filter "displayName eq '$DisplayNameOfMSI'")
+  Start-Sleep -Seconds 10
+  $GraphServicePrincipal = Get-AzureADServicePrincipal -Filter "appId eq '$GraphAppId'"
+  $AppRole = $GraphServicePrincipal.AppRoles | `
+  Where-Object {$_.Value -eq $PermissionName -and $_.AllowedMemberTypes -contains "Application"}
+  New-AzureAdServiceAppRoleAssignment -ObjectId $MSI.ObjectId -PrincipalId $MSI.ObjectId `
+  -ResourceId $GraphServicePrincipal.ObjectId -Id $AppRole.Id
+  ```
+
+  Ensure the Managed Identity is in the correct resource group and note the name and resource group for use in subsequent deployment steps.
+
 ### Shared Mailbox
 1. Configure an Office 365 shared mailbox where phishing emails will be submitted. https://learn.microsoft.com/en-us/microsoft-365/admin/email/create-a-shared-mailbox?view=o365-worldwide
 2. Ensure that the mailbox is accessible via the Logic App and has the necessary API connections set up.
@@ -66,34 +87,7 @@ az functionapp deployment source config-zip --resource-group yourresourcegroup -
 ```
 Download the ZIP file before running this command.
 
-### Step 2: Create a Managed Identity
-
-Before deploying the Logic App, create a User-Assigned Managed Identity (UAMI) in Azure with the following roles:
-
-1. **Azure Reader**: Provides read-only access to Azure resources.
-2. **Microsoft Sentinel Reader**: Allows the Logic App to read Sentinel data for analysis and incident updates.
-3. **Graph API Access**: Assign the `Directory.Read.All` permission (Read Directory data) in the Microsoft Graph API. This enables the solution to pull Entra profile data and integrate it into the Security Copilot analysis. The following powershell run by a Security Administrator assigns the Graph permission to the managed identity: 
-```powershell
-$TenantID="your tenant id"
-$GraphAppId = "00000003-0000-0000-c000-000000000000"
-$DisplayNameOfMSI="read-entra-profiles"
-$PermissionName = "Directory.Read.All"
-
-# Install the module
-Install-Module AzureAD
-Connect-AzureAD -TenantId $TenantID
-$MSI = (Get-AzureADServicePrincipal -Filter "displayName eq '$DisplayNameOfMSI'")
-Start-Sleep -Seconds 10
-$GraphServicePrincipal = Get-AzureADServicePrincipal -Filter "appId eq '$GraphAppId'"
-$AppRole = $GraphServicePrincipal.AppRoles | `
-Where-Object {$_.Value -eq $PermissionName -and $_.AllowedMemberTypes -contains "Application"}
-New-AzureAdServiceAppRoleAssignment -ObjectId $MSI.ObjectId -PrincipalId $MSI.ObjectId `
--ResourceId $GraphServicePrincipal.ObjectId -Id $AppRole.Id
-```
-
-Ensure the Managed Identity is in the correct resource group and note the name and resource group for use in subsequent deployment steps.
-
-### Step 3: Deploy the Logic App
+### Step 2: Deploy the Logic App
 
 Click the button below to deploy the Logic App. You will be prompted to input the following parameters during deployment:
 
@@ -112,7 +106,7 @@ Click the button below to deploy the Logic App. You will be prompted to input th
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Sentinel_Comments%2Flogicapp_azuredeploy.json)
 
-### Step 4: Enable API Connections
+### Step 3: Enable API Connections
 
 After deploying the Logic App, open the Logic App Designer in the Azure portal. Enable the following API connections:
 
@@ -137,6 +131,9 @@ From the Logic App designer, confirm that the "Alert - Get incident from systema
 5. **Conversion Service**
 No action needed.
 
+
+### Step4: Enable the Logic App
+The Logic App is deployed in a disabled state. Go to the Logic App Overview and click the "Enable" button when you are ready to test. 
 ---
 
 ## Workflow Overview
