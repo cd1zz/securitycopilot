@@ -261,7 +261,7 @@
                             "inputs": {
                                 "host": {
                                     "connection": {
-                                        "name": "@parameters('$connections')['office365']['connectionId']"
+                                        "name": "@parameters('$connections')['office365-1']['connectionId']"
                                     }
                                 },
                                 "method": "get",
@@ -287,7 +287,7 @@
                             "inputs": {
                                 "host": {
                                     "connection": {
-                                        "name": "@parameters('$connections')['office365']['connectionId']"
+                                        "name": "@parameters('$connections')['office365-1']['connectionId']"
                                     }
                                 },
                                 "method": "get",
@@ -631,7 +631,7 @@
                             "inputs": {
                                 "host": {
                                     "connection": {
-                                        "name": "@parameters('$connections')['securitycopilot']['connectionId']"
+                                        "name": "@parameters('$connections')['securitycopilot-1']['connectionId']"
                                     }
                                 },
                                 "method": "post",
@@ -973,7 +973,7 @@
                                     "inputs": {
                                         "host": {
                                             "connection": {
-                                                "name": "@parameters('$connections')['conversionservice']['connectionId']"
+                                                "name": "@parameters('$connections')['conversionservice-1']['connectionId']"
                                             }
                                         },
                                         "method": "post",
@@ -991,7 +991,7 @@
                                     "inputs": {
                                         "host": {
                                             "connection": {
-                                                "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
+                                                "name": "@parameters('$connections')['azuremonitorlogs-1']['connectionId']"
                                             }
                                         },
                                         "method": "post",
@@ -1019,7 +1019,7 @@
                                     "inputs": {
                                         "host": {
                                             "connection": {
-                                                "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                                "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
                                             }
                                         },
                                         "method": "get",
@@ -1036,7 +1036,7 @@
                                     "inputs": {
                                         "host": {
                                             "connection": {
-                                                "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                                "name": "@parameters('$connections')['azuresentinel-1']['connectionId']"
                                             }
                                         },
                                         "method": "post",
@@ -1057,7 +1057,7 @@
                                     "inputs": {
                                         "host": {
                                             "connection": {
-                                                "name": "@parameters('$connections')['office365']['connectionId']"
+                                                "name": "@parameters('$connections')['office365-1']['connectionId']"
                                             }
                                         },
                                         "method": "post",
@@ -1083,7 +1083,7 @@
                                             "inputs": {
                                                 "host": {
                                                     "connection": {
-                                                        "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
+                                                        "name": "@parameters('$connections')['azuremonitorlogs-1']['connectionId']"
                                                     }
                                                 },
                                                 "method": "post",
@@ -1168,7 +1168,7 @@
                                         "inputs": {
                                             "host": {
                                                 "connection": {
-                                                    "name": "@parameters('$connections')['office365']['connectionId']"
+                                                    "name": "@parameters('$connections')['office365-1']['connectionId']"
                                                 }
                                             },
                                             "method": "post",
@@ -1341,7 +1341,7 @@
                         "value": {
                             // Office 365 connection
                             // Provides access to Office 365 APIs for email and other services
-                            "office365": {
+                            "office365-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]", // Dynamically constructs the API reference for Office 365
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office365-ConnectionName'))]", // References the specific Office 365 connection instance
                                 "connectionName": "[variables('Office365-ConnectionName')]" // Uses the variable to define the connection name
@@ -1349,7 +1349,7 @@
 
                             // Security Copilot connection
                             // Connects to Security Copilot for advanced security analysis
-                            "securitycopilot": {
+                            "securitycopilot-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/securitycopilot')]", // Dynamically constructs the API reference for Security Copilot
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('Securitycopilot-ConnectionName'))]", // References the specific Security Copilot connection instance
                                 "connectionName": "[variables('Securitycopilot-ConnectionName')]" // Uses the variable to define the connection name
@@ -1357,7 +1357,7 @@
 
                             // Conversion Service connection
                             // Connects to Conversion Service for data conversion tasks
-                            "conversionservice": {
+                            "conversionservice-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/conversionservice')]", // Dynamically constructs the API reference for Conversion Service
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('ConversionService-ConnectionName'))]", // References the specific Conversion Service connection instance
                                 "connectionName": "[variables('ConversionService-ConnectionName')]" // Uses the variable to define the connection name
@@ -1365,7 +1365,7 @@
 
                             // Azure Monitor Logs connection
                             // Connects to Azure Monitor Logs for logging and monitoring
-                            "azuremonitorlogs": {
+                            "azuremonitorlogs-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]", // Dynamically constructs the API reference for Azure Monitor Logs
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureMonitorLogs-ConnectionName'))]", // References the specific Azure Monitor Logs connection instance
                                 "connectionName": "[variables('AzureMonitorLogs-ConnectionName')]", // Uses the variable to define the connection name
@@ -1379,7 +1379,7 @@
 
                             // Azure Sentinel connection
                             // Connects to Azure Sentinel for security monitoring and incident management
-                            "azuresentinel": {
+                            "azuresentinel-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]", // Dynamically constructs the API reference for Azure Sentinel
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureSentinel-ConnectionName'))]", // References the specific Azure Sentinel connection instance
                                 "connectionName": "[variables('AzureSentinel-ConnectionName')]" // Uses the variable to define the connection name
