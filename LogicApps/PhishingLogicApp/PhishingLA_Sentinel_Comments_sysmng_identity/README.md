@@ -3,6 +3,8 @@ Author: Craig Freyman
 
 This version uses a system managed identity created on the fly. 
 
+### Step 1: Deploy the Function App
+
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Sentinel_Comments_sysmng_identity%2Ffunctionapp_azuredeploy.json
 )
 
@@ -14,7 +16,7 @@ Download the ZIP file before running this command.
 
 ---
 
-### Step 2: Deploy the Logic App
+
 
 Click the button below to deploy the Logic App. You will be prompted to input the following parameters during deployment:
 
