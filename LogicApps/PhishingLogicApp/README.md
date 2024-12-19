@@ -115,7 +115,8 @@ Note: Ensure you have the required permissions and access to create and manage t
 
 Click the button below to deploy the Function App. Provide a unique Function App name and select a resource group. Ensure the Function App is fully deployed before proceeding with the Logic App deployment.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Fmain%2FLogicApps%2FPhishingLogicApp%2FSentinel_Comments_usrmg_identity%2Ffunctionapp_azuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Sentinel_Comments_usrmg_identity%2Ffunctionapp_azuredeploy.json
+)
 
 If needed, you can deploy the Function App manually using the command line:
 ```bash
@@ -142,7 +143,8 @@ Click the button below to deploy the Logic App. You will be prompted to input th
 - **SharedMailboxAddress**: Email address of the shared O365 mailbox.
 - **DestinationForHTMLReport**: Email address where the HTML report should be sent.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Sentinel_Comments_usrmg_identity%2Flogicapp_azuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Sentinel_Comments_usrmg_identity%2Flogicapp_azuredeploy.json
+)
 
 ---
 
