@@ -7,4 +7,4 @@ Descriptor:
 SkillGroups:  
   - Format: API  
     Settings:  
-      OpenApiSpecUrl: 
+      OpenApiSpecUrl: https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/CustomPlugins/FirstdotOrg/first_openapi.json
