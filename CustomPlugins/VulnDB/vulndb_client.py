@@ -51,14 +51,23 @@ def query_vulndb(vulnerability: str, token: str) -> Optional[dict]:
         log.error("Error querying VulnDB: %s", e, exc_info=True)
         return None
 
-def filter_data(data: dict) -> Dict[str, List[str]]:
+def filter_data(data: dict) -> List[Dict[str, List[str]]]:
     """Filter the data to retain specific fields."""
     log.info("Filtering data...")
     try:
-        # Process all results instead of just the first
         filtered_results = []
         for result in data.get("results", []):
+            # Extract CVE ID from ext_references or cvss_metrics
+            cve_id = next(
+                (ref["value"] for ref in result.get("ext_references", []) if ref["type"] == "CVE ID"),
+                None
+            ) or next(
+                (metric.get("cve_id") for metric in result.get("cvss_metrics", []) if metric.get("cve_id")),
+                ""
+            )
+            
             filtered = {
+                "CVE ID": cve_id,
                 "Title": result.get("title", ""),
                 "Description": result.get("description", ""),
                 "Exploit Publish Date": result.get("exploit_publish_date", ""),
@@ -71,6 +80,7 @@ def filter_data(data: dict) -> Dict[str, List[str]]:
     except Exception as e:
         log.error("Error during data filtering: %s", e, exc_info=True)
         return []
+
 
 def save_to_file(filename: str, data: dict):
     """Save the query result to a JSON file."""

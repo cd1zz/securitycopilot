@@ -1,0 +1,34 @@
+[
+  {
+    "CVE ID": "",
+    "Title": "Allegro RomPager HTTP Cookie Management Unspecified Memory Corruption Remote Code Execution (Misfortune Cookie)",
+    "Description": "RomPager contains an unspecified memory corruption flaw related to HTTP cookie management. This may allow a remote attacker to execute arbitrary code. No further details have been provided.",
+    "Exploit Publish Date": "2016-11-13T00:00:00Z",
+    "CVSS Base Score": 10.0,
+    "Products": [
+      "Capsule Datacaptor Terminal Server (DTS)",
+      "D-Link DSL-2680",
+      "DSL-2640R",
+      "DSL-2641R",
+      "DSL-2700U",
+      "DSL-2740R",
+      "DSL-2780",
+      "DSL-320B",
+      "DSL-321B",
+      "DSL-3680",
+      "DSL-3780",
+      "GO-DSL-N151",
+      "Huawei HG530",
+      "RomPager",
+      "TD-W Series Devices",
+      "ZTE 831II",
+      "ZTE W300B Series Devices",
+      "ZTE W300D Series Devices",
+      "ZTE W300E Series Devices",
+      "ZTE W300S Series Devices",
+      "ZXDSL 831CII",
+      "ZXHN H108L",
+      "ZXV10 W300"
+    ]
+  }
+]
