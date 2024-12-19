@@ -1,0 +1,10 @@
+Descriptor:  
+  Name: First.org API Search
+  DisplayName: First.org API Search 
+  Description: The FIRST.org API serves as a public interface to facilitate access to a wide array of data related to global incident response and security efforts. It includes endpoints for querying information about incident response teams, retrieving security-related news, listing news channels, accessing structured data on countries, and integrating Exploit Prediction Scoring System (EPSS) data for vulnerabilities.
+
+
+SkillGroups:  
+  - Format: API  
+    Settings:  
+      OpenApiSpecUrl: 

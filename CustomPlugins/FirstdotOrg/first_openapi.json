@@ -1,0 +1,758 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "FIRST API",
+        "version": "1.0.0",
+        "description": "An API for accessing public data from FIRST.org."
+    },
+    "servers": [
+        {
+            "url": "https://api.first.org/data/v1",
+            "description": "Base URL for FIRST API v1"
+        }
+    ],
+    "paths": {
+        "/teams": {
+            "get": {
+                "summary": "Retrieve Teams",
+                "description": "Fetch public information about teams from the FIRST.org database.",
+                "parameters": [
+                    {
+                        "name": "country",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filters the teams by country. Use ISO 2-letter code.",
+                        "schema": {
+                            "type": "string",
+                            "example": "BR"
+                        }
+                    },
+                    {
+                        "name": "region",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filters the teams by continental regions (e.g., South America, Europe, Asia).",
+                        "schema": {
+                            "type": "string",
+                            "example": "South America"
+                        }
+                    },
+                    {
+                        "name": "team",
+                        "in": "query",
+                        "required": false,
+                        "description": "Filters the teams by name (Short Team Name).",
+                        "schema": {
+                            "type": "string",
+                            "example": "Axur"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "description": "Free text search in team name, country, and country name.",
+                        "schema": {
+                            "type": "string",
+                            "example": "Brazil"
+                        }
+                    },
+                    {
+                        "name": "scope",
+                        "in": "query",
+                        "required": false,
+                        "description": "Defines the scope of information to retrieve.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "public",
+                                "members",
+                                "minimal",
+                                "country",
+                                "pgp"
+                            ],
+                            "default": "public"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response with a list of teams.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "OK"
+                                        },
+                                        "status-code": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "version": {
+                                            "type": "string",
+                                            "example": "1"
+                                        },
+                                        "last-modified": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "example": "2016-07-21T19:02:52Z"
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 4
+                                        },
+                                        "access": {
+                                            "type": "string",
+                                            "example": "public"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "example": "axur"
+                                                    },
+                                                    "team": {
+                                                        "type": "string",
+                                                        "example": "Axur"
+                                                    },
+                                                    "team-full": {
+                                                        "type": "string",
+                                                        "example": "Axur Csirt"
+                                                    },
+                                                    "host": {
+                                                        "type": "string",
+                                                        "example": "AXUR"
+                                                    },
+                                                    "establishment": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                        "example": "2014-11-15"
+                                                    },
+                                                    "address": {
+                                                        "type": "string",
+                                                        "example": "Rua Mostardeiro, 322, Sala 6 Moinhos de Vento, Porto Alegre - RS - Brazil - 90430-000"
+                                                    },
+                                                    "country": {
+                                                        "type": "string",
+                                                        "example": "BR"
+                                                    },
+                                                    "email": {
+                                                        "type": "string",
+                                                        "format": "email",
+                                                        "example": "csirt@axur.com"
+                                                    },
+                                                    "phone": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string",
+                                                            "example": "+55-51-3122987"
+                                                        }
+                                                    },
+                                                    "fax": {
+                                                        "type": "string",
+                                                        "example": "+55-51-3094-0461"
+                                                    },
+                                                    "phone-emergency": {
+                                                        "type": "string",
+                                                        "example": "+55-51-40639836"
+                                                    },
+                                                    "timezone": {
+                                                        "type": "string",
+                                                        "example": "GMT-3"
+                                                    },
+                                                    "constituency": {
+                                                        "type": "string",
+                                                        "example": "ICT vendor customer base"
+                                                    },
+                                                    "constituency-description": {
+                                                        "type": "string",
+                                                        "example": "Axur’s (host organization) customer base which includes but is not limited to government, financial institutions (banks, credit cards), e-commerce, real state agencies, loyalty plans and airline companies."
+                                                    },
+                                                    "last-modified": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2016-02-26T04:26:26-03:00"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request. The request is invalid or malformed."
+                    },
+                    "429": {
+                        "description": "Too Many Requests. The rate limit has been exceeded."
+                    }
+                }
+            }
+        },
+        "/news": {
+            "get": {
+                "summary": "Retrieve News",
+                "description": "Fetch public news items from the FIRST.org database.",
+                "parameters": [
+                    {
+                        "name": "channel",
+                        "in": "query",
+                        "required": false,
+                        "description": "Title of the news channel the news should be listed on.",
+                        "schema": {
+                            "type": "string",
+                            "example": "What's New"
+                        }
+                    },
+                    {
+                        "name": "link",
+                        "in": "query",
+                        "required": false,
+                        "description": "News item URL. Items published at FIRST website do not contain the domain name.",
+                        "schema": {
+                            "type": "string",
+                            "example": "newsroom/releases/20160711"
+                        }
+                    },
+                    {
+                        "name": "before",
+                        "in": "query",
+                        "required": false,
+                        "description": "ISO 8601 formatted date. Returns only news older than the input.",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2016-07-12T00:00:00Z"
+                        }
+                    },
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "required": false,
+                        "description": "ISO 8601 formatted date. Returns only news newer than the input.",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2016-07-10T00:00:00Z"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "description": "Free text search in the news title, summary, and URL.",
+                        "schema": {
+                            "type": "string",
+                            "example": "malware"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response with a list of news items.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "OK"
+                                        },
+                                        "status-code": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "version": {
+                                            "type": "string",
+                                            "example": "1"
+                                        },
+                                        "last-modified": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "example": "2016-07-12T15:42:31Z"
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 249
+                                        },
+                                        "limit": {
+                                            "type": "integer",
+                                            "example": 3
+                                        },
+                                        "offset": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "access": {
+                                            "type": "string",
+                                            "example": "public"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 40558
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "FIRST calls for participants for a new Special Interest Group (SIG) on Malware Analysis"
+                                                    },
+                                                    "summary": {
+                                                        "type": "string",
+                                                        "example": "Forum invites stakeholders to get involved in sharing best practice to mitigate malware incidents."
+                                                    },
+                                                    "link": {
+                                                        "type": "string",
+                                                        "format": "uri",
+                                                        "example": "https://www.first.org/newsroom/releases/20160711"
+                                                    },
+                                                    "published": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2016-07-11T18:54:00Z"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request. The request is invalid or malformed."
+                    },
+                    "429": {
+                        "description": "Too Many Requests. The rate limit has been exceeded."
+                    }
+                }
+            }
+        },
+        "/channels": {
+            "get": {
+                "summary": "Retrieve Channels",
+                "description": "Fetch public news channels from the FIRST.org database.",
+                "parameters": [
+                    {
+                        "name": "channel",
+                        "in": "query",
+                        "required": false,
+                        "description": "Title of the news channel.",
+                        "schema": {
+                            "type": "string",
+                            "example": "Newsletters"
+                        }
+                    },
+                    {
+                        "name": "link",
+                        "in": "query",
+                        "required": false,
+                        "description": "News Channel URL. Items published at FIRST website do not contain the domain name.",
+                        "schema": {
+                            "type": "string",
+                            "example": "newsroom/newsletters"
+                        }
+                    },
+                    {
+                        "name": "rsslink",
+                        "in": "query",
+                        "required": false,
+                        "description": "News Channel RSS 2.0 URL. Items published at FIRST website do not contain the domain name.",
+                        "schema": {
+                            "type": "string",
+                            "example": "newsroom/newsletters/rss.xml"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "description": "Free text search in the news channel title, summary, and URLs.",
+                        "schema": {
+                            "type": "string",
+                            "example": "newsletters"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response with a list of news channels.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "OK"
+                                        },
+                                        "status-code": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "version": {
+                                            "type": "string",
+                                            "example": "1.0"
+                                        },
+                                        "access": {
+                                            "type": "string",
+                                            "example": "public"
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "offset": {
+                                            "type": "integer",
+                                            "example": 0
+                                        },
+                                        "limit": {
+                                            "type": "integer",
+                                            "example": 100
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 25
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "Newsletters"
+                                                    },
+                                                    "link": {
+                                                        "type": "string",
+                                                        "format": "uri",
+                                                        "example": "https://www.first.org/newsroom/newsletters"
+                                                    },
+                                                    "rss": {
+                                                        "type": "string",
+                                                        "format": "uri",
+                                                        "example": "https://www.first.org/newsroom/newsletters/rss.xml"
+                                                    },
+                                                    "image": {
+                                                        "type": "string",
+                                                        "format": "uri",
+                                                        "example": "https://www.first.org/_/img/1st.png"
+                                                    },
+                                                    "summary": {
+                                                        "type": "string",
+                                                        "example": "FIRST POST Newsletters"
+                                                    },
+                                                    "copyright": {
+                                                        "type": "string",
+                                                        "example": "© 1995-2019 by FIRST.org, Inc."
+                                                    },
+                                                    "last-modified": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2024-08-23T17:09:55Z"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "/countries": {
+                        "get": {
+                            "summary": "Retrieve Countries",
+                            "description": "Fetch public information about countries from the FIRST.org database, indexed by ISO country codes.",
+                            "parameters": [
+                                {
+                                    "name": "region",
+                                    "in": "query",
+                                    "required": false,
+                                    "description": "Region of the country.",
+                                    "schema": {
+                                        "type": "string",
+                                        "example": "Africa"
+                                    }
+                                },
+                                {
+                                    "name": "q",
+                                    "in": "query",
+                                    "required": false,
+                                    "description": "Free text search in the country name, abbreviations, and region.",
+                                    "schema": {
+                                        "type": "string",
+                                        "example": "Algeria"
+                                    }
+                                },
+                                {
+                                    "name": "scope",
+                                    "in": "query",
+                                    "required": false,
+                                    "description": "Defines the scope of information to retrieve.",
+                                    "schema": {
+                                        "type": "string",
+                                        "enum": [
+                                            "public",
+                                            "iso",
+                                            "full"
+                                        ],
+                                        "default": "public"
+                                    }
+                                }
+                            ],
+                            "responses": {
+                                "200": {
+                                    "description": "Successful response with a list of countries.",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "OK"
+                                                    },
+                                                    "status-code": {
+                                                        "type": "integer",
+                                                        "example": 200
+                                                    },
+                                                    "version": {
+                                                        "type": "string",
+                                                        "example": "1"
+                                                    },
+                                                    "total": {
+                                                        "type": "integer",
+                                                        "example": 57
+                                                    },
+                                                    "offset": {
+                                                        "type": "integer",
+                                                        "example": 0
+                                                    },
+                                                    "limit": {
+                                                        "type": "integer",
+                                                        "example": 3
+                                                    },
+                                                    "access": {
+                                                        "type": "string",
+                                                        "example": "public"
+                                                    },
+                                                    "data": {
+                                                        "type": "object",
+                                                        "additionalProperties": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "country": {
+                                                                    "type": "string",
+                                                                    "example": "Algeria"
+                                                                },
+                                                                "region": {
+                                                                    "type": "string",
+                                                                    "example": "Africa"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "/epss": {
+                                    "get": {
+                                        "summary": "Retrieve EPSS Data",
+                                        "description": "Fetch EPSS (Exploit Prediction Scoring System) data for vulnerabilities.",
+                                        "parameters": [
+                                            {
+                                                "name": "cve",
+                                                "in": "query",
+                                                "required": false,
+                                                "description": "Filters by EPSS CVE ID. Multiple values are supported separated by commas (maximum size: 2000 characters).",
+                                                "schema": {
+                                                    "type": "string",
+                                                    "example": "CVE-2021-40438,CVE-2019-16759"
+                                                }
+                                            },
+                                            {
+                                                "name": "date",
+                                                "in": "query",
+                                                "required": false,
+                                                "description": "Date in the format YYYY-MM-DD (since April 14, 2021), shows the historic values for epss and percentile attributes.",
+                                                "schema": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2022-02-28"
+                                                }
+                                            },
+                                            {
+                                                "name": "days",
+                                                "in": "query",
+                                                "required": false,
+                                                "description": "Number of days since the EPSS score was added to the database.",
+                                                "schema": {
+                                                    "type": "integer",
+                                                    "example": 7
+                                                }
+                                            },
+                                            {
+                                                "name": "epss-gt",
+                                                "in": "query",
+                                                "required": false,
+                                                "description": "Only display CVEs with EPSS score greater or equal to this value.",
+                                                "schema": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 0.9
+                                                }
+                                            },
+                                            {
+                                                "name": "percentile-gt",
+                                                "in": "query",
+                                                "required": false,
+                                                "description": "Only display CVEs with percentile greater or equal to this value.",
+                                                "schema": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 0.95
+                                                }
+                                            },
+                                            {
+                                                "name": "epss-lt",
+                                                "in": "query",
+                                                "required": false,
+                                                "description": "Only display CVEs with EPSS score lower or equal to this value.",
+                                                "schema": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 0.5
+                                                }
+                                            },
+                                            {
+                                                "name": "percentile-lt",
+                                                "in": "query",
+                                                "required": false,
+                                                "description": "Only display CVEs with percentile lower or equal to this value.",
+                                                "schema": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 0.2
+                                                }
+                                            },
+                                            {
+                                                "name": "q",
+                                                "in": "query",
+                                                "required": false,
+                                                "description": "Free text search in the CVE ID (allows partial matches).",
+                                                "schema": {
+                                                    "type": "string",
+                                                    "example": "CVE-2021"
+                                                }
+                                            },
+                                            {
+                                                "name": "scope",
+                                                "in": "query",
+                                                "required": false,
+                                                "description": "Defines the scope of information to retrieve.",
+                                                "schema": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "public",
+                                                        "time-series"
+                                                    ],
+                                                    "default": "public"
+                                                }
+                                            }
+                                        ],
+                                        "responses": {
+                                            "200": {
+                                                "description": "Successful response with EPSS data.",
+                                                "content": {
+                                                    "application/json": {
+                                                        "schema": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "status": {
+                                                                    "type": "string",
+                                                                    "example": "OK"
+                                                                },
+                                                                "status-code": {
+                                                                    "type": "integer",
+                                                                    "example": 200
+                                                                },
+                                                                "version": {
+                                                                    "type": "string",
+                                                                    "example": "1.0"
+                                                                },
+                                                                "access": {
+                                                                    "type": "string",
+                                                                    "example": "private, no-cache"
+                                                                },
+                                                                "total": {
+                                                                    "type": "integer",
+                                                                    "example": 2
+                                                                },
+                                                                "offset": {
+                                                                    "type": "integer",
+                                                                    "example": 0
+                                                                },
+                                                                "limit": {
+                                                                    "type": "integer",
+                                                                    "example": 100
+                                                                },
+                                                                "data": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "object",
+                                                                        "properties": {
+                                                                            "cve": {
+                                                                                "type": "string",
+                                                                                "example": "CVE-2021-40438"
+                                                                            },
+                                                                            "epss": {
+                                                                                "type": "string",
+                                                                                "example": "0.972240000"
+                                                                            },
+                                                                            "percentile": {
+                                                                                "type": "string",
+                                                                                "example": "1.000000000"
+                                                                            },
+                                                                            "date": {
+                                                                                "type": "string",
+                                                                                "format": "date",
+                                                                                "example": "2022-02-28"
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "400": {
+                                                "description": "Bad Request. The request is invalid or malformed."
+                                            },
+                                            "429": {
+                                                "description": "Too Many Requests. The rate limit has been exceeded."
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
