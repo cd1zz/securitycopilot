@@ -51,21 +51,26 @@ def query_vulndb(vulnerability: str, token: str) -> Optional[dict]:
         log.error("Error querying VulnDB: %s", e, exc_info=True)
         return None
 
+def extract_cve_id(result: dict) -> str:
+    """Extract the CVE ID from the result, even if it is null in the primary field."""
+    cve_id = result.get("cve_id", "")
+    if not cve_id or not cve_id.startswith("CVE-"):
+        # Check in external references for CVE ID
+        for ref in result.get("ext_references", []):
+            if ref.get("type") == "CVE ID" and ref.get("value"):
+                cve_id = ref["value"]
+                if not cve_id.startswith("CVE-"):
+                    cve_id = f"CVE-{cve_id}"
+                break
+    return cve_id
+
 def filter_data(data: dict) -> List[Dict[str, List[str]]]:
     """Filter the data to retain specific fields."""
     log.info("Filtering data...")
     try:
         filtered_results = []
         for result in data.get("results", []):
-            # Extract CVE ID from ext_references or cvss_metrics
-            cve_id = next(
-                (ref["value"] for ref in result.get("ext_references", []) if ref["type"] == "CVE ID"),
-                None
-            ) or next(
-                (metric.get("cve_id") for metric in result.get("cvss_metrics", []) if metric.get("cve_id")),
-                ""
-            )
-            
+            cve_id = extract_cve_id(result)
             filtered = {
                 "CVE ID": cve_id,
                 "Title": result.get("title", ""),
@@ -80,7 +85,6 @@ def filter_data(data: dict) -> List[Dict[str, List[str]]]:
     except Exception as e:
         log.error("Error during data filtering: %s", e, exc_info=True)
         return []
-
 
 def save_to_file(filename: str, data: dict):
     """Save the query result to a JSON file."""

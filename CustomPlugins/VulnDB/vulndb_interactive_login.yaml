@@ -1,0 +1,35 @@
+Descriptor:  
+  Name: VulnDB API search
+  DisplayName: VulnDB API search 
+  Description: Retrieve information from VulnDB
+  SupportedAuthTypes:
+    - OAuthAuthorizationCodeFlow 
+
+  Settings:
+  - Name: client_id
+    Label: client_id
+    Description: client_id
+    HintText: client_id
+    SettingType: String
+    Required: true
+
+  - Name: client_secret
+    Label: client_secret
+    Description: client_secret
+    HintText: client_secret
+    SettingType: String
+    Required: true
+    
+
+  Authorization:
+    Type: OAuthAuthorizationCodeFlow
+    ClientId: "{{client_id}}"
+    ClientSecret: "{{client_secret}}"
+    TokenEndpoint: https://vulndb.flashpoint.io/oauth/token
+    AuthorizationEndpoint: https://vulndb.flashpoint.io/oauth/authorize
+    AuthorizationContentType: application/x-www-form-urlencoded
+
+SkillGroups:  
+  - Format: API  
+    Settings:  
+      OpenApiSpecUrl: https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/CustomPlugins/VulnDB/vulndb_openapispec.yaml
