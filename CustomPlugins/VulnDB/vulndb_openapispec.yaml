@@ -1,0 +1,79 @@
+openapi: 3.0.3
+info:
+  title: VulnDB API Integration
+  description: An API to query vulnerability details from VulnDB by CVE ID.
+  version: 1.0.0
+servers:
+  - url: /api
+paths:
+  /query-vulnerability:
+    post:
+      summary: Query vulnerability details by CVE ID.
+      description: >
+        This endpoint allows clients to query the VulnDB API to retrieve details of a vulnerability using a CVE ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cve_id:
+                  type: string
+                  description: The CVE ID of the vulnerability to query.
+                  example: "CVE-2023-12345"
+              required:
+                - cve_id
+      responses:
+        "200":
+          description: Vulnerability details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cve_id:
+                    type: string
+                    description: The CVE ID of the vulnerability.
+                  title:
+                    type: string
+                    description: The title of the vulnerability.
+                  description:
+                    type: string
+                    description: The detailed description of the vulnerability.
+                  cvss_base_score:
+                    type: string
+                    description: The CVSS base score for the vulnerability.
+                  cvss_temporal_score:
+                    type: string
+                    description: The CVSS temporal score for the vulnerability.
+                  exploit_publish_date:
+                    type: string
+                    format: date-time
+                    description: The publish date of any known exploits for this vulnerability.
+        "400":
+          description: Invalid request payload.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Missing one or more required parameters: cve_id."
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Unexpected error: <error message>."
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
