@@ -35,48 +35,48 @@ paths:
       parameters:
         - name: cve_id
           in: path
-          required: true
+          required: True
           description: The CVE ID to search for.
           schema:
             type: string
         - name: show_cvss
           in: query
-          required: false
+          required: False
           description: Include CVSS base and temporal data.
           schema:
             type: boolean
-            default: true
+            default: True
         - name: show_cvss_v3
           in: query
-          required: false
+          required: False
           description: Include CVSSv3 data.
           schema:
             type: boolean
-            default: true
+            default: True
         - name: vtem
           in: query
-          required: false
+          required: False
           description: Include temporal metrics.
           schema:
             type: boolean
-            default: true
+            default: True
         - name: additional_info
           in: query
-          required: false
+          required: False
           description: Include additional information.
           schema:
             type: boolean
-            default: false
+            default: False
         - name: nested
           in: query
-          required: false
+          required: False
           description: Include nested structures in the response.
           schema:
             type: boolean
-            default: false
+            default: False
         - name: size
           in: query
-          required: false
+          required: False
           description: Limit the number of results.
           schema:
             type: integer
