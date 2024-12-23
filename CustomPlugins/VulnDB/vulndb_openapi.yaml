@@ -45,30 +45,35 @@ paths:
           description: Include CVSS base and temporal data.
           schema:
             type: boolean
+            default: true
         - name: show_cvss_v3
           in: query
           required: false
           description: Include CVSSv3 data.
           schema:
             type: boolean
+            default: true
         - name: vtem
           in: query
           required: false
           description: Include temporal metrics.
           schema:
             type: boolean
+            default: true
         - name: additional_info
           in: query
           required: false
           description: Include additional information.
           schema:
             type: boolean
+            default: false
         - name: nested
           in: query
           required: false
           description: Include nested structures in the response.
           schema:
             type: boolean
+            default: false
         - name: size
           in: query
           required: false
