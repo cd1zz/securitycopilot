@@ -1,0 +1,119 @@
+openapi: 3.0.3
+info:
+  title: VulnDB API
+  description: API for interacting with VulnDB, including account status and vulnerability details.
+  version: 1.0.0
+servers:
+  - url: https://vulndb.flashpoint.io
+    description: VulnDB API Base URL
+paths:
+  /api/v2/account_status:
+    get:
+      summary: Retrieve account status
+      description: Fetch account status information, including API usage metrics.
+      responses:
+        '200':
+          description: Account status retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  number_of_api_calls_allowed_per_month:
+                    type: integer
+                    description: Number of API calls allowed per month.
+                  number_of_api_calls_made_this_month:
+                    type: integer
+                    description: Number of API calls made this month.
+        '401':
+          description: Authentication required.
+  /api/v2/vulnerabilities/{cve_id}/find_by_cve_id:
+    get:
+      summary: Retrieve vulnerability by CVE ID
+      description: Fetch vulnerability details using a CVE ID.
+      parameters:
+        - name: cve_id
+          in: path
+          required: true
+          description: The CVE ID to search for.
+          schema:
+            type: string
+        - name: show_cvss
+          in: query
+          required: false
+          description: Include CVSS base and temporal data.
+          schema:
+            type: boolean
+        - name: show_cvss_v3
+          in: query
+          required: false
+          description: Include CVSSv3 data.
+          schema:
+            type: boolean
+        - name: vtem
+          in: query
+          required: false
+          description: Include temporal metrics.
+          schema:
+            type: boolean
+        - name: additional_info
+          in: query
+          required: false
+          description: Include additional information.
+          schema:
+            type: boolean
+        - name: nested
+          in: query
+          required: false
+          description: Include nested structures in the response.
+          schema:
+            type: boolean
+        - name: size
+          in: query
+          required: false
+          description: Limit the number of results.
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Vulnerability details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        cve_id:
+                          type: string
+                          description: The CVE ID of the vulnerability.
+                        title:
+                          type: string
+                          description: Title of the vulnerability.
+                        description:
+                          type: string
+                          description: Description of the vulnerability.
+                        cvss_base_score:
+                          type: number
+                          description: CVSS base score.
+                        cvss_temporal_score:
+                          type: number
+                          description: CVSS temporal score.
+                        ransomware_likelihood:
+                          type: string
+                          description: Likelihood of ransomware exploitation.
+                        solution:
+                          type: string
+                          description: Solution for the vulnerability.
+                        exploit_publish_date:
+                          type: string
+                          format: date
+                          description: Date when the exploit was published.
+        '404':
+          description: CVE ID not found.
+        '401':
+          description: Authentication required.
