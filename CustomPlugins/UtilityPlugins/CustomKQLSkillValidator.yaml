@@ -91,15 +91,15 @@ SkillGroups:
                           - string
                         Inputs: Extract a list of inputs as these are the only allowed variables notated by double curley brackets in the KQL Template section below. 
                           - Name: variableNameYouWantFromTheUserThatIsReferencedInYourKQL
-                            PlaceholderValue: Description or examples that user will see before filling out this variable. Note this field is displayed to the user.
+                            PlaceholderValue: Description or examples that user will see before filling out this variable. Note this field is displayed to the user. This setting is optional. 
                             Description: Description that the orchestrator will use which includes any situations that explain when this input field should or should not be skipped. For example 'this field should be only used if an IP address is in IPv4 format'. Do not use the 'PlaceholderValue' field if you don't have any specific instructions for the orchestrator. Also this field is not displayed to the user.
-                            DefaultValue: defaultValue used if the 'Required' field is set to 'False'
+                            DefaultValue: defaultValue used if the 'Required' field is set to 'False', otherwise this setting is optional. 
                             Required: true or false
                         Settings:
                           Target: Defender, Sentinel, or Log Analytics
-                    SubscriptionId: Only necessary if the target is Sentinel or Log Analytics.
-                          ResourceGroupName: Only necessary if the target is Sentinel or Log Analytics.
-                          WorkspaceName: Only necessary if the target is Sentinel or Log Analytics.
+                          SubscriptionId: Necessary if the target is Sentinel or Log Analytics.
+                          ResourceGroupName: Necessary if the target is Sentinel or Log Analytics.
+                          WorkspaceName: Necessary if the target is Sentinel or Log Analytics.
                           Template: |-
                             KQLtableYouAreReferencing
                             //KQL comment to help the Orchestrator or users responsible for maintaining the code
@@ -111,6 +111,10 @@ SkillGroups:
               Analyze this yaml file {{yaml_file}} based on the details noted above. 
 
               ***Output Specifics***
-              Output concise report of findings that require action ONLY. Be specific on where findings were discovered, specific parameter names, and provide your reasoning for the finding. 
+              1. Output concise report of findings that require action ONLY. 
+              2. Avoid recommending KQL keyword 'project' with specific column names because your trained data is likely outdated. 
+              3. If your analysis has a concern of column content, recommend confirming with learn.microsoft.com for updated KQL table and column information. 
+              4. Be specific on where findings were discovered, specific parameter names, and provide your reasoning for the finding. 
+              5. Is Sentinel defined as a target in any of the defined skills in 'SkillGroups'? If not, do not highlight any Sentinel specific findings. 
 
 
