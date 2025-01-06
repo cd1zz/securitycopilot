@@ -12,6 +12,7 @@ SkillGroups:
         Inputs:
           - Name: yaml_file
             Description: The KQL plugin YAML file content to be analyzed.
+            Required: true
         Settings:
           ModelName: gpt-4o
           Template: |-
@@ -110,6 +111,6 @@ SkillGroups:
               Analyze this yaml file {{yaml_file}} based on the details noted above. 
 
               ***Output Specifics***
-              Output concise report of findings that require action ONLY. Be specific on where findings were discovered and provide your reasoning. 
+              Output concise report of findings that require action ONLY. Be specific on where findings were discovered, specific parameter names, and provide your reasoning for the finding. 
 
 
