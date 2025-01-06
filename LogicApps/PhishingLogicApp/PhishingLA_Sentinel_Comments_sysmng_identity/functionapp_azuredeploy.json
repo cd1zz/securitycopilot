@@ -49,13 +49,8 @@
                     ],
                     "bypass": "AzureServices",
                     "virtualNetworkRules": [],
-                    "ipRules": [
-                        {
-                            "value": "75.70.255.203",
-                            "action": "Allow"
-                        }
-                    ],
-                    "defaultAction": "Deny"
+                    "ipRules": [],
+                    "defaultAction": "Allow"
                 },
                 "supportsHttpsTrafficOnly": true,
                 "encryption": {
@@ -260,54 +255,7 @@
                             "https://portal.azure.com"
                         ],
                         "supportCredentials": false
-                    },
-                    "ipSecurityRestrictions": [
-                        {
-                            "ipAddress": "LogicApps",
-                            "action": "Allow",
-                            "tag": "ServiceTag",
-                            "priority": 100,
-                            "name": "LogicApps"
-                        },
-                        {
-                            "ipAddress": "LogicAppsManagement",
-                            "action": "Allow",
-                            "tag": "ServiceTag",
-                            "priority": 200,
-                            "name": "LogicAppMgmt"
-                        },
-                        {
-                            "ipAddress": "AzureCloud",
-                            "action": "Allow",
-                            "tag": "ServiceTag",
-                            "priority": 300,
-                            "name": "AzureCloud"
-                        },
-                        {
-                            "ipAddress": "Storage",
-                            "action": "Allow",
-                            "tag": "ServiceTag",
-                            "priority": 400,
-                            "name": "Storage"
-                        },
-                        {
-                            "ipAddress": "Any",
-                            "action": "Deny",
-                            "priority": 2147483647,
-                            "name": "Deny all",
-                            "description": "Deny all access"
-                        }
-                    ],
-                    "ipSecurityRestrictionsDefaultAction": "Deny",
-                    "scmIpSecurityRestrictions": [
-                        {
-                            "ipAddress": "Any",
-                            "action": "Allow",
-                            "priority": 2147483647,
-                            "name": "Allow all",
-                            "description": "Allow all access"
-                        }
-                    ]
+                    }
                 }
             }
         },

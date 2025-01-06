@@ -1,0 +1,115 @@
+Descriptor:
+  Name: KQLValidatorGPT
+  DisplayName: KQL Custom Plugin Validator
+  Description: A GPT plugin to validate YAML configurations for KQL plugins used in Microsoft Copilot for Security.
+
+SkillGroups:
+  - Format: GPT
+    Skills:
+      - Name: KQLPluginChecker
+        DisplayName: KQL Plugin YAML Validator
+        Description: Checks for issues in the KQL plugin YAML file, including missing fields, misconfigurations, or best practice deviations.
+        Inputs:
+          - Name: yaml_file
+            Description: The KQL plugin YAML file content to be analyzed.
+        Settings:
+          ModelName: gpt-4o
+          Template: |-
+              ***Task***  
+              You are a detail oriented Security Copilot expert tasked with analyzing this file for configuration issues that will prevent the custom plugin from functioning. 
+
+              ***Context***  
+              Here is the schema all files should adhere to:
+
+              ```yaml
+              Schema:
+                Descriptor:
+                  Name: string
+                  DisplayName: string
+                  DescriptionForModel: string
+                  Description: string
+                  Settings:
+                    - Name: string
+                      Description: string
+                      HintText: string
+                      SettingType: string
+                      Required: boolean
+                  SupportedAuthTypes:
+                    - string
+
+                SkillGroups:
+                  - Format: string
+                    Skills:
+                      - Name: string
+                        DisplayName: string
+                        DescriptionForModel: string
+                        Description: string
+                        ExamplePrompts:
+                          - string
+                        Inputs:
+                          - Name: string
+                            PlaceholderValue: string
+                            Description: string
+                            DefaultValue: string
+                            Required: boolean
+                        Settings:
+                          Target: string
+                          TenantId: string
+                          SubscriptionId: string
+                          ResourceGroupName: string
+                          WorkspaceName: string
+                          Template: string
+                          TemplateUrl: string
+              ```
+
+              Here is a description of what each field does and common pitfalls:
+
+              ```text
+                Descriptor:
+                  Name: An overall name describing the collection of skills, known as a 'plugin' name. Review the collection of skills and make sure this name properly represents the collection of skills. 
+                  DisplayName: For simplicity can be the same as the 'Name'.
+                  DescriptionForModel: A language model friendly description to help the orchestrator select the proper plugin family. Extrapolate from the Description to provide a language model friendly description. 
+                  Description: A human friendly description of the plugin. 
+                  Settings: These are used for Sentinel configuration. This section is only necessary if there are 'Skills' that use the 'Target' 'Sentinel'. When present, a TenantId, SubscriptionId, WorkspaceName, and ResourceGroupName should be defined here. 
+                    - Name: string
+                      Description: string
+                      HintText: string
+                      SettingType: string
+                      Required: boolean
+                  SupportedAuthTypes: The 'SupportedAuthTypes' field set to 'None' is required for the plugin settings configuration window to present 'Settings' variable fields to the end user. This is imperative if Sentinel is a target so the user can enter their Azure information in the aforementioned Settings section. 
+                    - string
+
+                SkillGroups:
+                  - Format: Should be set to 'KQL' 
+                    Skills: This defines the specific skills. Multiple skills are possible. It is critical that the 'Name' does not overlap with other skills. 
+                      - Name: Name of the specific skill, written in CamelCaseNotation. Check for the use of spaces and notify the user spaces are problematic. 
+                        DisplayName: For simplicity can be the same as the skill 'Name'.
+                        DescriptionForModel: A language model friendly description to help the orchestrator select the proper skill from the plugin family. Extrapolate from the Description to provide a language model friendly description.
+                        Description: A human friendly description of the skill.
+                        ExamplePrompts: You can recommend to the user that example prompts are good to put here to help the user get started using well formatted LLM prompts. 
+                          - string
+                        Inputs: Extract a list of inputs as these are the only allowed variables notated by double curley brackets in the KQL Template section below. 
+                          - Name: variableNameYouWantFromTheUserThatIsReferencedInYourKQL
+                            PlaceholderValue: Description or examples that user will see before filling out this variable. Note this field is displayed to the user.
+                            Description: Description that the orchestrator will use which includes any situations that explain when this input field should or should not be skipped. For example 'this field should be only used if an IP address is in IPv4 format'. Do not use the 'PlaceholderValue' field if you don't have any specific instructions for the orchestrator. Also this field is not displayed to the user.
+                            DefaultValue: defaultValue used if the 'Required' field is set to 'False'
+                            Required: true or false
+                        Settings:
+                          Target: Defender, Sentinel, or Log Analytics
+                    SubscriptionId: Only necessary if the target is Sentinel or Log Analytics.
+                          ResourceGroupName: Only necessary if the target is Sentinel or Log Analytics.
+                          WorkspaceName: Only necessary if the target is Sentinel or Log Analytics.
+                          Template: |-
+                            KQLtableYouAreReferencing
+                            //KQL comment to help the Orchestrator or users responsible for maintaining the code
+                            | KQLTable {{variableYouWantFromTheUserThatIsReferencedInYourKQL}} //All variables noted by '{{}}' in the KQL section MUST be present in the 'Inputs' section. This is a critical issue if discovered. Typically this is from leaving out a variable definition in the 'Inputs' section. 
+                            | Additional KQL content
+                          TemplateUrl: https://someDomain.com/template.txt // This can only be used when the 'Template' field is not in use. Using this allows for a single plugin to be deployed, while the KQL template continues to be updated over time.
+              ```
+              ***Instructions***
+              Analyze this yaml file {{yaml_file}} based on the details noted above. 
+
+              ***Output Specifics***
+              Output concise report of findings that require action ONLY. Be specific on where findings were discovered and provide your reasoning. 
+
+
