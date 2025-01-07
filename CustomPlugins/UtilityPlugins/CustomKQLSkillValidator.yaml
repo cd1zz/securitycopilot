@@ -102,9 +102,9 @@ SkillGroups:
 
             2. **Detailed Analysis:**
               - For each issue:
-                - **Section:** Specify where the problem is located. Use defined parameter names when referencing problems. For example, "Add the parameter DefaultValue for lookback_period in the Inputs section.""
+                - **Section:** Specify where the problem is located. Use defined parameter names when referencing problems. For example, 'Add the parameter DefaultValue for lookback_period in the Inputs section.'
                 - **Issue:** Describe the problem in detail.
-                - **Rationale:** Describe why the problem exists. For example, "When a variable is defined in the Inputs section as `Required: false` it is recommended to have a DefaultValue."
+                - **Rationale:** Describe why the problem exists. For example, 'When a variable is defined in the Inputs section as `Required: false` it is recommended to have a DefaultValue.'
                 - **Recommendation:** Provide a clear resolution, including corrected YAML snippets if possible.
 
             3. **Validation Status:**
