@@ -75,6 +75,7 @@ SkillGroups:
             1. **General Rules:**
               - All fields marked as "Required" must be present and correctly defined.
               - Optional fields may be omitted but must follow schema rules if included.
+              - Identify spelling errors in any section.
 
             2. **Descriptor Section:**
               - Ensure `Name`, `DisplayName`, `DescriptionForModel`, and `Description` are present and correctly formatted.
