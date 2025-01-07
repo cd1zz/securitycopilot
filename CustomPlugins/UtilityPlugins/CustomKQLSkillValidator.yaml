@@ -16,105 +16,104 @@ SkillGroups:
         Settings:
           ModelName: gpt-4o
           Template: |-
-              ***Task***  
-              You are a detail oriented Security Copilot expert tasked with analyzing this file for configuration issues that will prevent the custom plugin from functioning. 
+            #### **Task Description:**
+            You are a Security Copilot expert. Your goal is to validate a provided YAML file strictly against the schema below. The schema is annotated inline with explanations about field requirements and validation rules. Use this schema and the rules provided to analyze the YAML file, identify configuration issues, and provide actionable recommendations.
 
-              ***Context***  
-              Here is the schema all files should adhere to:
+            ---
 
-              ```yaml
-              Schema:
-                Descriptor:
-                  Name: string
-                  DisplayName: string
-                  DescriptionForModel: string
-                  Description: string
-                  Settings:
-                    - Name: string
-                      Description: string
-                      HintText: string
-                      SettingType: string
-                      Required: boolean
-                  SupportedAuthTypes:
-                    - string
+            #### **Schema Context (Inline Annotations):**
 
-                SkillGroups:
-                  - Format: string
-                    Skills:
-                      - Name: string
-                        DisplayName: string
-                        DescriptionForModel: string
-                        Description: string
-                        ExamplePrompts:
-                          - string
-                        Inputs:
-                          - Name: string
-                            PlaceholderValue: string
-                            Description: string
-                            DefaultValue: string
-                            Required: boolean
-                        Settings:
-                          Target: string
-                          TenantId: string
-                          SubscriptionId: string
-                          ResourceGroupName: string
-                          WorkspaceName: string
-                          Template: string
-                          TemplateUrl: string
-              ```
+            Definitions:
+            '# Required' fields must be present and contain values.
+            '# Optional' fields may be completely omitted, or have null or blank values. 
 
-              Here is a description of what each field does and common pitfalls:
+            ```yaml
+            Schema:
+              Descriptor:
+                Name: string  # Required. Unique name for the plugin. Should be representative of the collection of skills defined below.
+                DisplayName: string  # Required. Human-readable name. Can be the same as 'Descriptor' -> 'Name'.
+                DescriptionForModel: string  # Required. Optimized for language model processing. Should be representative of the collection of skills defined below.
+                Description: string  # Required. Human-readable description. Should be representative of the collection of skills defined below.
+                Settings:  # Optional. Required only if any Skills use `Target`: 'Sentinel'.
+                  - Name: string  # Required. Configuration parameter name.
+                    Description: string  # Required. Explanation of the parameter.
+                    HintText: string  # Optional. Hint text for users.
+                    SettingType: string  # Optional. Defines the parameter type (e.g., string, boolean).
+                    Required: boolean  # Required. Indicates whether the parameter is mandatory.
+                SupportedAuthTypes:  # Required. Must include 'None' if `Settings` are used.
+                  - string  # Required. Specifies supported authentication types.
 
-              ```text
-                Descriptor:
-                  Name: An overall name describing the collection of skills, known as a 'plugin' name. Review the collection of skills and make sure this name properly represents the collection of skills. 
-                  DisplayName: For simplicity can be the same as the 'Name'.
-                  DescriptionForModel: A language model friendly description to help the orchestrator select the proper plugin family. Extrapolate from the Description to provide a language model friendly description. 
-                  Description: A human friendly description of the plugin. 
-                  Settings: These are used for Sentinel configuration. This section is only necessary if there are 'Skills' that use the 'Target' 'Sentinel'. When present, a TenantId, SubscriptionId, WorkspaceName, and ResourceGroupName should be defined here. 
-                    - Name: string
-                      Description: string
-                      HintText: string
-                      SettingType: string
-                      Required: boolean
-                  SupportedAuthTypes: The 'SupportedAuthTypes' field set to 'None' is required for the plugin settings configuration window to present 'Settings' variable fields to the end user. This is imperative if Sentinel is a target so the user can enter their Azure information in the aforementioned Settings section. 
-                    - string
+              SkillGroups:
+                - Format: string  # Required. Must be set to 'KQL'.
+                  Skills:
+                    - Name: string  # Required. Unique skill name in CamelCase, no spaces.
+                      DisplayName: string  # Required. Human-readable name. Can match 'Name'.
+                      DescriptionForModel: string  # Required. Optimized for language model selection.
+                      Description: string  # Required. Human-readable skill description.
+                      ExamplePrompts:  # Optional. Recommended for user guidance.
+                        - string  # Optional. Example language model prompts.
+                      Inputs:  # Required if `Template` includes variables noted by curly brackets: ({{variable}}).
+                        - Name: string  # Required. Variable name matching `Template` {{variable}} references.
+                          PlaceholderValue: string  # Optional. Example or description.
+                          Description: string  # Required. Detailed explanation of the variable.
+                          DefaultValue: string  # Optional. Used when 'Required' is false in Input section. 
+                          Required: boolean  # Required. Indicates if the variable is mandatory.
+                      Settings:  # Required for Skills using `Target: Sentinel' or 'Target: Log Analytics'.
+                        Target: string  # Required. Must be 'Defender', 'Sentinel', or 'Log Analytics'.
+                        TenantId: string  # Required for # Required for `Target: Sentinel' or 'Target: Log Analytics'.
+                        SubscriptionId: string  # Required for # Required for `Target: Sentinel' or 'Target: Log Analytics'.
+                        ResourceGroupName: string  # Required for # Required for `Target: Sentinel' or 'Target: Log Analytics'.
+                        WorkspaceName: string  # Required for # Required for `Target: Sentinel' or 'Target: Log Analytics'.
+                        Template: string  # Optional. KQL query template. Cannot coexist with TemplateUrl. All variables noted by curly brackets {{variable}} MUST be defined in `Inputs` section.
+                        TemplateUrl: string  # Optional. URL to KQL template file. Cannot coexist with Template.
+            ```
 
-                SkillGroups:
-                  - Format: Should be set to 'KQL' 
-                    Skills: This defines the specific skills. Multiple skills are possible. It is critical that the 'Name' does not overlap with other skills. 
-                      - Name: Name of the specific skill, written in CamelCaseNotation. Check for the use of spaces and notify the user spaces are problematic. 
-                        DisplayName: For simplicity can be the same as the skill 'Name'.
-                        DescriptionForModel: A language model friendly description to help the orchestrator select the proper skill from the plugin family. Extrapolate from the Description to provide a language model friendly description.
-                        Description: A human friendly description of the skill.
-                        ExamplePrompts: You can recommend to the user that example prompts are good to put here to help the user get started using well formatted LLM prompts. 
-                          - string
-                        Inputs: Extract a list of inputs as these are the only allowed variables notated by double curley brackets in the KQL Template section below. 
-                          - Name: variableNameYouWantFromTheUserThatIsReferencedInYourKQL
-                            PlaceholderValue: Description or examples that user will see before filling out this variable. Note this field is displayed to the user. This setting is optional. 
-                            Description: Description that the orchestrator will use which includes any situations that explain when this input field should or should not be skipped. For example 'this field should be only used if an IP address is in IPv4 format'. Do not use the 'PlaceholderValue' field if you don't have any specific instructions for the orchestrator. Also this field is not displayed to the user.
-                            DefaultValue: defaultValue used if the 'Required' field is set to 'False', otherwise this setting is optional. 
-                            Required: true or false
-                        Settings:
-                          Target: Defender, Sentinel, or Log Analytics
-                          SubscriptionId: Necessary if the target is Sentinel or Log Analytics.
-                          ResourceGroupName: Necessary if the target is Sentinel or Log Analytics.
-                          WorkspaceName: Necessary if the target is Sentinel or Log Analytics.
-                          Template: |-
-                            KQLtableYouAreReferencing
-                            //KQL comment to help the Orchestrator or users responsible for maintaining the code
-                            | KQLTable {{variableYouWantFromTheUserThatIsReferencedInYourKQL}} //All variables noted by '{{}}' in the KQL section MUST be present in the 'Inputs' section. This is a critical issue if discovered. Typically this is from leaving out a variable definition in the 'Inputs' section. 
-                            | Additional KQL content
-                          TemplateUrl: https://someDomain.com/template.txt // This can only be used when the 'Template' field is not in use. Using this allows for a single plugin to be deployed, while the KQL template continues to be updated over time.
-              ```
-              ***Instructions***
-              Analyze this yaml file {{yaml_file}} based on the details noted above. 
+            ---
 
-              ***Output Specifics***
-              1. Output concise report of findings that require action ONLY. 
-              2. Avoid recommending KQL keyword 'project' with specific column names because your trained data is likely outdated. 
-              3. If your analysis has a concern of column content, recommend confirming with learn.microsoft.com for updated KQL table and column information. 
-              4. Be specific on where findings were discovered, specific parameter names, and provide your reasoning for the finding. 
-              5. Is Sentinel defined as a target in any of the defined skills in 'SkillGroups'? If not, do not highlight any Sentinel specific findings. 
+            #### **Validation Rules:**
 
+            1. **General Rules:**
+              - All fields marked as "Required" must be present and correctly defined.
+              - Optional fields may be omitted but must follow schema rules if included.
 
+            2. **Descriptor Section:**
+              - Ensure `Name`, `DisplayName`, `DescriptionForModel`, and `Description` are present and correctly formatted.
+              - Validate the `Settings` field only if any Skills use `Target: Sentinel`.
+
+            3. **SkillGroups Section:**
+              - Ensure `Format` is set to `KQL`.
+              - Validate that `Skills` have unique `Name` fields in CamelCase.
+              - Check that all `{{variables}}` in `Template` are defined in `Inputs`.
+              - Ensure mutual exclusivity between `Template` and `TemplateUrl`.
+
+            4. **Template Validation:**
+              - Verify that every `{{variable}}` in the `Template` is explicitly defined in the `Inputs`.
+              - Confirm that `Template` and `TemplateUrl` are not both present in the same skill.
+
+            ---
+
+            #### **Instructions for Output:**
+
+            1. **Summary of Findings:**
+              - Are there any instances of the `Target: Sentinel` or `Target: Log Analytics`?
+                - If yes, check for Sentinel related parameter problems. 
+                - If no, there can be no findings like "Add the Settings field with appropriate configuration parameters if any Skills use Target: Sentinel."
+              - Provide a concise overview of major issues.
+
+            2. **Detailed Analysis:**
+              - For each issue:
+                - **Section:** Specify where the problem is located. Use defined parameter names when referencing problems. For example, "Add the parameter DefaultValue for lookback_period in the Inputs section.""
+                - **Issue:** Describe the problem in detail.
+                - **Rationale:** Describe why the problem exists. For example, "When a variable is defined in the Inputs section as `Required: false` it is recommended to have a DefaultValue."
+                - **Recommendation:** Provide a clear resolution, including corrected YAML snippets if possible.
+
+            3. **Validation Status:**
+              - Conclude with a clear status: "Valid" or "Requires Updates."
+
+            ---
+
+            #### **Input YAML File:**
+
+            ```yaml
+            {{yaml_file}}
+            ```
