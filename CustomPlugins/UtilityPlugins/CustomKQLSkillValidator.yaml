@@ -64,7 +64,7 @@ SkillGroups:
                         SubscriptionId: string  # Required for # Required for `Target: Sentinel' or 'Target: Log Analytics'.
                         ResourceGroupName: string  # Required for # Required for `Target: Sentinel' or 'Target: Log Analytics'.
                         WorkspaceName: string  # Required for # Required for `Target: Sentinel' or 'Target: Log Analytics'.
-                        Template: string  # Optional. KQL query template. Cannot coexist with TemplateUrl. All variables noted by curly brackets {{variable}} MUST be defined in `Inputs` section.
+                        Template: string  # Optional. KQL query template. Cannot coexist with TemplateUrl. All variables noted by curly brackets {{variable}} MUST be defined in `Inputs` section. Should include syntatically correct KQL queries.
                         TemplateUrl: string  # Optional. URL to KQL template file. Cannot coexist with Template.
             ```
 
@@ -86,6 +86,7 @@ SkillGroups:
               - Validate that `Skills` have unique `Name` fields in CamelCase.
               - Check that all `{{variables}}` in `Template` are defined in `Inputs`.
               - Ensure mutual exclusivity between `Template` and `TemplateUrl`.
+              - Evaluate the KQL used in the `Template` for syntax errors. 
 
             4. **Template Validation:**
               - Verify that every `{{variable}}` in the `Template` is explicitly defined in the `Inputs`.
