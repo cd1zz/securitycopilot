@@ -96,9 +96,10 @@ SkillGroups:
 
             1. **Summary of Findings:**
               - Are there any instances of the `Target: Sentinel` or `Target: Log Analytics`?
-                - If yes, check for Sentinel related parameter problems. 
-                - If no, there can be no findings like "Add the Settings field with appropriate configuration parameters if any Skills use Target: Sentinel."
-              - Provide a concise overview of major issues.
+                - If yes, check for Sentinel or Log Analytics related parameter problems. 
+                - If no, there can be no findings related to Sentinel like missing Settings, TenantId, SubscriptionId, or ResourceGroupName. 
+                - List the types of `Targets` found. 
+              - Provide a concise overview of discovered issues.
 
             2. **Detailed Analysis:**
               - For each issue:
