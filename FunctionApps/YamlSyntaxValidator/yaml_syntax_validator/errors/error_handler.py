@@ -1,68 +1,36 @@
 """Error handling and formatting module for YAML validation."""
 
 import yaml
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from ..security.validator import SecurityError
 
-def parse_yaml_error(e: yaml.YAMLError) -> Dict[str, Any]:
-    """Parse YAML error and provide detailed explanation and fix suggestions."""
-    error_info = {
-        "error_type": e.__class__.__name__,
-        "line": None,
-        "column": None,
-        "problem_mark": None,
-        "suggestion": None,
-        "example_fix": None
-    }
-
-    if hasattr(e, 'problem_mark'):
-        error_info.update({
-            "line": e.problem_mark.line + 1,
-            "column": e.problem_mark.column + 1,
-            "problem_mark": f"Error at line {e.problem_mark.line + 1}, column {e.problem_mark.column + 1}"
-        })
-
-        # Extract context from the YAML content if available
-        if hasattr(e.problem_mark, 'buffer'):
-            yaml_lines = e.problem_mark.buffer.split('\n')
-            context_start = max(0, e.problem_mark.line - 2)
-            context_end = min(len(yaml_lines), e.problem_mark.line + 3)
-            context = yaml_lines[context_start:context_end]
-            
-            pointer = ' ' * e.problem_mark.column + '^'
-            context.insert(e.problem_mark.line - context_start + 1, pointer)
-            
-            error_info['context'] = {
-                'lines': context,
-                'start_line': context_start + 1,
-                'problematic_line': e.problem_mark.line + 1
-            }
-
-    # Add detailed error analysis and suggestions
-    error_msg = str(e).lower()
-    if "mapping values are not allowed here" in error_msg:
-        error_info.update({
-            "suggestion": "Indentation error detected. The line is not properly indented relative to its parent element.",
-            "error_details": {
-                "problem": "Incorrect indentation level",
-                "explanation": "In YAML, nested elements must be indented with 2 spaces relative to their parent element",
-                "common_causes": [
-                    "Using tabs instead of spaces",
-                    "Inconsistent indentation levels",
-                    "Missing parent element"
-                ]
-            },
-            "example_fix": """
+# Registry of known YAML error patterns and their human-readable details
+ERROR_PATTERNS = {
+    "mapping values are not allowed here": {
+        "error_type": "IndentationError",
+        "message": "There might be an indentation error. Check that all nested items are properly indented with spaces (not tabs). Also check for more than one ':' on the same line.",
+        "suggestion": "Indentation error detected. The line is not properly indented relative to its parent element.",
+        "error_details": {
+            "problem": "Incorrect indentation level",
+            "explanation": "In YAML, nested elements must be indented with 2 spaces relative to their parent element",
+            "common_causes": [
+                "Using tabs instead of spaces",
+                "Inconsistent indentation levels",
+                "Missing parent element"
+            ]
+        },
+        "example_fix": """
 # Correct indentation:
 parent_key:
   child_key1: value    # Indented with 2 spaces
   child_key2:          # Same level as child_key1
     grandchild: value  # Indented with 2 more spaces"""
-        })
-    elif "found character '\\t'" in error_msg:
-        error_info.update({
-            "suggestion": "Replace tabs with spaces. YAML does not allow tabs for indentation.",
-            "example_fix": """
+    },
+    "found character '\\t'": {
+        "error_type": "IndentationError",
+        "message": "The YAML contains tab characters. Please replace all tabs with spaces.",
+        "suggestion": "Replace tabs with spaces. YAML does not allow tabs for indentation.",
+        "example_fix": """
 # Replace:
 key1:
 →nested_key: value  # Tab character
@@ -70,112 +38,233 @@ key1:
 # With:
 key1:
   nested_key: value  # Spaces"""
-        })
-    elif "found unexpected ':'" in error_msg:
-        error_info.update({
-            "suggestion": "Make sure colons in values are properly quoted.",
-            "example_fix": """
+    },
+    "found unexpected ':'": {
+        "error_type": "SyntaxError",
+        "message": "Found an unexpected colon (:). If you're using colons in values, they need to be quoted.",
+        "suggestion": "Make sure colons in values are properly quoted.",
+        "example_fix": """
 # Instead of:
 message: Hello: World  # Unquoted colon
 
 # Use:
 message: 'Hello: World'  # Quoted value with colon"""
-        })
-    else:
-        error_info["suggestion"] = get_yaml_suggestion(str(e))
+    },
+    "expected <block end>": {
+        "error_type": "StructureError",
+        "message": "There's an issue with block structure. This usually means incorrect indentation or missing line breaks.",
+        "suggestion": "Check the lines above and below for proper indentation.",
+        "example_fix": """
+# Instead of:
+key1: value1 key2: value2  # Missing line break
+
+# Use:
+key1: value1
+key2: value2"""
+    },
+    "found undefined alias": {
+        "error_type": "AliasError",
+        "message": "Found a YAML alias (*) without a corresponding anchor (&).",
+        "suggestion": "Check that all YAML anchors (&) have corresponding aliases (*).",
+        "example_fix": """
+# Correct usage:
+defaults: &defaults
+  timeout: 30
+  retry: 3
+
+production:
+  <<: *defaults  # Using the alias"""
+    }
+}
+
+def get_error_context(lines: List[str], error_line: int, context_lines: int = 2) -> Tuple[List[str], int, int]:
+    """
+    Get context lines around an error with configurable window size.
+    
+    Args:
+        lines: List of all lines in the YAML content
+        error_line: The line number where the error occurred (0-based)
+        context_lines: Number of lines to include before and after error
+    
+    Returns:
+        Tuple containing the context lines, start line number, and end line number
+    """
+    start_line = max(0, error_line - context_lines)
+    end_line = min(len(lines), error_line + context_lines + 1)
+    return lines[start_line:end_line], start_line, end_line
+
+def format_context_lines(lines: List[str], error_line: int, error_column: int, start_line: int) -> List[str]:
+    """
+    Format context lines with consistent line numbers and error indicators.
+    
+    Args:
+        lines: The context lines to format
+        error_line: The line number where the error occurred (1-based)
+        error_column: The column number where the error occurred (1-based)
+        start_line: The starting line number of the context (0-based)
+    
+    Returns:
+        List of formatted context lines with error indicators
+    """
+    formatted_lines = []
+    for i, line in enumerate(lines):
+        current_line = start_line + i + 1
+        indicator = '-> ' if current_line == error_line else '   '
+        formatted_lines.append(f"{indicator}{current_line}: {line}")
+        if current_line == error_line:
+            # Add pointer to the specific column
+            formatted_lines.append('   ' + ' ' * (len(str(current_line)) + 2 + error_column) + '^')
+    return formatted_lines
+
+def get_error_type(error: Exception) -> str:
+    """
+    Determine the specific type of YAML error.
+    
+    Args:
+        error: The exception to analyze
+        
+    Returns:
+        String indicating the error type
+    """
+    if isinstance(error, yaml.YAMLError):
+        error_msg = str(error).lower()
+        for pattern, details in ERROR_PATTERNS.items():
+            if pattern in error_msg:
+                return details["error_type"]
+    return error.__class__.__name__
+
+def get_human_readable_error(error_msg: str, line_content: str = None) -> str:
+    """More context-aware error message generation."""
+    error_msg_lower = error_msg.lower()
+    
+    # If we have line content, do more specific analysis
+    if line_content and "mapping values are not allowed here" in error_msg_lower:
+        # Check if there's an unquoted colon in a value
+        if ':' in line_content:
+            key_value = line_content.split(':', 1)
+            if len(key_value) > 1 and ':' in key_value[1].strip():
+                return "Found an unquoted colon in the value. Values containing colons must be quoted."
+                
+    # Fall back to existing patterns
+    for pattern, details in ERROR_PATTERNS.items():
+        if pattern in error_msg_lower:
+            return details["message"]
+            
+    return f"YAML Parsing Error: {error_msg}"
+
+def get_error_suggestion(error_msg: str) -> str:
+    """
+    Generate helpful suggestions based on common YAML errors.
+    
+    Args:
+        error_msg: The original error message
+        
+    Returns:
+        A suggestion for fixing the error
+    """
+    error_msg_lower = error_msg.lower()
+    for pattern, details in ERROR_PATTERNS.items():
+        if pattern in error_msg_lower:
+            return details["suggestion"]
+    return "Check your YAML syntax, particularly indentation and key-value formatting."
+
+def parse_yaml_error(e: yaml.YAMLError) -> Dict[str, Any]:
+    """
+    Parse YAML error and provide detailed explanation and fix suggestions.
+    
+    Args:
+        e: The YAML error to parse
+        
+    Returns:
+        Dictionary containing detailed error information
+    """
+    error_info = {
+        "error_type": get_error_type(e),
+        "line": None,
+        "column": None,
+        "problem_mark": None,
+        "suggestion": get_error_suggestion(str(e)),
+        "example_fix": None
+    }
+
+    if not hasattr(e, 'problem_mark'):
+        return error_info
+
+    mark = e.problem_mark
+    error_info.update({
+        "line": mark.line + 1,
+        "column": mark.column + 1,
+        "problem_mark": f"Error at line {mark.line + 1}, column {mark.column + 1}"
+    })
+
+    if hasattr(mark, 'buffer'):
+        yaml_lines = mark.buffer.split('\n')
+        context_lines, start_line, _ = get_error_context(yaml_lines, mark.line)
+        
+        error_info['context'] = {
+            'lines': context_lines,
+            'start_line': start_line + 1,
+            'problematic_line': mark.line + 1
+        }
+
+        # Add example fix if available
+        error_msg = str(e).lower()
+        for pattern, details in ERROR_PATTERNS.items():
+            if pattern in error_msg:
+                error_info["example_fix"] = details.get("example_fix")
+                error_info["error_details"] = details.get("error_details")
+                break
 
     return error_info
 
-def get_yaml_suggestion(error_msg: str) -> str:
-    """Generate helpful suggestions based on common YAML errors."""
-    suggestions = {
-        "mapping values are not allowed here": 
-            "Check your indentation. Make sure each nested item is properly indented with spaces.",
-        "expected '<document start>'": 
-            "Your YAML might be malformed. Ensure there are no tabs and all colons are followed by spaces.",
-        "found character '\\t'":
-            "Replace all tabs with spaces. YAML does not allow tabs for indentation.",
-        "found unexpected ':'":
-            "Make sure colons are followed by a space and the value is on the same line or properly indented below.",
-        "found undefined alias":
-            "Check that all YAML anchors (&) have corresponding aliases (*).",
-    }
-    
-    for error_pattern, suggestion in suggestions.items():
-        if error_pattern.lower() in error_msg.lower():
-            return suggestion
-    
-    return "Check your YAML syntax, particularly indentation and key-value formatting."
-
 def get_detailed_error(e: Exception, yaml_content: str) -> Dict[str, Any]:
-    """Generate detailed, human-readable error information."""
+    """
+    Generate detailed, human-readable error information.
+    
+    Args:
+        e: The exception to analyze
+        yaml_content: The full YAML content being parsed
+        
+    Returns:
+        Dictionary containing detailed error information with context
+    """
     error_info = {
         "message": "",
         "line": None,
         "column": None,
         "context": [],
-        "error_type": e.__class__.__name__
+        "error_type": get_error_type(e)
     }
 
     try:
-        if isinstance(e, yaml.YAMLError):
-            if hasattr(e, 'problem_mark'):
-                mark = e.problem_mark
-                line_num = mark.line + 1
-                col_num = mark.column + 1
-                error_info.update({
-                    "line": line_num,
-                    "column": col_num
-                })
-
-                # Get context lines
-                lines = yaml_content.split('\n')
-                start_line = max(0, line_num - 3)
-                end_line = min(len(lines), line_num + 2)
-                
-                # Add line numbers and content
-                context_lines = []
-                for i in range(start_line, end_line):
-                    line_indicator = '-> ' if i + 1 == line_num else '   '
-                    context_lines.append(f"{line_indicator}{i + 1}: {lines[i]}")
-                    if i + 1 == line_num:
-                        # Add pointer to the specific column
-                        context_lines.append('   ' + ' ' * (len(str(i + 1)) + 2 + col_num) + '^')
-
-                error_info['context'] = context_lines
-                
-                # Add the specific problematic line and surrounding context
-                error_info['code_context'] = {
-                    'lines': lines[start_line:end_line],
-                    'start_line': start_line + 1,
-                    'problematic_line': line_num,
-                    'problematic_column': col_num
-                }
-
-            error_info["message"] = get_human_readable_error(str(e))
-
-        elif isinstance(e, SecurityError):
+        if not isinstance(e, yaml.YAMLError) or not hasattr(e, 'problem_mark'):
             error_info["message"] = str(e)
-        else:
-            error_info["message"] = f"Unexpected error: {str(e)}"
+            return error_info
+
+        mark = e.problem_mark
+        line_num = mark.line + 1
+        col_num = mark.column + 1
+        
+        lines = yaml_content.split('\n')
+        context_lines, start_line, _ = get_error_context(lines, line_num - 1)
+        
+        error_info.update({
+            "line": line_num,
+            "column": col_num,
+            "message": get_human_readable_error(str(e)),
+            "context": format_context_lines(context_lines, line_num, col_num, start_line),
+            "code_context": {
+                'lines': context_lines,
+                'start_line': start_line + 1,
+                'problematic_line': line_num,
+                'problematic_column': col_num
+            }
+        })
 
     except Exception as nested_error:
-        error_info["message"] = f"Error while processing YAML: {str(e)}"
-        error_info["processing_error"] = str(nested_error)
+        error_info.update({
+            "message": f"Error while processing YAML: {str(e)}",
+            "processing_error": str(nested_error)
+        })
 
     return error_info
-
-def get_human_readable_error(error_msg: str) -> str:
-    """Convert YAML error messages into human-readable explanations."""
-    if "mapping values are not allowed here" in error_msg.lower():
-        return "There appears to be an indentation error. Check that all nested items are properly indented with spaces (not tabs)."
-    elif "found character '\\t'" in error_msg.lower():
-        return "The YAML contains tab characters. Please replace all tabs with spaces."
-    elif "found unexpected ':'" in error_msg.lower():
-        return "Found an unexpected colon (:). If you're using colons in values, they need to be quoted."
-    elif "expected <block end>" in error_msg.lower():
-        return "There's an issue with block structure. This usually means incorrect indentation or missing line breaks. Check the lines above and below for proper indentation."
-    elif "found undefined alias" in error_msg.lower():
-        return "Found a YAML alias (*) without a corresponding anchor (&)."
-    else:
-        return f"YAML Parsing Error: {error_msg}"
