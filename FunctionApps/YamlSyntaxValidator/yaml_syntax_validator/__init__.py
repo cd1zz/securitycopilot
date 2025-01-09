@@ -41,13 +41,14 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             return func.HttpResponse(
                 json.dumps({
                     "isValid": False,
-                    "error_details": {
+                    "details": {
                         "errors": result.get("all_errors", []),
-                        "total_errors": len(result.get("all_errors", []))
+                        "total_errors": len(result.get("all_errors", [])),
+                        "structure": None,
+                        "statistics": None
                     }
                 }),
-                mimetype="application/json",
-                status_code=400
+                mimetype="application/json"
             )
         
         # Collect all errors
@@ -57,13 +58,14 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             return func.HttpResponse(
                 json.dumps({
                     "isValid": False,
-                    "error_details": {
+                    "details": {
                         "errors": errors,
-                        "total_errors": len(errors)
+                        "total_errors": len(errors),
+                        "structure": None,
+                        "statistics": None
                     }
                 }),
-                mimetype="application/json",
-                status_code=400  # Bad request, not server error
+                mimetype="application/json"
             )
         
         # If no errors, parse and return success
@@ -71,8 +73,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(
             json.dumps({
                 "isValid": True,
-                "message": "YAML validation successful",
                 "details": {
+                    "errors": [],
+                    "total_errors": 0,
                     "structure": get_structure_info(data),
                     "statistics": get_yaml_statistics(yaml_content)
                 }
@@ -84,13 +87,16 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(
             json.dumps({
                 "isValid": False,
-                "error_details": {
+                "details": {
                     "errors": [{
                         "error_type": "UnexpectedError",
                         "message": str(e),
                         "line": None,
                         "column": None
-                    }]
+                    }],
+                    "total_errors": 1,
+                    "structure": None,
+                    "statistics": None
                 }
             }),
             mimetype="application/json",

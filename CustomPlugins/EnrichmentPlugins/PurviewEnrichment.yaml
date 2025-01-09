@@ -144,7 +144,7 @@ SkillGroups:
           Target: Defender
           Template: |-
             let policyvar = '{{policy}}';
-             let workload = '';
+            let workload = '';
                         let EndPointAction = datatable(ActionName: string, Action: int) [
                 'None', '0',
                 'Audit', '1',
@@ -406,7 +406,7 @@ SkillGroups:
               | where path.Filename has document
               | extend DirectoryPath = tostring(path.DirectoryPath)
               | summarize by DirectoryPath );
-             let officedata = (
+              let officedata = (
               CloudAppEvents
               | where RawEventData.Operation == "SecureLinkUsed" or RawEventData.Operation == "AddedToSecureLink"
               | extend ObjectId_ = tostring(RawEventData.ObjectId)
@@ -997,7 +997,7 @@ SkillGroups:
           Template: |-
             let site = '{{site}}';
             let sitvar = '{{sitname}}';
-             let document = '{{document}}';
+            let document = '{{document}}';
             CloudAppEvents 
             | where RawEventData.Workload has 'EndPoint'
             | where RawEventData.TargetDomain has site

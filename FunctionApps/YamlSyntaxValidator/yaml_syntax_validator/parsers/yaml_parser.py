@@ -1,5 +1,5 @@
 """YAML parsing module with failsafe error handling."""
-
+import re
 import yaml
 import sys
 import traceback
@@ -13,19 +13,17 @@ def collect_yaml_errors(content: str) -> List[Dict[str, Any]]:
     errors = []
     lines = content.split('\n')
     
-    # First pass: Check individual lines for basic syntax
     for i, line in enumerate(lines):
-        # Skip empty lines
-        if not line.strip():
+        if not line.strip() or line.strip().startswith('#'):
             continue
-            
+
         # Check for tabs
         if '\t' in line:
             error_details = {
                 "line": i + 1,
                 "column": line.index('\t') + 1,
                 "error_type": "IndentationError",
-                "message": "Tab character found in indentation",
+                "message": "Tab character found in indentation. Replace the tab with spaces and use an editor that automatically converts tabs to spaces.",
                 "context": [
                     f"   {i}: {lines[max(0, i-1)]}", 
                     f"-> {i+1}: {line}",
@@ -51,7 +49,7 @@ def collect_yaml_errors(content: str) -> List[Dict[str, Any]]:
                 "line": i + 1,
                 "column": 1,
                 "error_type": "IndentationError",
-                "message": "Indentation must be a multiple of 2 spaces",
+                "message": "Indentation must be a multiple of 2 spaces. Check the lines above and below for proper alignment.",
                 "context": [
                     f"   {i}: {lines[max(0, i-1)]}", 
                     f"-> {i+1}: {line}",
@@ -70,7 +68,7 @@ def collect_yaml_errors(content: str) -> List[Dict[str, Any]]:
             }
             errors.append(error_details)
     
-    # Second pass: Incremental parsing for structural errors
+    # Parse incrementally for structural errors
     accumulated = ""
     for i, line in enumerate(lines):
         accumulated += line + '\n'
@@ -244,6 +242,7 @@ def analyze_yaml_structure(yaml_content: str, security_config: SecurityConfig = 
         }
     
 def is_duplicate_error(new_error: Dict[str, Any], existing_errors: List[Dict[str, Any]]) -> bool:
+    """Check if an error is already present in the list of errors."""
     return any(
         err.get('line') == new_error.get('line') and
         err.get('error_type') == new_error.get('error_type') and

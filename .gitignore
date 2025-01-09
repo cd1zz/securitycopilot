@@ -1,6 +1,8 @@
 **/.vscode/
 **/.venv/
 **/venv/
+**/.python_packages/
 **/local.settings.json
 **/*.eml
 **/*.msg
+**/*.env

@@ -174,7 +174,7 @@ def get_human_readable_error(error_msg: str) -> str:
     elif "found unexpected ':'" in error_msg.lower():
         return "Found an unexpected colon (:). If you're using colons in values, they need to be quoted."
     elif "expected <block end>" in error_msg.lower():
-        return "There's an issue with block structure. This usually means incorrect indentation or missing line breaks."
+        return "There's an issue with block structure. This usually means incorrect indentation or missing line breaks. Check the lines above and below for proper indentation."
     elif "found undefined alias" in error_msg.lower():
         return "Found a YAML alias (*) without a corresponding anchor (&)."
     else:
