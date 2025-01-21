@@ -1922,3 +1922,70 @@ SkillGroups:
               on $left.UserId == $right.AccountUpn
               | where Department has departmentvar
               | summarize by AccessedSites=tostring(AccessedSite),RequestId=Id_,App,LabelGUID,tostring(SensitiveInformationTypes),City,CountryCode,Department,JobTitle,Manager,BlastRadius,RiskLevel,RiskLevelDetails
+
+      - Name: TopUsersByDLPEvidence
+        DisplayName: Get Top Users with Data Loss Prevention Alerts
+        Description: Identifies the top users based on the number of Microsoft Data Loss Prevention alerts and provides a breakdown of alert severity.
+        Inputs:
+          - Name: DetectionSource
+            Description: The source of the detection (e.g., Microsoft Data Loss Prevention)
+            Required: true
+        Settings:
+          Target: Defender
+          Template: |-
+              let detectionSource = '{{DetectionSource}}';
+              AlertEvidence
+              | where DetectionSource == detectionSource
+              | where isnotempty(AccountName) and isnotempty(Severity)
+              | summarize TotalAlerts = count() by AccountName
+              | top 5 by TotalAlerts
+              | join kind=inner (
+                  AlertEvidence
+                  | where DetectionSource == detectionSource
+                  | where isnotempty(AccountName) and isnotempty(Severity)
+                  | summarize 
+                      HighSeverity = countif(Severity == "High"),
+                      MediumSeverity = countif(Severity == "Medium"),
+                      LowSeverity = countif(Severity == "Low")
+                      by AccountName
+              ) on AccountName
+              | project 
+                  AccountName,
+                  TotalAlerts,
+                  HighSeverity,
+                  MediumSeverity,
+                  LowSeverity
+              | sort by TotalAlerts desc
+
+      - Name: DLPAlertsBySeverityAndUser
+        DisplayName: Get DLP Alerts by Severity for a Specific User
+        Description: Retrieves detailed Data Loss Prevention (DLP) alerts for a specific user, filtered by severity. The query provides insights into matched policies, sensitive information types, associated files, confidence levels, enforced actions, and sender/recipient details. Designed to help analysts identify patterns, consolidate alerts, and prioritize incidents for efficient resolution.
+        Inputs:
+          - Name: User
+            Description: The specific user ID to query DLP alerts for (e.g., user@example.com).
+            Required: true
+          - Name: Severity
+            Description: The severity level to filter the alerts (e.g., High, Medium, Low).
+            Required: true
+        Settings:
+          Target: Defender
+          Template: |-
+              let user = '{{User}}';
+              let severityLevel = '{{Severity}}';
+              CloudAppEvents
+              | where ActionType has "DLPRuleMatch" 
+                  and RawEventData.UserId has user
+                  and parse_json(tostring(parse_json(tostring(parse_json(tostring(RawEventData.PolicyDetails))[0].Rules))[0].Severity)) == severityLevel
+              | extend PolicyName = tostring(parse_json(tostring(RawEventData.PolicyDetails))[0].PolicyName)
+              | extend SensitiveInformationTypeName = tostring(parse_json(tostring(parse_json(tostring(parse_json(tostring(parse_json(tostring(RawEventData.PolicyDetails))[0].Rules))[0].ConditionsMatched)).SensitiveInformation))[0].SensitiveInformationTypeName)
+              | extend FileName = tostring(parse_json(tostring(parse_json(tostring(RawEventData.ExchangeMetaData)).AttachmentDetails))[0].Name)
+              | extend FileSize = toint(parse_json(tostring(parse_json(tostring(RawEventData.ExchangeMetaData)).AttachmentDetails))[0].Size)
+              | extend ConfidenceLevel = toint(parse_json(tostring(parse_json(tostring(parse_json(tostring(parse_json(tostring(RawEventData.PolicyDetails))[0].Rules))[0].ConditionsMatched)).SensitiveInformation))[0].Confidence)
+              | extend Actions = tostring(parse_json(tostring(parse_json(tostring(parse_json(tostring(RawEventData.PolicyDetails))[0].Rules))[0])).Actions)
+              | extend Recipient = tostring(parse_json(tostring(parse_json(tostring(RawEventData.ExchangeMetaData)).To))[0])
+              | extend Sender = tostring(parse_json(tostring(RawEventData.ExchangeMetaData)).From)
+              | extend IncidentId = tostring(parse_json(tostring(RawEventData)).IncidentId)
+              | extend Timestamp = todatetime(RawEventData.CreationTime)
+              | project Timestamp, PolicyName, SensitiveInformationTypeName, FileName, FileSize, ConfidenceLevel, Actions, Sender, Recipient, Severity = severityLevel, UserId = RawEventData.UserId, IncidentId
+              | order by Timestamp desc
+
