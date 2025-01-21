@@ -37,16 +37,6 @@
                 "minimumTlsVersion": "TLS1_2",
                 "allowBlobPublicAccess": false,
                 "networkAcls": {
-                    "resourceAccessRules": [
-                        {
-                            "tenantId": "[parameters('TenantId')]",
-                            "resourceId": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourcegroups/*/providers/Microsoft.Logic/workflows/*')]"
-                        },
-                        {
-                            "tenantId": "[parameters('TenantId')]",
-                            "resourceId": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourcegroups/*/providers/Microsoft.Logic/integrationAccounts/*')]"
-                        }
-                    ],
                     "bypass": "AzureServices",
                     "virtualNetworkRules": [],
                     "ipRules": [],
