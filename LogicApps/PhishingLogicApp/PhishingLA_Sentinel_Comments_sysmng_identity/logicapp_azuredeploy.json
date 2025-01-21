@@ -84,7 +84,7 @@
             "name": "[parameters('IntegrationAccountName')]",
             "location": "[resourceGroup().location]",
             "sku": {
-                "name": "Standard"
+                "name": "Free"
             },
             "properties": {
                 "state": "Enabled"
