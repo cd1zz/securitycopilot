@@ -1397,7 +1397,7 @@
                                 }
                             },
                             "conversionservice-1": {
-                                "id": "/subscriptions/51129da4-4150-466f-9f3c-1ca5ff347f16/providers/Microsoft.Web/locations/australiaeast/managedApis/conversionservice",
+                                "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/conversionservice')]",
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('ConversionService-ConnectionName'))]",
                                 "connectionName": "[variables('ConversionService-ConnectionName')]"
                             }
