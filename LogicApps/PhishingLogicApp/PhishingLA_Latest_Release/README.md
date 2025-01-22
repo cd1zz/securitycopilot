@@ -103,7 +103,3 @@ The Logic App is deployed in a disabled state. Enable it in the Logic App Overvi
    - **API Connections**: Use managed identity for API connections wherever possible to avoid credential leakage.
 2. **Deployment Ease vs. Security**: This solution is designed for easy deployment and integration but may not align with the highest security standards. Review and adjust configurations as needed to comply with corporate security policies.
 3. **Regular Maintenance**: Regularly update the Function App code to ensure compatibility with dependencies and address potential security vulnerabilities.
-
----
-
-Let me know if further refinements or additional details are needed.
