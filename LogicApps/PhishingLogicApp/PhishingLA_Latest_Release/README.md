@@ -1,8 +1,9 @@
 # User Submitted Phishing Analysis with Security Copilot
 **Author:** Craig Freyman
 
-This solution streamlines phishing email analysis by leveraging a shared mailbox, Azure Logic Apps, and Security Copilot. It monitors a shared Office 365 mailbox for submitted emails, parses their content, and conducts detailed security analysis. Security insights, including behavioral triggers, contextual integrity, and attachment/URL assessments, are used to classify emails as Phishing, Junk/Spam, Legitimate, or Suspicious. Results are logged to Microsoft Sentinel, and an HTML report is emailed to the designated recipient. The deployment is designed for ease of use, leveraging system-managed identities and minimal manual configuration, while ensuring compatibility with Azure best practices.
+This solution streamlines phishing email analysis by leveraging a shared mailbox, Azure Logic & Function Apps, and Security Copilot. It monitors a shared Office 365 mailbox for submitted emails, parses their content, and conducts detailed security analysis. Security insights, including behavioral triggers, contextual integrity, and attachment/URL assessments, are used to classify emails as Phishing, Junk/Spam, Legitimate, or Suspicious. Results are logged to Microsoft Sentinel, and an HTML report is emailed to the designated recipient. The deployment is designed for ease of use, leveraging system-managed identities and minimal manual configuration, while ensuring compatibility with Azure best practices.
 
+This solution deploys the Logic App as a managed identity so proper permissions are necessary after deployment to work seemlessly with Sentinel, which is optional. If you decide not to use Sentinel, that portion of the Logic App is ignored, and only an HTML analysis report is provided. 
 ---
 
 ## Prerequisites
