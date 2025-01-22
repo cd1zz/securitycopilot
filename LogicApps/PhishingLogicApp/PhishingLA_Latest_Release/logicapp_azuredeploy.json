@@ -1141,7 +1141,13 @@
                                             "To": "[parameters('HTMLReportRecipient')]",
                                             "Subject": "Phishing Email Analysis",
                                             "Body": "<br><p class=\"editor-paragraph\">@{body('Generate_HTML_report_from_JSON')}</p><br><p class=\"editor-paragraph\">***********</p><p class=\"editor-paragraph\"><b><strong class=\"editor-text-bold\">Incident URL:</strong></b></p><p class=\"editor-paragraph\"><a href=\"@{body('Alert_-_Get_incident_from_systemalertid')?['properties']?['incidentUrl']}\" class=\"editor-link\">@{body('Alert_-_Get_incident_from_systemalertid')?['properties']?['incidentUrl']}</a></p><br><p class=\"editor-paragraph\"><i><b><strong class=\"editor-text-bold editor-text-italic\">Generated with AI, check for accuracy.</strong></b></i></p><p class=\"editor-paragraph\">***********</p>",
-                                            "Importance": "Normal"
+                                            "Importance": "Normal",
+                                            "Attachments": [
+                                                {
+                                                    "Name": "original_email.eml",
+                                                    "ContentBytes": "@base64(body('Export_email_(V2)'))"
+                                                }
+                                            ]
                                         },
                                         "path": "/v2/SharedMailbox/Mail"
                                     }
