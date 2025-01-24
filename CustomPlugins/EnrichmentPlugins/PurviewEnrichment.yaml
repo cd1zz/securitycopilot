@@ -1925,37 +1925,54 @@ SkillGroups:
 
       - Name: TopUsersByDLPEvidence
         DisplayName: Get Top Users with Data Loss Prevention Alerts
-        Description: Identifies the top users based on the number of Microsoft Data Loss Prevention alerts and provides a breakdown of alert severity.
-        Inputs:
-          - Name: DetectionSource
-            Description: The source of the detection (e.g., Microsoft Data Loss Prevention)
-            Required: true
+        Description: Identifies the top users based on the number of Microsoft Data Loss Prevention alerts and provides a breakdown of alert severity (high, medium, or low) for the last 7 days.
         Settings:
           Target: Defender
           Template: |-
-              let detectionSource = '{{DetectionSource}}';
+            let timeframe = 7d;
+            AlertEvidence
+            | where TimeGenerated > ago(timeframe)
+            | where DetectionSource == "Microsoft Data Loss Prevention"
+            | extend AF = todynamic(AdditionalFields)
+            // Don't parse Tags yet, just get basic user info first
+            | extend User = case(
+              isnotempty(AccountUpn), AccountUpn,
+              isnotempty(AF.Name) and AF.Type =~ "account", tostring(AF.Name),
+              ""
+            )
+            | where isnotempty(User)
+            | summarize TotalAlerts = count() by User
+            | top 5 by TotalAlerts
+            | join kind=inner (
               AlertEvidence
-              | where DetectionSource == detectionSource
-              | where isnotempty(AccountName) and isnotempty(Severity)
-              | summarize TotalAlerts = count() by AccountName
-              | top 5 by TotalAlerts
-              | join kind=inner (
-                  AlertEvidence
-                  | where DetectionSource == detectionSource
-                  | where isnotempty(AccountName) and isnotempty(Severity)
-                  | summarize 
-                      HighSeverity = countif(Severity == "High"),
-                      MediumSeverity = countif(Severity == "Medium"),
-                      LowSeverity = countif(Severity == "Low")
-                      by AccountName
-              ) on AccountName
-              | project 
-                  AccountName,
-                  TotalAlerts,
-                  HighSeverity,
-                  MediumSeverity,
-                  LowSeverity
-              | sort by TotalAlerts desc
+              | where TimeGenerated > ago(timeframe) 
+              | where DetectionSource == "Microsoft Data Loss Prevention"
+              | extend AF = todynamic(AdditionalFields)
+              | extend TagInfo = AF.Tags
+              | mv-expand TagInfo
+              | extend User = case(
+                  isnotempty(AccountUpn), AccountUpn,
+                  isnotempty(AF.Name) and AF.Type =~ "account", tostring(AF.Name),
+                  ""
+              )
+              | extend TagName = tostring(TagInfo.TagName)
+              | extend Severity = case(
+                  TagName == "external_user_risk_tag", "High",
+                  "Medium"
+              )
+              | summarize 
+                  HighSeverity = countif(Severity == "High"),
+                  MediumSeverity = countif(Severity == "Medium"),
+                  LowSeverity = countif(Severity == "Low")
+                  by User
+            ) on User
+            | project 
+              User,
+              TotalAlerts,
+              HighSeverity,
+              MediumSeverity,
+              LowSeverity
+            | sort by TotalAlerts desc
 
       - Name: DLPAlertsBySeverityAndUser
         DisplayName: Get DLP Alerts by Severity for a Specific User

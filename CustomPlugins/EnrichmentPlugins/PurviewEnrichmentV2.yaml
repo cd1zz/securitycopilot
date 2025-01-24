@@ -1,0 +1,123 @@
+Descriptor:
+  Name: DataSecurityAnalystSecurityAlertTable
+  DisplayName: Purview - Data Security Analyst Plugin on SecurityAlert
+  Description: Data Security skills to analyze DLP alerts and user activity patterns across Microsoft 365 services including Teams, Email, and File sharing.
+
+SkillGroups:
+  - Format: KQL
+    Skills:
+      - Name: DLPTopThreeUsersOverview
+        DisplayName: Get Top Users Triggering DLP Alerts
+        Description: This KQL query analyzes Microsoft Data Loss Prevention (DLP) alerts, identifying the top 3 users with the most significant data sharing risks by calculating total alerts, severity levels, and critically, the percentage of alerts involving external data sharing. By breaking down alerts across email, file, and Teams platforms with an external sharing risk indicator, the query provides security teams a precise, actionable overview of potential data leakage incidents within a 7-day window. The external percentage metric specifically highlights users with a higher proportion of external data interactions, enabling targeted risk mitigation strategies.
+        Settings:
+          Target: Defender
+          Template: |-
+            // Define the time window for the query
+            SecurityAlert
+            | where TimeGenerated > ago(7d)
+            // Filter for DLP alerts only
+            | where ProductName == "Microsoft Data Loss Prevention"
+            // Parse the Entities JSON field
+            | extend Entities = parse_json(Entities)
+            | mv-expand Entity = Entities
+            | extend Type = tostring(Entity.Type)
+            // Filter for account-type entities
+            | where Type == "account"
+            | extend UserPrincipalName = tostring(Entity.UserPrincipalName)
+            // Extract message details from Entities
+            | extend MessageEntity = Entities[1]
+            | extend MessageTags = array_length(MessageEntity.Tags)
+            | extend MessageType = tostring(MessageEntity.Type)
+            | project VendorOriginalId, TimeGenerated, AlertSeverity, UserPrincipalName, MessageType, MessageTags, DisplayName
+            // Join with CloudAppEvents to get additional alert details
+            | join kind=inner (
+                CloudAppEvents
+                | where TimeGenerated > ago(7d)
+                | extend RawData = parse_json(RawEventData)
+                | extend AlertId = tostring(RawData.AlertId)
+                | where RawData.Category == "DataLossPrevention"
+                | where RawData.Operation == "AlertTriggered"
+            ) on $left.VendorOriginalId == $right.AlertId
+            // First summarize to get counts by severity and alert types
+            | summarize 
+                AlertCount=count(),
+                EmailAlerts=countif(MessageType == "mailMessage"),
+                FileAlerts=countif(MessageType == "file"),
+                TeamsAlerts=countif(DisplayName has "Teams"),
+                ExternalCount=countif(MessageTags > 0)
+                by UserPrincipalName, AlertSeverity
+            // Second summarize to aggregate all metrics by user
+            | summarize 
+                AlertsByUser = make_bag(pack(AlertSeverity, AlertCount)),
+                EmailAlerts = sum(EmailAlerts),
+                FileAlerts = sum(FileAlerts),
+                TeamsAlerts = sum(TeamsAlerts),
+                ExternalCount = sum(ExternalCount),
+                TotalAlerts = sum(AlertCount)
+                by UserPrincipalName
+            // Extract severity counts from the AlertsByUser bag
+            | extend 
+                HighAlerts = tolong(AlertsByUser.High),
+                MediumAlerts = tolong(AlertsByUser.Medium),
+                LowAlerts = tolong(AlertsByUser.Low),
+                ExternalPercentage = round((ExternalCount * 100.0 / TotalAlerts), 2)
+            // Final projection of all metrics
+            | project 
+                UserPrincipalName,
+                TotalAlerts,
+                HighAlerts=coalesce(HighAlerts,0),
+                MediumAlerts=coalesce(MediumAlerts,0),
+                LowAlerts=coalesce(LowAlerts,0),
+                EmailAlerts,
+                FileAlerts,
+                TeamsAlerts,
+                ExternalCount,
+                ExternalPercentage
+            // Get top 3 users by total alerts
+            | top 3 by TotalAlerts desc
+
+
+      - Name: DLPDetailedDLPAlertDetails
+        DisplayName: Detailed DLP Teams Alert Investigation
+        Description: Detailed look into DLP security alerts for a specific user over the past 7 days, retrieving and correlating Microsoft DLP alerts with cloud app events. The query extracts detailed information including alert severity, workload, policy name, rule name, actions taken, and sensitive information type. It helps security analysts quickly analyze potential data leak incidents by providing a comprehensive view of user-related DLP events.
+        Inputs:
+          - Name: UserPrincipalName
+            Description: Email of user to investigate
+            Required: true
+        Settings:
+          Target: Defender
+          Template: |-
+            // Define UPN variable from input parameter
+            let user = '{{UserPrincipalName}}';
+
+            // Query DLP Security Alerts for specified user
+            SecurityAlert
+            | where TimeGenerated > ago(7d)
+            | where ProductName == "Microsoft Data Loss Prevention"
+            | where parse_json(Entities)[0].UserPrincipalName == user
+            | project VendorOriginalId, TimeGenerated, AlertSeverity, AlertLink
+
+            // Join with CloudAppEvents to get detailed alert information
+            | join kind=inner (
+              CloudAppEvents
+              | where TimeGenerated > ago(7d)
+              | extend RawData = parse_json(RawEventData)
+              | extend 
+                  AlertId = tostring(RawData.AlertId),
+                  DataJson = parse_json(tostring(RawData.Data))
+              | where RawData.Category == "DataLossPrevention"
+              | where RawData.Operation == "AlertTriggered"
+            ) on $left.VendorOriginalId == $right.AlertId
+
+            // Project final fields extracting relevant details from DataJson
+            | project 
+              TimeGenerated,          // When the alert was generated
+              AlertSeverity,          // High/Medium/Low severity
+              Workload = DataJson.wl, // Source workload (Exchange, SharePoint, etc)
+              PolicyName = DataJson.dpn, // DLP policy name
+              RuleName = DataJson.drn,   // Specific rule that triggered
+              Subject = DataJson.von,    // Subject/title of content
+              From = DataJson.mfrm,      // Sender address
+              ToAddress = DataJson["to"], // Recipient address(es)
+              SIT = DataJson.sitmi,      // Sensitive Information Types found
+              AlertLink                  // Link to alert details
