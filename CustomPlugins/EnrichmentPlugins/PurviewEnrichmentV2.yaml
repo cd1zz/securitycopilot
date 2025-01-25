@@ -1,6 +1,6 @@
 Descriptor:
-  Name: DataSecurityAnalystSecurityAlertTable
-  DisplayName: Purview - Data Security Analyst Plugin on SecurityAlert
+  Name: DLPTriageAlerts
+  DisplayName: Purview - Triage DLP Alerts
   Description: Data Security skills to analyze DLP alerts and user activity patterns across Microsoft 365 services including Teams, Email, and File sharing.
 
 SkillGroups:
@@ -8,60 +8,48 @@ SkillGroups:
     Skills:
       - Name: DLPTopThreeUsersOverview
         DisplayName: Get Top Users Triggering DLP Alerts
-        Description: This KQL query analyzes Microsoft Data Loss Prevention (DLP) alerts, identifying the top 3 users with the most significant data sharing risks by calculating total alerts, severity levels, and critically, the percentage of alerts involving external data sharing. By breaking down alerts across email, file, and Teams platforms with an external sharing risk indicator, the query provides security teams a precise, actionable overview of potential data leakage incidents within a 7-day window. The external percentage metric specifically highlights users with a higher proportion of external data interactions, enabling targeted risk mitigation strategies.
+        Description: This KQL query analyzes Microsoft Data Loss Prevention (DLP) alerts, identifying the top 3 users with the most significant data sharing risks by calculating total alerts, severity levels, and critically, the percentage of alerts involving external data sharing. By breaking down alerts across email, file, and Teams platforms with an external sharing risk indicator, the query provides security teams a precise, actionable overview of potential data leakage incidents within a 1-day window. The external percentage metric specifically highlights users with a higher proportion of external data interactions, enabling targeted risk mitigation strategies.
         Settings:
           Target: Defender
           Template: |-
-            // Define the time window for the query
-            SecurityAlert
-            | where TimeGenerated > ago(7d)
-            // Filter for DLP alerts only
-            | where ProductName == "Microsoft Data Loss Prevention"
-            // Parse the Entities JSON field
-            | extend Entities = parse_json(Entities)
-            | mv-expand Entity = Entities
-            | extend Type = tostring(Entity.Type)
-            // Filter for account-type entities
-            | where Type == "account"
-            | extend UserPrincipalName = tostring(Entity.UserPrincipalName)
-            // Extract message details from Entities
-            | extend MessageEntity = Entities[1]
-            | extend MessageTags = array_length(MessageEntity.Tags)
-            | extend MessageType = tostring(MessageEntity.Type)
-            | project VendorOriginalId, TimeGenerated, AlertSeverity, UserPrincipalName, MessageType, MessageTags, DisplayName
-            // Join with CloudAppEvents to get additional alert details
-            | join kind=inner (
-                CloudAppEvents
-                | where TimeGenerated > ago(7d)
-                | extend RawData = parse_json(RawEventData)
-                | extend AlertId = tostring(RawData.AlertId)
-                | where RawData.Category == "DataLossPrevention"
-                | where RawData.Operation == "AlertTriggered"
-            ) on $left.VendorOriginalId == $right.AlertId
-            // First summarize to get counts by severity and alert types
+            let timerange = 7d;
+            // Start with CloudAppEvents for DLP alerts
+            CloudAppEvents
+            | where Timestamp > ago(timerange)
+            | extend RawData = parse_json(RawEventData)
+            | where RawData.Category == "DataLossPrevention"
+            | where RawData.Operation == "AlertTriggered"
+            | extend DLPAlertId = tostring(RawData.AlertId)
+            // Parse the Data field which contains DLP-specific info
+            | extend Data = parse_json(tostring(RawData.Data))
+            | extend UserPrincipalName = tostring(Data.f3u)  // from field
+            | extend MessageType = case(
+                RawData.Workload == "Exchange", "mailMessage",
+                RawData.Workload == "SharePoint" or RawData.Workload == "OneDrive", "file",
+                "other")
+            | extend Severity = tostring(RawData.Severity)
+            // Continue with the summarization logic
             | summarize 
                 AlertCount=count(),
                 EmailAlerts=countif(MessageType == "mailMessage"),
                 FileAlerts=countif(MessageType == "file"),
-                TeamsAlerts=countif(DisplayName has "Teams"),
-                ExternalCount=countif(MessageTags > 0)
-                by UserPrincipalName, AlertSeverity
-            // Second summarize to aggregate all metrics by user
+                TeamsAlerts=countif(RawData.Name has "Teams"),
+                ExternalCount=countif(Data.dmc has "IncludeExternalUsers")
+                by UserPrincipalName, Severity
+            // Rest of the aggregation remains the same
             | summarize 
-                AlertsByUser = make_bag(pack(AlertSeverity, AlertCount)),
+                AlertsByUser = make_bag(pack(Severity, AlertCount)),
                 EmailAlerts = sum(EmailAlerts),
                 FileAlerts = sum(FileAlerts),
                 TeamsAlerts = sum(TeamsAlerts),
                 ExternalCount = sum(ExternalCount),
                 TotalAlerts = sum(AlertCount)
                 by UserPrincipalName
-            // Extract severity counts from the AlertsByUser bag
             | extend 
                 HighAlerts = tolong(AlertsByUser.High),
                 MediumAlerts = tolong(AlertsByUser.Medium),
                 LowAlerts = tolong(AlertsByUser.Low),
                 ExternalPercentage = round((ExternalCount * 100.0 / TotalAlerts), 2)
-            // Final projection of all metrics
             | project 
                 UserPrincipalName,
                 TotalAlerts,
@@ -73,9 +61,7 @@ SkillGroups:
                 TeamsAlerts,
                 ExternalCount,
                 ExternalPercentage
-            // Get top 3 users by total alerts
             | top 3 by TotalAlerts desc
-
 
       - Name: DLPDetailedDLPAlertDetails
         DisplayName: Detailed DLP Teams Alert Investigation
@@ -89,35 +75,83 @@ SkillGroups:
           Template: |-
             // Define UPN variable from input parameter
             let user = '{{UserPrincipalName}}';
-
-            // Query DLP Security Alerts for specified user
-            SecurityAlert
-            | where TimeGenerated > ago(7d)
-            | where ProductName == "Microsoft Data Loss Prevention"
-            | where parse_json(Entities)[0].UserPrincipalName == user
-            | project VendorOriginalId, TimeGenerated, AlertSeverity, AlertLink
-
-            // Join with CloudAppEvents to get detailed alert information
-            | join kind=inner (
-              CloudAppEvents
-              | where TimeGenerated > ago(7d)
-              | extend RawData = parse_json(RawEventData)
-              | extend 
-                  AlertId = tostring(RawData.AlertId),
-                  DataJson = parse_json(tostring(RawData.Data))
-              | where RawData.Category == "DataLossPrevention"
-              | where RawData.Operation == "AlertTriggered"
-            ) on $left.VendorOriginalId == $right.AlertId
-
-            // Project final fields extracting relevant details from DataJson
+            let timerange = 7d;
+            // Query CloudAppEvents table for DLP rule matches in the last 7 days
+            CloudAppEvents
+            // Filter events from the past week
+            | where Timestamp > ago(timerange)
+            // Parse the raw event data into a JSON object for easier manipulation
+            | extend RawData = parse_json(RawEventData)
+            // Filter for only DLP rule match events
+            | where RawData.Operation =~ "DLPRuleMatch"
+            // Extract the User Principal Name from the event data
+            | extend UserPrincipalName = tostring(RawData.UserId)
+            // Filter for the specific user provided in the input parameter
+            | where UserPrincipalName == user
+            // Extract policy details from the first policy in the event
+            | extend PolicyDetails = RawData.PolicyDetails[0]
+            // Extract sensitive information details from the first rule
+            | extend SensitiveInfo = RawData.PolicyDetails[0].Rules[0].ConditionsMatched.SensitiveInformation[0]
+            // Project (select and transform) specific columns for the output
             | project 
-              TimeGenerated,          // When the alert was generated
-              AlertSeverity,          // High/Medium/Low severity
-              Workload = DataJson.wl, // Source workload (Exchange, SharePoint, etc)
-              PolicyName = DataJson.dpn, // DLP policy name
-              RuleName = DataJson.drn,   // Specific rule that triggered
-              Subject = DataJson.von,    // Subject/title of content
-              From = DataJson.mfrm,      // Sender address
-              ToAddress = DataJson["to"], // Recipient address(es)
-              SIT = DataJson.sitmi,      // Sensitive Information Types found
-              AlertLink                  // Link to alert details
+              // Timestamp of the event
+              Timestamp,
+              // Determine the workload (service) where the event occurred
+              Workload = tostring(RawData.Workload),
+              // Extract subject line for Exchange emails, leave blank for other workloads
+              Subject = case(RawData.Workload == "Exchange", tostring(RawData.ExchangeMetaData.Subject),
+                            RawData.Workload == "MicrosoftTeams", "", 
+                            ""),
+              // Extract sender information for Exchange emails
+              From = tostring(RawData.ExchangeMetaData.From),
+              // Extract first recipient for Exchange emails
+              To = tostring(RawData.ExchangeMetaData.To[0]),
+              // Get unique identifier based on workload (Exchange email ID or Teams message ID)
+              NetworkMessageId = case(RawData.Workload == "Exchange", tostring(RawData.ExchangeMetaData.UniqueID), 
+                              RawData.Workload == "MicrosoftTeams", tostring(RawData.ExchangeMetaData.MessageID),
+                              ""),
+              // Extract severity of the first rule in the policy
+              Severity = tostring(PolicyDetails.Rules[0].Severity),
+              // Get the name of the sensitive information type that was matched
+              SensitiveInfoType = tostring(SensitiveInfo.SensitiveInformationTypeName),
+              // Get the confidence level of the sensitive information match
+              Confidence = tostring(SensitiveInfo.Confidence)
+
+      - Name: DLPAlertDetailsWithPurviewLink
+        DisplayName: Get Detailed DLP Alert Info with Purview Alert URL
+        Description: This query retrieves detailed information about DLP alerts, including alert ID, policy name, severity, user details, and generates a Purview URL for quick navigation.
+        Settings:
+          Target: Defender
+          Template: |-
+            let timerange = 7d; 
+            let top3Users = ( 
+                CloudAppEvents 
+                | where Timestamp > ago(timerange) 
+                | extend RawData = parse_json(RawEventData) 
+                | where RawData.Category == "DataLossPrevention" 
+                | where RawData.Operation == "AlertTriggered" 
+                | extend DataJson = parse_json(tostring(RawData.Data))
+                | summarize TotalAlerts=count() by User = tostring(DataJson.f3u) 
+                | top 3 by TotalAlerts desc 
+            ); 
+            CloudAppEvents 
+            | where Timestamp > ago(timerange) 
+            | extend RawData = parse_json(RawEventData) 
+            | where RawData.Category == "DataLossPrevention" 
+            | where RawData.Operation == "AlertTriggered" 
+            | extend DataJson = parse_json(tostring(RawData.Data))
+            | extend  
+                User = tostring(DataJson.f3u), 
+                Subject = tostring(DataJson.von), 
+                To = tostring(DataJson.["To"]), 
+                From = tostring(DataJson.mfrm), 
+                Workload = tostring(DataJson.wl) 
+            | where User in (top3Users) 
+            | project  
+                Timestamp, 
+                User, 
+                PurviewURL = strcat("https://purview.microsoft.com/datalossprevention/alertspage/fullpage?tid=", tostring(RawEventData.OrganizationId), "&alertsviewid=overview&id=", tostring(RawData.AlertId)),
+                PolicyName = tostring(RawData.Name), 
+                Severity = tostring(RawData.Severity), 
+                Subject 
+            | sort by User desc
