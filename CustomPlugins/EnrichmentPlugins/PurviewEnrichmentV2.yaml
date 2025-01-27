@@ -8,11 +8,11 @@ SkillGroups:
     Skills:
       - Name: DLPTopThreeUsersOverview
         DisplayName: Get Top Users Triggering DLP Alerts
-        Description: This KQL query analyzes Microsoft Data Loss Prevention (DLP) alerts, identifying the top 3 users with the most significant data sharing risks by calculating total alerts, severity levels, and critically, the percentage of alerts involving external data sharing. By breaking down alerts across email, file, and Teams platforms with an external sharing risk indicator, the query provides security teams a precise, actionable overview of potential data leakage incidents within a 1-day window. The external percentage metric specifically highlights users with a higher proportion of external data interactions, enabling targeted risk mitigation strategies.
+        Description: This KQL query analyzes Microsoft Data Loss Prevention (DLP) alerts, identifying the top 3 users with the most significant data sharing risks by calculating total alerts, severity levels, and critically, the percentage of alerts involving external data sharing. By breaking down alerts across email, file, and Teams platforms with an external sharing risk indicator, the query provides security teams a precise, actionable overview of potential data leakage incidents within a 24 hour period. The external percentage metric specifically highlights users with a higher proportion of external data interactions, enabling targeted risk mitigation strategies.
         Settings:
           Target: Defender
           Template: |-
-            let timerange = 7d;
+            let timerange = 1d;
             // Start with CloudAppEvents for DLP alerts
             CloudAppEvents
             | where Timestamp > ago(timerange)
@@ -63,77 +63,18 @@ SkillGroups:
                 ExternalPercentage
             | top 3 by TotalAlerts desc
 
-      - Name: DLPDetailedDLPAlertDetails
-        DisplayName: Detailed DLP Teams Alert Investigation
-        Description: Detailed look into DLP security alerts for a specific user over the past 7 days, retrieving and correlating Microsoft DLP alerts with cloud app events. The query extracts detailed information including alert severity, workload, policy name, rule name, actions taken, and sensitive information type. It helps security analysts quickly analyze potential data leak incidents by providing a comprehensive view of user-related DLP events.
-        Inputs:
-          - Name: UserPrincipalName
-            Description: Email of user to investigate
-            Required: true
-        Settings:
-          Target: Defender
-          Template: |-
-            // Define UPN variable from input parameter
-            let user = '{{UserPrincipalName}}';
-            let timerange = 7d;
-            // Query CloudAppEvents table for DLP rule matches in the last 7 days
-            CloudAppEvents
-            // Filter events from the past week
-            | where Timestamp > ago(timerange)
-            // Parse the raw event data into a JSON object for easier manipulation
-            | extend RawData = parse_json(RawEventData)
-            // Filter for only DLP rule match events
-            | where RawData.Operation =~ "DLPRuleMatch"
-            // Extract the User Principal Name from the event data
-            | extend UserPrincipalName = tostring(RawData.UserId)
-            // Filter for the specific user provided in the input parameter
-            | where UserPrincipalName == user
-            // Extract policy details from the first policy in the event
-            | extend PolicyDetails = RawData.PolicyDetails[0]
-            // Extract sensitive information details from the first rule
-            | extend SensitiveInfo = RawData.PolicyDetails[0].Rules[0].ConditionsMatched.SensitiveInformation[0]
-            // Project (select and transform) specific columns for the output
-            | project 
-              // Timestamp of the event
-              Timestamp,
-              // Determine the workload (service) where the event occurred
-              Workload = tostring(RawData.Workload),
-              // Extract subject line for Exchange emails, leave blank for other workloads
-              Subject = case(RawData.Workload == "Exchange", tostring(RawData.ExchangeMetaData.Subject),
-                            RawData.Workload == "MicrosoftTeams", "", 
-                            ""),
-              // Extract sender information for Exchange emails
-              From = tostring(RawData.ExchangeMetaData.From),
-              // Extract first recipient for Exchange emails
-              To = tostring(RawData.ExchangeMetaData.To[0]),
-              // Get unique identifier based on workload (Exchange email ID or Teams message ID)
-              NetworkMessageId = case(RawData.Workload == "Exchange", tostring(RawData.ExchangeMetaData.UniqueID), 
-                              RawData.Workload == "MicrosoftTeams", tostring(RawData.ExchangeMetaData.MessageID),
-                              ""),
-              // Extract severity of the first rule in the policy
-              Severity = tostring(PolicyDetails.Rules[0].Severity),
-              // Get the name of the sensitive information type that was matched
-              SensitiveInfoType = tostring(SensitiveInfo.SensitiveInformationTypeName),
-              // Get the confidence level of the sensitive information match
-              Confidence = tostring(SensitiveInfo.Confidence)
-
       - Name: DLPAlertDetailsWithPurviewLink
         DisplayName: Get Detailed DLP Alert Info with Purview Alert URL
         Description: This query retrieves detailed information about DLP alerts, including alert ID, policy name, severity, user details, and generates a Purview URL for quick navigation.
+        Inputs:
+          - Name: UPN
+            Description: UPN of the user to search
+            Required: true   
         Settings:
-          Target: Defender
+          Target: Defender          
           Template: |-
-            let timerange = 7d; 
-            let top3Users = ( 
-                CloudAppEvents 
-                | where Timestamp > ago(timerange) 
-                | extend RawData = parse_json(RawEventData) 
-                | where RawData.Category == "DataLossPrevention" 
-                | where RawData.Operation == "AlertTriggered" 
-                | extend DataJson = parse_json(tostring(RawData.Data))
-                | summarize TotalAlerts=count() by User = tostring(DataJson.f3u) 
-                | top 3 by TotalAlerts desc 
-            ); 
+            let timerange = 1d; 
+            let searchuser = "{{UPN}}";
             CloudAppEvents 
             | where Timestamp > ago(timerange) 
             | extend RawData = parse_json(RawEventData) 
@@ -146,7 +87,7 @@ SkillGroups:
                 To = tostring(DataJson.["To"]), 
                 From = tostring(DataJson.mfrm), 
                 Workload = tostring(DataJson.wl) 
-            | where User in (top3Users) 
+            | where User == searchuser
             | project  
                 Timestamp, 
                 User, 
@@ -156,3 +97,39 @@ SkillGroups:
                 Subject, 
                 PurviewURL = strcat("https://purview.microsoft.com/datalossprevention/alertspage/fullpage?tid=", tostring(RawEventData.OrganizationId), "&alertsviewid=overview&id=", tostring(RawData.AlertId))
             | sort by User desc
+
+      - Name: DLPAlertsSensitiveInfoTypes
+        DisplayName: DLP Alerts with Sensitive Information Types
+        Description: This query retrieves detailed DLP events for a specific user over the past 24 hours, highlighting sensitive information types, detection confidence, impacted files or items, and triggered policies across workloads. It provides security analysts with actionable insights to investigate and mitigate potential data leakage incidents effectively.
+        Inputs:
+          - Name: UPN
+            Description: User UPN
+            Required: true       
+        Settings:
+          Target: Defender
+          Template: |-
+            let timerange = 1d;
+            let searchuser = "{{UPN}}";
+            // First get DLP events
+            CloudAppEvents
+            | where Timestamp > ago(timerange)
+            | extend RawData = parse_json(RawEventData)
+            | where RawData.Operation =~ "DLPRuleMatch"
+            | extend 
+                UserPrincipalName = tostring(RawData.UserId),
+                PolicyDetails = RawData.PolicyDetails[0],
+                Workload = tostring(RawData.Workload),
+                ObjectId = tostring(RawData.ObjectId)  
+            | where UserPrincipalName == searchuser
+            | mv-expand Rules = PolicyDetails.Rules
+            | mv-expand SensitiveInfo = Rules.ConditionsMatched.SensitiveInformation
+            | where SensitiveInfo != ""
+            | project 
+                DLPTime = Timestamp,
+                UserPrincipalName,
+                ObjectId,
+                SensitiveType = tostring(SensitiveInfo.SensitiveInformationTypeName),
+                Confidence = toint(SensitiveInfo.Confidence),
+                DetectionCount = toint(SensitiveInfo.Count),
+                PolicyName = tostring(PolicyDetails.PolicyName),
+                Workload;
