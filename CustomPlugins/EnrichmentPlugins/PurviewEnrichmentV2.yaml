@@ -150,8 +150,9 @@ SkillGroups:
             | project  
                 Timestamp, 
                 User, 
-                PurviewURL = strcat("https://purview.microsoft.com/datalossprevention/alertspage/fullpage?tid=", tostring(RawEventData.OrganizationId), "&alertsviewid=overview&id=", tostring(RawData.AlertId)),
+                Workload,
                 PolicyName = tostring(RawData.Name), 
                 Severity = tostring(RawData.Severity), 
-                Subject 
+                Subject, 
+                PurviewURL = strcat("https://purview.microsoft.com/datalossprevention/alertspage/fullpage?tid=", tostring(RawEventData.OrganizationId), "&alertsviewid=overview&id=", tostring(RawData.AlertId))
             | sort by User desc
