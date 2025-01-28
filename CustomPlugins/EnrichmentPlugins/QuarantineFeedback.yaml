@@ -44,6 +44,6 @@ SkillGroups:
             | where RecipientEmailAddress == RecipientEmailAddress1
             | project-rename EmailTime=Timestamp
             | project-rename RequestedBy=RecipientEmailAddress
-            |project-rename DeniedBy=AccountDisplayName
+            | project-rename DeniedBy=AccountDisplayName
             | project EmailTime, SenderFromAddress, SenderDisplayName, Subject, RequestedBy, RecipientEmailAddress1, DeniedBy, DeniedTime, RequestTime,NetworkMessageId,NetworkMessageId1
             | sort by DeniedTim
