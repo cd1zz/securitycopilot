@@ -24,35 +24,26 @@ SkillGroups:
         Settings:
           Target: Defender
           Template: |-
-            // Define the time ranges for lookup: actions, requests, and email events
-            let ActionLookupTime = ago(30d);
+            let DeniedLookupTime = ago(30d);
             let RequestedLookupTime = ago(30d);
             let EmailEventLookupTime = ago(30d);
-            // Query CloudAppEvents for quarantine release actions
             CloudAppEvents
-            | where Timestamp >= ActionLookupTime // Filter by action time within the specified range
-            | where ActionType == "QuarantineReleaseMessage" // Focus on quarantine release actions
-            | extend NetworkMessageId = tostring(parse_json(RawEventData)["NetworkMessageId"]) // Extract the NetworkMessageId from the raw event data
-            | project-rename ActionTime=Timestamp // Rename the timestamp for clarity
-            // Join with CloudAppEvents to correlate with quarantine release requests
-            | join (
-                CloudAppEvents
-                | where Timestamp >= RequestedLookupTime // Filter by request time within the specified range
-                | where ActionType == "QuarantineRequestReleaseMessage" // Focus on quarantine request actions
-                | extend NetworkMessageId = tostring(parse_json(RawEventData)["NetworkMessageId"]) // Extract the NetworkMessageId from the raw event data
-                | extend RecipientEmailAddress = tostring(parse_json(RawEventData)["UserId"]) // Extract the recipient email address
-                | project-rename RequestTime=Timestamp // Rename the timestamp for clarity
-            ) on NetworkMessageId // Join based on the common NetworkMessageId
-            // Project key details from the joined result
-            | project AccountDisplayName, NetworkMessageId, RequestTime, RecipientEmailAddress, ActionTime
-            // Join with EmailEvents to include additional email-related metadata
-            | join EmailEvents on NetworkMessageId // Match using NetworkMessageId
-            | where Timestamp >= EmailEventLookupTime // Filter by email event time within the specified range
-            | where RecipientEmailAddress == RecipientEmailAddress1 // Ensure the recipient email matches
-            // Rename and project key columns for the final output
-            | project-rename EmailTime=Timestamp // Rename the email timestamp for clarity
-            | project-rename RequestedBy=RecipientEmailAddress // Rename the requestor for clarity
-            | project-rename ActionBy=AccountDisplayName // Rename the action performer for clarity
-            | project EmailTime, SenderFromAddress, SenderDisplayName, Subject, RequestedBy, RecipientEmailAddress1, ActionBy, ActionTime, RequestTime, NetworkMessageId, NetworkMessageId1
-            // Sort results by action time for a chronological view
-            | sort by ActionTime
+            | where Timestamp >= DeniedLookupTime
+            | where ActionType == "QuarantineDenyReleaseMessage"
+            | extend NetworkMessageId = tostring(parse_json(RawEventData)["NetworkMessageId"])
+            | project-rename DeniedTime=Timestamp
+            | join (CloudAppEvents
+            | where Timestamp >= RequestedLookupTime
+            | where ActionType == "QuarantineRequestReleaseMessage"
+            | extend NetworkMessageId = tostring(parse_json(RawEventData)["NetworkMessageId"])
+            | extend RecipientEmailAddress = tostring(parse_json(RawEventData)["UserId"])
+            | project-rename RequestTime=Timestamp) on NetworkMessageId
+            | project AccountDisplayName, NetworkMessageId, RequestTime, RecipientEmailAddress, DeniedTime
+            | join EmailEvents on NetworkMessageId
+            | where Timestamp >= EmailEventLookupTime
+            | where RecipientEmailAddress == RecipientEmailAddress1
+            | project-rename EmailTime=Timestamp
+            | project-rename RequestedBy=RecipientEmailAddress
+            |project-rename DeniedBy=AccountDisplayName
+            | project EmailTime, SenderFromAddress, SenderDisplayName, Subject, RequestedBy, RecipientEmailAddress1, DeniedBy, DeniedTime, RequestTime,NetworkMessageId,NetworkMessageId1
+            | sort by DeniedTim
