@@ -232,11 +232,22 @@ SkillGroups:
         Settings:
           Target: Defender
           Template: |-
-            // Evaluate secure configuration compliance for the specified device
             DeviceTvmSecureConfigurationAssessment
-            | where DeviceName =~ "{{device_name}}"
-            | where ConfigurationId in ('scid-91', 'scid-2000', 'scid-2001', 'scid-2002', 'scid-2003', 'scid-2010', 'scid-2011', 'scid-2012', 'scid-2013', 'scid-2014', 'scid-2016')
-            | extend Test = case(
+            | where DeviceName =~ "alpineski-u293"
+            | where ConfigurationId in ('scid-91', 'scid-2000', 'scid-2001', 'scid-2002', 'scid-2003', 'scid-2010', 'scid-2011', 'scid-2012', 'scid-2013', 'scid-2014', 'scid-2016')  // Comprehensive set of security configurations to check
+            // Get latest assessment
+            | summarize arg_max(Timestamp, *) by DeviceId, ConfigurationId  // Ensures we only get the most recent assessment for each config
+            // Join with DeviceInfo
+            | join kind=leftouter (                                         // leftouter preserves all security assessments even if device info is missing
+                DeviceInfo
+                | summarize arg_max(Timestamp, *) by DeviceId              // Gets most recent device information
+                | project 
+                    DeviceId,
+                    OSPlatform,                                            // OS info helps identify platform-specific issues
+                    SensorHealthState,                                     // Indicates if the security sensor is functioning properly
+                    OnboardingStatus                                       // Shows if device is properly connected to security service
+            ) on DeviceId
+            | extend Test = case(                                          // Maps configuration IDs to readable test names
                 ConfigurationId == "scid-2000", "SensorEnabled",
                 ConfigurationId == "scid-2001", "SensorDataCollection",
                 ConfigurationId == "scid-2002", "ImpairedCommunications",
@@ -248,8 +259,21 @@ SkillGroups:
                 ConfigurationId == "scid-2013", "PUAProtection",
                 ConfigurationId == "scid-2014", "AntivirusReporting",
                 ConfigurationId == "scid-2016", "CloudProtection",
-                "N/A"),
-                Result = case(IsApplicable == 0, "N/A", IsCompliant == 1, "YES", "NO")
-            | extend packed = pack(Test, Result)
-            | summarize Tests = make_bag(packed), DeviceName = any(DeviceName) by DeviceId
-            | evaluate bag_unpack(Tests)
+                "N/A")
+            | extend Result = case(                                        // Standardized compliance status terminology
+                IsApplicable == 0, "N/A", 
+                IsCompliant == 1, "Compliant", 
+                "Non-Compliant")
+            | extend packed = pack(Test, Result)                          // Prepares data for pivoting test results into columns
+            | summarize 
+                Tests = make_bag(packed),                                // Creates a column for each security test
+                DeviceName = any(DeviceName),
+                OSPlatform = any(OSPlatform),                           // Preserves OS information in final output
+                SensorHealthState = any(SensorHealthState),             // Preserves sensor health in final output
+                OnboardingStatus = any(OnboardingStatus),               // Preserves onboarding status in final output
+                LastAssessment = max(Timestamp)                         // Shows when the most recent assessment was performed
+                by DeviceId
+            | evaluate bag_unpack(Tests)                                // Converts packed tests into individual columns
+            | sort by DeviceName asc                                    // Makes output more readable with consistent ordering
+
+
