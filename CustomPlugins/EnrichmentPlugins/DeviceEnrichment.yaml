@@ -217,14 +217,27 @@ SkillGroups:
             // 2. Summarize the device's security posture based on the number of devices impacted and their importance.
             // Use this information to provide security insights and prioritize remediation efforts.
 
-      - Name: DeviceHealthReport
-        DisplayName: Device Health Report
+      - Name: DefenderHealthReport
+        DisplayName: Microsoft Defender Health Report
         DescriptionForModel: |-
-          Executes a KQL query to evaluate the secure configuration compliance & health of a specific device. This skill:
-            1. **Identifies Configuration Issues**: Assesses key security configurations for the specified device and determines compliance with secure settings.
-            2. **Summarizes Results**: Provides a comprehensive overview of configuration tests, indicating areas of compliance and non-compliance.
-          This skill supports proactive identification of configuration gaps, enabling targeted remediation efforts to enhance the device's security posture.
-        Description: Assess the secure configuration settings for a specific device. Provides a detailed breakdown of test results and compliance status to prioritize necessary actions for improving the device's security.
+          Executes a KQL query against DeviceTvmSecureConfigurationAssessment to evaluate Microsoft Defender health status and configurations across Windows, macOS, and Linux devices. This skill:
+            1. **Evaluates Defender Components**: Assesses critical security features including real-time protection, tamper protection, cloud protection, PUA protection, and behavior monitoring.
+            2. **Tracks Protection Status**: Monitors Defender operational states (Active/Passive/EDR Blocked) and compliance status (GOOD/BAD).
+            3. **Monitors Version Currency**: Tracks antivirus signature versions, product versions, and engine versions to ensure up-to-date protection.
+          This skill enables security teams to identify misconfigurations, outdated signatures, and disabled protections that could impact endpoint security.
+        Description: |-
+          Analyzes Microsoft Defender health and configuration status using DeviceTvmSecureConfigurationAssessment data. Evaluates multiple security components:
+          
+          - Protection Features: Real-time protection, cloud protection, email scanning, PUA protection, and behavior monitoring
+          - Operational Status: 
+            • GOOD: Configuration meets security requirements
+            • BAD: Configuration fails compliance checks, requires attention
+            • Active: Defender is primary antivirus with full protection
+            • Passive: Defender is in passive mode (another antivirus is primary)
+            • EDR Blocked: Defender is blocked by endpoint detection and response policy
+            • Unknown: Status cannot be determined
+          
+          Tracks version information for signatures, product, and engine to ensure current protection levels. Results help prioritize security gaps and maintain strong endpoint protection across Windows, macOS, and Linux systems.
         Inputs:
           - Name: device_name
             Description: Name of the device to evaluate (e.g., "Device01")
@@ -233,47 +246,56 @@ SkillGroups:
           Target: Defender
           Template: |-
             DeviceTvmSecureConfigurationAssessment
-            | where DeviceName =~ "{{device_name}}"
-            | where ConfigurationId in ('scid-91', 'scid-2000', 'scid-2001', 'scid-2002', 'scid-2003', 'scid-2010', 'scid-2011', 'scid-2012', 'scid-2013', 'scid-2014', 'scid-2016')  // Comprehensive set of security configurations to check
-            // Get latest assessment
-            | summarize arg_max(Timestamp, *) by DeviceId, ConfigurationId  // Ensures we only get the most recent assessment for each config
-            // Join with DeviceInfo
-            | join kind=leftouter (                                         // leftouter preserves all security assessments even if device info is missing
-                DeviceInfo
-                | summarize arg_max(Timestamp, *) by DeviceId              // Gets most recent device information
-                | project 
-                    DeviceId,
-                    OSPlatform,                                            // OS info helps identify platform-specific issues
-                    SensorHealthState,                                     // Indicates if the security sensor is functioning properly
-                    OnboardingStatus                                       // Shows if device is properly connected to security service
-            ) on DeviceId
-            | extend Test = case(                                          // Maps configuration IDs to readable test names
-                ConfigurationId == "scid-2000", "SensorEnabled",
-                ConfigurationId == "scid-2001", "SensorDataCollection",
-                ConfigurationId == "scid-2002", "ImpairedCommunications",
-                ConfigurationId == "scid-2003", "TamperProtection",
-                ConfigurationId == "scid-2010", "AntivirusEnabled",
-                ConfigurationId == "scid-2011", "AntivirusSignatureVersion",
-                ConfigurationId == "scid-2012", "RealtimeProtection",
-                ConfigurationId == "scid-91", "BehaviorMonitoring",
-                ConfigurationId == "scid-2013", "PUAProtection",
-                ConfigurationId == "scid-2014", "AntivirusReporting",
-                ConfigurationId == "scid-2016", "CloudProtection",
-                "N/A")
-            | extend Result = case(                                        // Standardized compliance status terminology
-                IsApplicable == 0, "N/A", 
-                IsCompliant == 1, "Compliant", 
-                "Non-Compliant")
-            | extend packed = pack(Test, Result)                          // Prepares data for pivoting test results into columns
-            | summarize 
-                Tests = make_bag(packed),                                // Creates a column for each security test
-                DeviceName = any(DeviceName),
-                OSPlatform = any(OSPlatform),                           // Preserves OS information in final output
-                SensorHealthState = any(SensorHealthState),             // Preserves sensor health in final output
-                OnboardingStatus = any(OnboardingStatus),               // Preserves onboarding status in final output
-                LastAssessment = max(Timestamp)                         // Shows when the most recent assessment was performed
+            | where DeviceName == "{{device_name}}"                              // Filter to specific device
+            | where ConfigurationId in ('scid-90', 'scid-91', 'scid-2003', 'scid-2010', 'scid-2011', 'scid-2012', 'scid-2013', 'scid-2016', 'scid-5095', 'scid-6095', 
+                                      'scid-5090', 'scid-6090', 'scid-5091', 'scid-6091', 'scid-5094', 'scid-6094')  // Filter for security configuration IDs
+            | extend Test = case(                                                // Map configuration IDs to human-readable test names
+                ConfigurationId == 'scid-2003' and OSPlatform startswith 'Windows', 'TamperProtection',
+                ConfigurationId == 'scid-2010' and OSPlatform startswith 'Windows', 'DefenderMode',
+                ConfigurationId == 'scid-90'   and OSPlatform startswith 'Windows', 'EmailScanning', 
+                ConfigurationId == 'scid-2011' and OSPlatform startswith 'Windows', 'AntivirusSignatureVersion',
+                ConfigurationId == 'scid-5095' and OSPlatform == 'macOS', 'AntivirusSignatureVersion',
+                ConfigurationId == 'scid-6095' and OSPlatform == 'Linux', 'AntivirusSignatureVersion',
+                ConfigurationId == 'scid-2012' and OSPlatform startswith 'Windows','RealtimeProtection',
+                ConfigurationId == 'scid-5090' and OSPlatform == 'macOS', 'RealtimeProtection',
+                ConfigurationId == 'scid-6090' and OSPlatform == 'Linux', 'RealtimeProtection',
+                ConfigurationId == 'scid-2013' and OSPlatform startswith 'Windows', 'PUAProtection',
+                ConfigurationId == 'scid-5091' and OSPlatform == 'macOS', 'PUAProtection',
+                ConfigurationId == 'scid-6091' and OSPlatform == 'Linux', 'PUAProtection',
+                ConfigurationId == 'scid-2016' and OSPlatform startswith 'Windows', 'CloudProtection',
+                ConfigurationId == 'scid-5094' and OSPlatform == 'macOS', 'CloudProtection',
+                ConfigurationId == 'scid-6094' and OSPlatform == 'Linux', 'CloudProtection',
+                ConfigurationId == 'scid-91' and OSPlatform startswith 'Windows', 'BehaviourMonitoring',
+                'NA')
+            | extend Result = case(                                             // Convert test results to standardized format
+                ConfigurationId == 'scid-2010', case(                          // Special handling for Defender Mode states
+                    parse_json(Context)[0][0] == '0', 'Active',
+                    parse_json(Context)[0][0] == '1', 'Passive',
+                    parse_json(Context)[0][0] == '4', 'EDR Blocked',
+                    'Unknown'
+                ),
+                IsCompliant == 1, 'GOOD',                                      // Mark compliant configs as GOOD
+                'BAD'                                                          // Mark non-compliant configs as BAD
+            ),
+            SignVer = case(                                                    // Extract signature version info for each OS type
+                ConfigurationId == 'scid-2011' and OSPlatform startswith 'Windows', parse_json(Context)[0], 
+                ConfigurationId == 'scid-5095' and OSPlatform == 'macOS', parse_json(Context)[0], 
+                ConfigurationId == 'scid-6095' and OSPlatform == 'Linux', parse_json(Context)[0], 
+                ''),
+            DeviceName = toupper(tostring(split(DeviceName, '.')[0]))         // Standardize device name to uppercase without domain
+            | extend packed = pack(Test, Result)                              // Create key-value pairs of test results
+            | summarize Tests = make_bag(packed),                             // Aggregate all test results into a single row per device
+                SignatureData = max(SignVer), 
+                DeviceName = any(DeviceName), 
+                OSPlatform = any(OSPlatform) 
                 by DeviceId
-            | evaluate bag_unpack(Tests)                                // Converts packed tests into individual columns
-            | sort by DeviceName asc                                    // Makes output more readable with consistent ordering
-
-
+            | evaluate bag_unpack(Tests)                                      // Expand aggregated test results into columns
+            | extend AVSignatureVersion = tostring(parse_json(SignatureData)[0]),  // Parse detailed signature information
+                Date = todatetime(parse_json(SignatureData)[2]), 
+                ProductVersion = tostring(parse_json(SignatureData)[3]), 
+                EngineVersion = tostring(parse_json(SignatureData)[1])
+            | join kind=leftouter (DeviceInfo                                // Join with device information table
+                | distinct DeviceId, MachineGroup, OnboardingStatus) 
+                on DeviceId
+            | where OnboardingStatus == "Onboarded"                          // Filter for only onboarded devices
+            | project-away SignatureData, NA, DeviceId1                      // Remove unnecessary columns from final output
