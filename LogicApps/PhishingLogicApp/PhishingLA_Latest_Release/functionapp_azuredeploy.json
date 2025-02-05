@@ -4,6 +4,8 @@
     "parameters": {
         "FunctionAppName": {
             "type": "String",
+            "minLength": 3,
+            "maxLength": 14,
             "defaultValue": "phish",
             "metadata": {
                 "description": "Enter the base name for the Function App. A unique suffix will be added automatically."
