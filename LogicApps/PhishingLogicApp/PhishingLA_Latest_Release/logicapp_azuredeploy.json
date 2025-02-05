@@ -97,10 +97,12 @@
             "properties": {
                 "displayName": "[variables('AzureSentinel-ConnectionName')]",
                 "api": {
+
                     "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
                 }
-            }
-        },
+                }
+            },
+
         {
             "type": "Microsoft.Web/connections",
             "apiVersion": "2016-06-01",
