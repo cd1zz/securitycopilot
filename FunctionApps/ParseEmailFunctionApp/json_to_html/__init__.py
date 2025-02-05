@@ -3,7 +3,6 @@ from jinja2 import Template
 from urllib.parse import unquote
 import azure.functions as func
 
-
 CATEGORY_STYLES = {
     "PHISHING": "background-color: #d9534f; color: white; padding: 5px 10px; text-transform: uppercase;",
     "JUNK/SPAM": "background-color: #f0ad4e; color: white; padding: 5px 10px; text-transform: uppercase;",
@@ -33,16 +32,19 @@ def create_html(json_data):
     </head>
     <body>
         {% set section_order = [
-            'final_assessment', 
-            'email_summary', 
-            'pretense_vs_intent_mapping', 
-            'intent_verification', 
-            'logical_coherence', 
-            'behavioral_triggers', 
-            'url_analysis', 
-            'attachment_analysis', 
-            'contextual_integrity', 
-            'subtle_clue_detection'
+            'final_assessment',
+            'email_summary',
+            'pretense_vs_intent_mapping',
+            'intent_verification',
+            'logical_coherence',
+            'behavioral_triggers',
+            'url_analysis',
+            'attachment_analysis',
+            'contextual_integrity',
+            'subtle_clue_detection',
+            'domain_reputation_analysis',
+            'financial_pretext_detection',
+            'bec_reconnaissance_detection'
         ] %}
         {% for section in section_order %}
             {% if section in json_data %}
@@ -61,6 +63,30 @@ def create_html(json_data):
                             </span>
                         </p>
                         <p><strong>Rationale:</strong> {{ json_data[section]['rationale'] if json_data[section]['rationale'] else 'N/A' }}</p>
+                    
+                    {% elif section == 'attachment_analysis' %} 
+                        {% for key, value in json_data[section].items() %}
+                            {% if key == "attachment_metadata" %}
+                                <h3>Attachment Metadata</h3>
+                                <ul>
+                                    {% for meta_key, meta_value in value.items() %}
+                                        {% if meta_value is mapping %}
+                                            <li><strong>{{ meta_key.replace('_', ' ').title() }}:</strong></li>
+                                            <ul>
+                                                {% for sub_meta_key, sub_meta_value in meta_value.items() %}
+                                                    <li><strong>{{ sub_meta_key.replace('_', ' ').title() }}:</strong> {{ sub_meta_value if sub_meta_value else 'N/A' }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <li><strong>{{ meta_key.replace('_', ' ').title() }}:</strong> {{ meta_value if meta_value else 'N/A' }}</li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            {% elif key == "risks" %}
+                                <h3>Attachment Risks</h3>
+                                <p>{{ value if value else 'N/A' }}</p>
+                            {% endif %}
+                        {% endfor %}
                     {% else %}
                         {% for subkey, subvalue in json_data[section].items() %}
                             {% if subkey != 'description' %}
@@ -74,7 +100,7 @@ def create_html(json_data):
                                                     <ul>
                                                         {% if value|length > 0 %}
                                                             {% for item in value %}
-                                                            <li class="styled-list-item">{{ item }}</li>
+                                                                <li class="styled-list-item">{{ item }}</li>
                                                             {% endfor %}
                                                         {% else %}
                                                             <li class="styled-list-item">N/A</li>
@@ -109,6 +135,7 @@ def create_html(json_data):
                 </div>
             {% endif %}
         {% endfor %}
+
     </body>
     </html>
     '''
@@ -151,7 +178,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     except ValueError as e:
         logging.error(f"Invalid JSON input: {e}")
-        raise e
         return func.HttpResponse(
             "Invalid JSON input.",
             status_code=400

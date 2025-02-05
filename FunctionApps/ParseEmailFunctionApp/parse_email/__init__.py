@@ -14,6 +14,7 @@ import urllib.parse
 import requests
 from bs4 import BeautifulSoup
 from parse_pdf import extract_and_clean_pdf_text
+from parse_excel import extract_and_clean_excel_text
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -636,15 +637,40 @@ def parse_email(raw_email: bytes) -> Dict:
                         "content_type": content_type,
                         "error": str(e)
                     })
+            # Add handling for Excel files
+            elif content_type in {
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
+                "application/vnd.ms-excel",  # .xls
+                "application/msexcel",
+                "application/x-msexcel",
+                "application/x-ms-excel",
+                "application/x-excel",
+                "application/x-dos_ms_excel",
+                "application/xls",
+                "application/x-xls"
+            }:
+                try:
+                    excel_text = extract_and_clean_excel_text(attachment["attachment_base64"])
+                    processed_attachments.append({
+                        "attachment_name": attachment["attachment_name"],
+                        "attachment_sha256": attachment["attachment_sha256"],
+                        "content_type": content_type,
+                        "attachment_text": excel_text
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to parse Excel file {attachment['attachment_name']}: {e}")
+                    processed_attachments.append({
+                        "attachment_name": attachment["attachment_name"],
+                        "attachment_sha256": attachment["attachment_sha256"],
+                        "content_type": content_type,
+                        "error": str(e)
+                    })
             else:
                 processed_attachments.append({
                     "attachment_name": attachment["attachment_name"],
                     "attachment_sha256": attachment["attachment_sha256"],
                     "content_type": content_type
                 })
-
-
-
         email_data = {
             "sender": sender,
             "return_path": return_path,
@@ -661,10 +687,10 @@ def parse_email(raw_email: bytes) -> Dict:
         }
 
         return email_data
+
     except Exception as e:
         logger.error(f"Error in main: {e}", exc_info=True)
         return func.HttpResponse(f"Error processing email: {str(e)}", status_code=500)
-        return None
 
 
 def dedupe_to_base_urls(urls):

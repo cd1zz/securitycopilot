@@ -2,3 +2,4 @@
 venv
 .python_packages
 .vscode
+*/*.pyc
