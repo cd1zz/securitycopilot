@@ -3,7 +3,8 @@
 
 This solution streamlines phishing email analysis by leveraging a shared mailbox, Azure Logic & Function Apps, and Security Copilot. It monitors a shared Office 365 mailbox for submitted emails, parses their content, and conducts detailed security analysis. Security insights, including behavioral triggers, contextual integrity, and attachment/URL assessments, are used to classify emails as Phishing, Junk/Spam, Legitimate, or Suspicious. Results are logged to Microsoft Sentinel, and an HTML report is emailed to the designated recipient. The deployment is designed for ease of use, leveraging system-managed identities and minimal manual configuration, while ensuring compatibility with Azure best practices.
 
-This solution deploys the Logic App as a managed identity so proper permissions are necessary after deployment to work seemlessly with Sentinel, which is optional. If you decide not to use Sentinel, that portion of the Logic App is ignored, and only an HTML analysis report is provided. 
+This solution deploys the Logic App as a managed identity so proper permissions are necessary after deployment to work seamlessly with Sentinel, which is optional. If you decide not to use Sentinel, that portion of the Logic App is ignored, and only an HTML analysis report is provided.
+
 ---
 
 ## Prerequisites
@@ -14,7 +15,6 @@ This solution deploys the Logic App as a managed identity so proper permissions 
 4. **Permissions**: Ensure the necessary permissions are granted to the system-managed identity and user-assigned managed identity (if used) for accessing resources such as:
    - Azure Monitor Logs
    - Microsoft Sentinel
-   - Graph API (`Directory.Read.All`)
 5. **Azure Details**:
 - **SubscriptionId**: Azure subscription ID for deployment.
 - **LogicAppName**: Name of the Logic App.
@@ -39,10 +39,10 @@ Click the button below to deploy the Function App. This deployment creates:
 ### Manual Deployment
 
 If needed, deploy the Function App manually:
-1. Download the ZIP file for the Function App: [FunctionApp.zip](https://github.com/cd1zz/securitycopilot/raw/refs/heads/main/FunctionApps/ParseEmailFunctionApp/ParseEmailFunctionApp.zip)
+1. Download the ZIP file for the Function App: [LatestRelease_FunctionApp.zip](https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/LogicApps/PhishingLogicApp/PhishingLA_Latest_Release/LatestRelease_FunctionApp.zip)
 2. Run the following command in the Azure CLI:
    ```bash
-   az functionapp deployment source config-zip --resource-group yourResourceGroup --name yourFunctionAppName --src .\ParseEmailFunctionApp.zip
+   az functionapp deployment source config-zip --resource-group yourResourceGroup --name yourFunctionAppName --src .\LatestRelease_FunctionApp.zip
    ```
 
 ---
