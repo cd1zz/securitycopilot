@@ -580,6 +580,7 @@ def parse_email(raw_email: bytes) -> Dict:
     try:
         msg = BytesParser(policy=policy.default).parsebytes(raw_email)
 
+        message_id = msg.get('Message-ID', '') or ""
         sender = msg.get('From', '') or ""
         return_path = msg.get('Return-Path', '') or ""
         receiver = msg.get('To', '') or ""
@@ -672,6 +673,7 @@ def parse_email(raw_email: bytes) -> Dict:
                     "content_type": content_type
                 })
         email_data = {
+            "message_id": message_id,
             "sender": sender,
             "return_path": return_path,
             "receiver": receiver,

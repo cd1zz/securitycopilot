@@ -81,11 +81,17 @@
             "kind": "V1",
             "properties": {
                 "displayName": "[variables('AzureMonitorLogs-ConnectionName')]",
+                "parameterValueSet": {
+                    "name": "managedIdentityAuth",
+                    "values": {}
+                },
                 "api": {
                     "category": "Standard",
                     "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]",
                     "type": "Microsoft.Web/locations/managedApis"
-                }
+                },
+                "customParameterValues": {}
+
             }
         },
         {
@@ -96,12 +102,14 @@
             "kind": "V1",
             "properties": {
                 "displayName": "[variables('AzureSentinel-ConnectionName')]",
+                "parameterValueType": "Alternative",
+                "customParameterValues": {},
                 "api": {
 
                     "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
                 }
-                }
-            },
+            }
+        },
 
         {
             "type": "Microsoft.Web/connections",
@@ -1325,12 +1333,22 @@
                             "azuresentinel": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]",
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureSentinel-ConnectionName'))]",
-                                "connectionName": "[variables('AzureSentinel-ConnectionName')]"
+                                "connectionName": "[variables('AzureSentinel-ConnectionName')]",
+                                "connectionProperties": {
+                                    "authentication": {
+                                        "type": "ManagedServiceIdentity"
+                                    }
+                                }
                             },
                             "azuremonitorlogs": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]",
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureMonitorLogs-ConnectionName'))]",
-                                "connectionName": "[variables('AzureMonitorLogs-ConnectionName')]"
+                                "connectionName": "[variables('AzureMonitorLogs-ConnectionName')]",
+                                "connectionProperties": {
+                                    "authentication": {
+                                        "type": "ManagedServiceIdentity"
+                                    }
+                                }
                             },
                             "conversionservice-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/conversionservice')]",
