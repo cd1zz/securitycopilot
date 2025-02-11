@@ -7,6 +7,7 @@ An automated solution for phishing email analysis using Azure Logic Apps, Functi
 
 1. **Azure Resources:**
    - Azure subscription
+   - Contributor rights to the deployment target resource group
    - [Security Copilot Security Compute Units](https://learn.microsoft.com/en-us/copilot/security/get-started-security-copilot)
    - Microsoft Sentinel workspace (optional)
 
@@ -20,6 +21,12 @@ An automated solution for phishing email analysis using Azure Logic Apps, Functi
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Latest_Release%2Ffunctionapp_azuredeploy.json)
 
+Required Parameters:
+- FunctionAppName (name is prepended with "phish" and random characters are appended)
+- FunctionAppResourceGroup
+
+Wait for the Function App to fully deploy before moving on to step 2.
+
 ### 2. Deploy Logic App
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Latest_Release%2Flogicapp_azuredeploy.json)
@@ -27,8 +34,8 @@ An automated solution for phishing email analysis using Azure Logic Apps, Functi
 Required Parameters:
 - SubscriptionId
 - LogicAppName
-- FunctionAppName
-- FunctionAppResourceGroup
+- FunctionAppName (step 1)
+- FunctionAppResourceGroup (step 1)
 - SharedMailboxAddress
 - HTMLReportRecipient
 
