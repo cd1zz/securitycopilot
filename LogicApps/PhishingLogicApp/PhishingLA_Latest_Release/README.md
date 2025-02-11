@@ -1,106 +1,84 @@
-# User Submitted Phishing Analysis with Security Copilot
+# Phishing Analysis with Security Copilot
 **Author:** Craig Freyman
 
-This solution streamlines phishing email analysis by leveraging a shared mailbox, Azure Logic & Function Apps, and Security Copilot. It monitors a shared Office 365 mailbox for submitted emails, parses their content, and conducts detailed security analysis. Security insights, including behavioral triggers, contextual integrity, and attachment/URL assessments, are used to classify emails as Phishing, Junk/Spam, Legitimate, or Suspicious. Results are logged to Microsoft Sentinel, and an HTML report is emailed to the designated recipient. The deployment is designed for ease of use, leveraging system-managed identities and minimal manual configuration, while ensuring compatibility with Azure best practices.
-
-This solution deploys the Logic App as a managed identity so proper permissions are necessary after deployment to work seamlessly with Sentinel, which is optional. If you decide not to use Sentinel, that portion of the Logic App is ignored, and only an HTML analysis report is provided.
-
----
+An automated solution for phishing email analysis using Azure Logic Apps, Function Apps, and Security Copilot. The system monitors a shared Office 365 mailbox, analyzes submitted emails for security threats, and generates detailed reports. Optional integration with Microsoft Sentinel for incident tracking and management.
 
 ## Prerequisites
 
-1. **Shared Mailbox**: Create a shared mailbox to monitor for submitted phishing emails. Follow the instructions here: [Create a Shared Mailbox](https://learn.microsoft.com/en-us/microsoft-365/admin/email/create-a-shared-mailbox?view=o365-worldwide).
-2. **Azure CLI Installed**: Ensure the Azure CLI is installed and configured with access to your subscription. Refer to the [Azure CLI documentation](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) for setup instructions. (Optional)
-3. **Microsoft Sentinel Workspace**: Have a Microsoft Sentinel workspace created and configured with proper access permissions. (Optional)
-4. **Permissions**: Ensure the necessary permissions are granted to the system-managed identity and user-assigned managed identity (if used) for accessing resources such as:
-   - Azure Monitor Logs
-   - Microsoft Sentinel
-5. **Azure Details**:
-- **SubscriptionId**: Azure subscription ID for deployment.
-- **LogicAppName**: Name of the Logic App.
-- **FunctionAppName**: Name of the deployed Function App.
-- **FunctionAppResourceGroup**: Resource group of the Function App.
-- **LogAnalyticsWorkspaceName**: Name of the Log Analytics Workspace for Sentinel. (Optional, use "none" if not in use)
-- **LogAnalyticsWorkspaceId**: Workspace ID for Sentinel. (Optional, use "none" if not in use)
-- **LogAnalyticsResourceGroup**: Resource group of Log Analytics. (Optional, use "none" if not in use)
-- **SharedMailboxAddress**: Shared O365 mailbox email address.
-- **HTMLReportRecipient**: Recipient email address for the HTML report.
----
+1. **Azure Resources:**
+   - Azure subscription
+   - [Security Copilot Security Compute Units](https://learn.microsoft.com/en-us/copilot/security/get-started-security-copilot)
+   - Microsoft Sentinel workspace (optional)
 
-## Step 1: Deploy the Function App
+2. **Email Configuration:**
+   - [Office 365 shared mailbox for monitoring](https://learn.microsoft.com/en-us/microsoft-365/admin/email/create-a-shared-mailbox?view=o365-worldwide)
+   - Permissions to manage email configurations
 
-Click the button below to deploy the Function App. This deployment creates:
-- A Function App with system-managed identity.
-- A storage account for Function App resources.
-- An Application Insights resource for monitoring.
+## Deployment Steps
+
+### 1. Deploy Function App
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Latest_Release%2Ffunctionapp_azuredeploy.json)
 
-### Manual Deployment
-
-If needed, deploy the Function App manually:
-1. Download the ZIP file for the Function App: [LatestRelease_FunctionApp.zip](https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/LogicApps/PhishingLogicApp/PhishingLA_Latest_Release/LatestRelease_FunctionApp.zip)
-2. Run the following command in the Azure CLI:
-   ```bash
-   az functionapp deployment source config-zip --resource-group yourResourceGroup --name yourFunctionAppName --src .\LatestRelease_FunctionApp.zip
-   ```
-
----
-
-## Step 2: Deploy the Logic App
-
-Click the button below to deploy the Logic App. Provide the required parameters during deployment:
+### 2. Deploy Logic App
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Latest_Release%2Flogicapp_azuredeploy.json)
 
-### Parameters
-- **SubscriptionId**: Azure subscription ID for deployment.
-- **LogicAppName**: Name of the Logic App.
-- **FunctionAppName**: Name of the deployed Function App.
-- **FunctionAppResourceGroup**: Resource group of the Function App.
-- **LogAnalyticsWorkspaceName**: Name of the Log Analytics Workspace for Sentinel.
-- **LogAnalyticsWorkspaceId**: Workspace ID for Sentinel.
-- **LogAnalyticsResourceGroup**: Resource group of Log Analytics.
-- **SharedMailboxAddress**: Shared O365 mailbox email address.
-- **HTMLReportRecipient**: Recipient email address for the HTML report.
+Required Parameters:
+- SubscriptionId
+- LogicAppName
+- FunctionAppName
+- FunctionAppResourceGroup
+- SharedMailboxAddress
+- HTMLReportRecipient
 
----
+Optional Sentinel Parameters (use "none" if not using Sentinel):
+- LogAnalyticsWorkspaceName
+- LogAnalyticsWorkspaceId
+- LogAnalyticsResourceGroup
 
-## Step 3: Enable API Connections
+### 3. Configure API Connections
 
-1. Open the Logic App Designer in Azure Portal.
-2. Enable these connections:
-   - **Office 365 Shared Inbox**: Authorize with a member account of the shared mailbox.
-   - **Security Copilot**: Authorize with an account with Security Copilot access.
-   - **Azure Monitor Logs Actions**: Assign to your managed identity and provision proper permissions.
-   - **Sentinel Actions**: Assign to your managed identity and provision proper permissions.
+1. Open the Logic App in Azure Portal
+2. Authorize these connections:
+   - Office 365 (shared mailbox access)
+   - Security Copilot
+   - Azure Monitor Logs (if using Sentinel)
+   - Sentinel (if using Sentinel)
 
----
+### 4. Configure Logic App Permissions
 
-## Step 4: Enable the Logic App
+If using Sentinel integration, assign these roles to the Logic App's managed identity:
 
-The Logic App is deployed in a disabled state. Enable it in the Logic App Overview when ready to test.
+1. "Log Analytics Reader" role (provides Microsoft.OperationalInsights/workspaces/read)
+2. "Microsoft Sentinel Responder" role (provides Microsoft.SecurityInsights/incidents/comments/write)
 
----
+Assign Permissions Step by Step
 
-## Workflow Overview
+1. Open the Log Analytics workspace and go to "Access control (IAM)"
+![alt text](image.png)
+2. Select "Log Analytics Reader"
+![alt text](image-1.png)
+3. Select "Managed Identity" and select the name of your Logic App
+![alt text](image-2.png)
+4. Click next and assign permissions.
+5. Repeat steps 1-4 for the "Microsoft Sentinel Responder" role.
 
-### Logic App Workflow
-1. Monitors a shared Office 365 mailbox for new emails.
-2. Parses email content for sender, recipient, URLs, and attachments.
-3. Analyzes potential phishing threats with Security Copilot.
-4. Generates a detailed HTML report.
-5. Updates Sentinel incidents with analysis results.
+### 5. Enable the Logic App
 
----
+The Logic App deploys in a disabled state. Enable it in the Logic App Overview to begin operation.
 
-## Notes
+## Features
 
-1. **Security Considerations**:  
-   - **Function App**: The Function App is configured to run from a storage account. Ensure the storage account has secure access enabled and no unnecessary public access.
-   - **Storage Accounts**: Disable public access and enforce private endpoint connections to secure data. Rotate access keys regularly.
-   - **Logic Apps**: The Logic App runs with a system-managed identity. Ensure it has the minimum required permissions to access resources like Office 365, Microsoft Sentinel, and Azure Monitor Logs.
-   - **Data Sensitivity**: Email content, including attachments and URLs, is processed by the Function App and Logic App. Ensure compliance with corporate security policies for sensitive data.
-   - **API Connections**: Use managed identity for API connections wherever possible to avoid credential leakage.
-2. **Deployment Ease vs. Security**: This solution is designed for easy deployment and integration but may not align with the highest security standards. Review and adjust configurations as needed to comply with corporate security policies.
-3. **Regular Maintenance**: Regularly update the Function App code to ensure compatibility with dependencies and address potential security vulnerabilities.
+- Automated email monitoring and analysis
+- Detailed security assessment using Security Copilot
+- Classification of emails (Phishing, Spam, Legitimate, Suspicious)
+- HTML report generation
+- Optional Sentinel incident integration
+
+## Security Notes
+
+- The solution uses system-managed identities for secure access
+- Review and configure storage account security settings per your company policy
+- Ensure minimum required permissions for all connections
+- Regularly update Function App dependencies
