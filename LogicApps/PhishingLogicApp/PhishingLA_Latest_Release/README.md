@@ -63,11 +63,17 @@ If using Sentinel integration, assign these roles to the Logic App's managed ide
 Assign Permissions Step by Step
 
 1. Open the Log Analytics workspace and go to "Access control (IAM)"
+
 ![alt text](image.png)
+
 2. Select "Log Analytics Reader"
+
 ![alt text](image-1.png)
+
 3. Select "Managed Identity" and select the name of your Logic App
+
 ![alt text](image-2.png)
+
 4. Click next and assign permissions.
 5. Repeat steps 1-4 for the "Microsoft Sentinel Responder" role.
 
