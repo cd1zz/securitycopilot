@@ -578,9 +578,19 @@ def parse_email(raw_email: bytes) -> Dict:
     Logs an error message and returns None if any parsing error occurs.
     """
     try:
-        msg = BytesParser(policy=policy.default).parsebytes(raw_email)
+        # Add a policy that's more lenient with header parsing
+        custom_policy = policy.default.clone(raise_on_defect=False)
+        msg = BytesParser(policy=custom_policy).parsebytes(raw_email)
 
-        message_id = msg.get('Message-ID', '') or ""
+        # Safely get Message-ID with fallback and cleaning
+        try:
+            message_id = msg.get('Message-ID', '') or ""
+            # Remove any problematic characters or formatting if needed
+            message_id = message_id.strip('[]')  # Remove square brackets if present
+        except Exception as e:
+            logger.warning(f"Error parsing Message-ID: {e}")
+            message_id = ""
+            
         sender = msg.get('From', '') or ""
         return_path = msg.get('Return-Path', '') or ""
         receiver = msg.get('To', '') or ""
