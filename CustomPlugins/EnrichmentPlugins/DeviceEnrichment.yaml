@@ -15,6 +15,13 @@ Descriptor:
 
   Settings:
 
+    - Name: TenantId
+      Label: TenantId
+      Description: Azure TenantId.
+      HintText: TenantId
+      SettingType: String
+      Required: true
+
     - Name: SubscriptionName
       Label: SubscriptionName
       Description: This is the subscription name that security copilot will use for sentinel.
@@ -122,6 +129,7 @@ SkillGroups:
             Required: false
         Settings:
           Target: Sentinel
+          TenantId: "{{TenantId}}"
           SubscriptionName: "{{SubscriptionName}}"
           ResourceGroupName: "{{ResourceGroupName}}"
           WorkspaceName: "{{WorkspaceName}}"

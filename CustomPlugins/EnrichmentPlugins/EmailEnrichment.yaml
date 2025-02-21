@@ -126,3 +126,35 @@ SkillGroups:
             ) on NetworkMessageId
             | project-rename AttachmentName=FileName
             | project TimeGenerated, SenderFromAddress, RecipientEmailAddress, Subject, NetworkMessageId, AttachmentName
+
+      - Name: QuarantineRequestInsights
+        DisplayName: Quarantine Request Insights
+        DescriptionForModel: |-
+          Performs a KQL query to correlate quarantine request actions with their approvals. Provides details such as request and action times, email sender information, and user activity to facilitate email security investigations.
+        Description: Analyze email quarantine requests and their approvals to understand user actions and email security patterns. Retrieves key details for thorough investigation.
+        Settings:
+          Target: Defender
+          Template: |-
+            let DeniedLookupTime = ago(30d);
+            let RequestedLookupTime = ago(30d);
+            let EmailEventLookupTime = ago(30d);
+            CloudAppEvents
+            | where Timestamp >= DeniedLookupTime
+            | where ActionType == "QuarantineDenyReleaseMessage"
+            | extend NetworkMessageId = tostring(parse_json(RawEventData)["NetworkMessageId"])
+            | project-rename DeniedTime=Timestamp
+            | join (CloudAppEvents
+            | where Timestamp >= RequestedLookupTime
+            | where ActionType == "QuarantineRequestReleaseMessage"
+            | extend NetworkMessageId = tostring(parse_json(RawEventData)["NetworkMessageId"])
+            | extend RecipientEmailAddress = tostring(parse_json(RawEventData)["UserId"])
+            | project-rename RequestTime=Timestamp) on NetworkMessageId
+            | project AccountDisplayName, NetworkMessageId, RequestTime, RecipientEmailAddress, DeniedTime
+            | join EmailEvents on NetworkMessageId
+            | where Timestamp >= EmailEventLookupTime
+            | where RecipientEmailAddress == RecipientEmailAddress1
+            | project-rename EmailTime=Timestamp
+            | project-rename RequestedBy=RecipientEmailAddress
+            | project-rename DeniedBy=AccountDisplayName
+            | project EmailTime, SenderFromAddress, SenderDisplayName, Subject, RequestedBy, RecipientEmailAddress1, DeniedBy, DeniedTime, RequestTime,NetworkMessageId,NetworkMessageId1
+            | sort by DeniedTim

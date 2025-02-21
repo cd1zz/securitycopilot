@@ -2,12 +2,14 @@ import json
 import re
 import hashlib
 import tldextract
+from tnefparse import TNEF
 import ipaddress
 import logging
 import traceback
 from email import policy
 from email.parser import BytesParser
 from email.message import EmailMessage
+from email.policy import EmailPolicy  # Add this line
 from typing import List, Dict
 import azure.functions as func
 import urllib.parse 
@@ -34,6 +36,14 @@ URLDEFENSE_DOMAIN = "urldefense.com"
 # List of known URL shortener domains
 URL_SHORTENER_PROVIDERS = ["bit.ly", "t.co", "goo.gl", "ow.ly", "tinyurl.com", "is.gd", "buff.ly", "rebrandly.com", "cutt.ly", "bl.ink", "snip.ly", "su.pr", "lnkd.in", "fb.me", "cli.gs", "sh.st", "mcaf.ee", "yourls.org", "v.gd", "s.id", "t.ly", "tiny.cc", "qlink.me", "po.st", "short.io", "shorturl.at", "aka.ms", "tr.im", "bit.do", "git.io", "adf.ly", "qr.ae", "tny.im", "x.co", "d.pr", "rb.gy", "vk.cc", "t1p.de", "chilp.it", "ouo.io", "zi.ma", "pd.am", "hyperurl.co", "tiny.ie", "qps.ru", "l.ead.me", "shorte.st"]
 
+# Fixes a bug https://github.com/python/cpython/issues/94306 related to malformed message-id headers
+class CustomEmailPolicy(EmailPolicy):
+    def header_fetch_parse(self, name, value):
+        if name == 'Message-ID':
+            if isinstance(value, str) and ('[' in value or ']' in value):
+                # Strip square brackets from Message-ID
+                return re.sub(r'[\[\]]', '', value)
+        return super().header_fetch_parse(name=name, value=value)
 
 def expand_url(url: str) -> str:
     """
@@ -191,47 +201,78 @@ def parse_spf(headers):
 
 def extract_original_email(raw_email: bytes) -> str:
     """
-    Extracts the original email from a raw email byte string, particularly if it's an attachment.
-
-    Parameters:
-    raw_email (bytes): The raw email content in bytes.
-
-    Returns:
-    str: The original email as a string or the provided raw email if extraction fails.
+    Extracts the original email from a raw email byte string.
+    Now handles both TNEF and message/rfc822 formats.
     """
+    custom_policy = CustomEmailPolicy(raise_on_defect=False)
+    
     try:
-        msg = BytesParser(policy=policy.default).parsebytes(raw_email)
+        # First parse the carrier email
+        msg = BytesParser(policy=custom_policy).parsebytes(raw_email)
+        logger.debug(f"Initial message content type: {msg.get_content_type()}")
+
+        # First check for message/rfc822 parts
+        if msg.is_multipart():
+            for part in msg.walk():
+                if part.get_content_type() == 'message/rfc822':
+                    logger.info("Found message/rfc822 attachment")
+                    try:
+                        # Get the raw content of the message/rfc822 part
+                        rfc822_content = part.get_payload(decode=True)
+                        if rfc822_content:
+                            return rfc822_content.decode('utf-8', errors='ignore')
+                    except Exception as e:
+                        logger.error(f"Error processing message/rfc822 content: {e}")
+
+        # If no message/rfc822 found, try TNEF handling
+        if msg.get_content_type() == 'application/ms-tnef':
+            logger.info("Found TNEF message at root level")
+            try:
+                # Get the TNEF data
+                tnef_data = msg.get_payload(decode=True)
+                if tnef_data:
+                    # Parse the TNEF data
+                    tnef = TNEF(tnef_data)
+                    
+                    # Look for message content in TNEF
+                    for attr in tnef.attributes:
+                        if attr.name in ['rtfbody', 'body']:
+                            logger.info(f"Found {attr.name} in TNEF attributes")
+                            try:
+                                return attr.data.decode('utf-8', errors='ignore')
+                            except Exception as e:
+                                logger.error(f"Error decoding TNEF {attr.name}: {e}")
+                    
+                    # If no body found in attributes, check attachments
+                    for attachment in tnef.attachments:
+                        if attachment.name.lower() == "message.rfc822":
+                            logger.info("Found RFC822 message in TNEF attachments")
+                            try:
+                                # Parse the embedded message
+                                embedded_msg = BytesParser(policy=custom_policy).parsebytes(attachment.data)
+                                # Get only the body content
+                                return get_body(embedded_msg)
+                            except Exception as e:
+                                logger.error(f"Error processing RFC822 attachment: {e}")
+                                continue
+            except Exception as e:
+                logger.error(f"Error processing TNEF data: {e}")
+        
+        # If we get here, either it's not TNEF or TNEF processing failed
+        # Try to get the body content directly
+        logger.info("Attempting to get body content directly")
+        content = get_body(msg)
+        if content:
+            return content
+            
+        # Final fallback: return empty string instead of raw email
+        logger.warning("No valid content found")
+        return ""
+        
     except Exception as e:
-        logger.error(f"Error parsing raw email: {e}")
-        return raw_email.decode('utf-8', errors='ignore')
-
-    original_email = None
-    found_rfc822 = False
-
-    # Extract email parts
-    try:
-        for part in msg.walk():
-            content_type = part.get_content_type()
-            main_content_type = part.get_content_maintype()
-            content_disposition = part.get("Content-Disposition", None)
-
-            if main_content_type == 'multipart':
-                continue
-            elif content_type == "message/rfc822" and "attachment" in content_disposition:
-                found_rfc822 = True
-                logger.info("Raw MSG extracted.")
-                original_email = part.get_payload(0)
-    except Exception as e:
-        logger.error(f"Error while extracting original email content: {e}")
-        return raw_email.decode('utf-8', errors='ignore')
-
-    if found_rfc822 and original_email:
-        return original_email.as_string()
-    else:
-        logger.info("No MSG attachment found.")
-        return raw_email.decode('utf-8', errors='ignore')
-
-
+        logger.error(f"Error in extract_original_email: {e}")
+        return ""
+    
 def extract_urls_from_html(content: str) -> List[str]:
     """
     Extracts URLs from the HTML content of an email.
@@ -488,30 +529,31 @@ def clean_urls(urls: List[str]) -> List[str]:
     return cleaned_urls
 
 
-def get_body(email_message: EmailMessage) -> str:
+def get_body(msg: EmailMessage) -> str:
     """
-    Extracts the body content from an email message, handling both multipart and non-multipart emails.
-
-    Parameters:
-    email_message (EmailMessage): The email message object to extract the body from.
-
-    Returns:
-    str: The extracted body content of the email as a string. If the email is multipart,
-         the function joins all relevant parts, otherwise it returns the decoded payload.
+    Extracts only the body content from an email message.
     """
-    if email_message.is_multipart():
-        logger.info("Email is multipart, iterating over parts")
-        parts = [
-            get_body(part).strip()
-            for part in email_message.iter_parts()
-            if part.is_multipart() or part.get_content_type() in ['text/plain', 'text/html']
-        ]
-        return "\n".join(part for part in parts if part)
+    if msg.is_multipart():
+        logger.info("Processing multipart message")
+        # Get all text/plain parts
+        text_parts = []
+        for part in msg.walk():
+            if part.get_content_type() == 'text/plain':
+                try:
+                    content = part.get_payload(decode=True)
+                    if content:
+                        text_parts.append(content.decode('utf-8', errors='ignore'))
+                except Exception as e:
+                    logger.error(f"Error processing multipart content: {e}")
+        return '\n'.join(text_parts) if text_parts else ""
     else:
-        logger.info("Email is not multipart, extracting payload directly")
-        payload = email_message.get_payload(decode=True)
-        charset = email_message.get_content_charset() or 'utf-8'
-        return payload.decode(charset).strip() if payload else ""
+        logger.info("Processing single part message")
+        try:
+            content = msg.get_payload(decode=True)
+            return content.decode('utf-8', errors='ignore') if content else ""
+        except Exception as e:
+            logger.error(f"Error processing single part content: {e}")
+            return ""
     
 
 def strip_html_tags(text: str) -> str:
@@ -530,12 +572,7 @@ def strip_html_tags(text: str) -> str:
 def extract_forwarded_message(body: str) -> str:
     """
     Extracts the content of a forwarded message from the email body if a forwarding keyword is present.
-
-    Parameters:
-    body (str): The body content of the email as a string.
-
-    Returns:
-    str: The forwarded message content if found, or None if no forwarding indicator is present.
+    Returns the forwarded content as a well-formed RFC822-like string.
     """
     logger.info("Checking for forwarded message in body")
     split_keywords = ["---------- Forwarded message ---------", "-----Original Message-----"]
@@ -544,69 +581,155 @@ def extract_forwarded_message(body: str) -> str:
             parts = body.split(keyword, 1)
             logger.info("Forwarded message keyword found, extracting forwarded content")
             forwarded_content = parts[1].strip()
-            forwarded_body = "\n".join(forwarded_content.split('\n')[4:]).strip()
+            # Remove the delimiter line if it’s still present and any extra blank lines at the start
+            lines = forwarded_content.splitlines()
+            # If the first line starts with a delimiter marker, remove it
+            if lines and lines[0].strip().startswith("-----"):
+                lines = lines[1:]
+            # Remove leading blank lines
+            while lines and not lines[0].strip():
+                lines.pop(0)
+            forwarded_body = "\n".join(lines).strip()
             return forwarded_body
     logger.info("No forwarded message keyword found in body")
     return None
 
+def extract_forwarded_message_attachment(msg: EmailMessage, policy) -> EmailMessage:
+    """
+    Iterates over the MIME parts of the given email message and returns the first part
+    with Content-Type 'message/rfc822', re-parsed as an EmailMessage using the given policy.
+    Returns None if no such part is found.
+    """
+    if msg.is_multipart():
+        for part in msg.walk():
+            content_type = part.get_content_type()
+            if content_type == 'message/rfc822':
+                try:
+                    payload = part.get_payload(decode=True)
+                    if payload:
+                        forwarded_msg = BytesParser(policy=policy).parsebytes(payload)
+                        return forwarded_msg
+                except Exception as e:
+                    logger.error(f"Error parsing forwarded message attachment: {e}")
+    return None
 
 def parse_email(raw_email: bytes) -> Dict:
     """
     Parses a raw email byte string and extracts key metadata and content.
-
+    Handles message/rfc822, TNEF, and regular email formats.
+    
     Parameters:
-    raw_email (bytes): The raw email content in bytes.
-
+    raw_email (bytes): Raw email content as bytes
+    
     Returns:
-    Dict: A dictionary containing parsed email details, including:
-        - sender (str): The email address of the sender.
-        - return_path (str): The return path address from the email headers.
-        - receiver (str): The email address of the receiver.
-        - reply_to (str): The reply-to email address.
-        - subject (str): The subject line of the email.
-        - date (str): The date when the email was sent.
-        - smtp (Dict): SMTP information including delivered-to and received headers.
-        - dkim_result (str): The DKIM authentication result.
-        - spf_result (str): The SPF authentication result.
-        - dmarc_result (str): The DMARC authentication result.
-        - body (str): The plain text body of the email, including forwarded content if present.
-        - attachments (List[Dict[str, str]]): A list of attachments, each with name and SHA-256 hash.
-
-    Returns None if an error occurs during parsing, with details logged.
-
-    Exceptions:
-    Logs an error message and returns None if any parsing error occurs.
+    Dict: Dictionary containing parsed email data
     """
     try:
-        # Add a policy that's more lenient with header parsing
-        custom_policy = policy.default.clone(raise_on_defect=False)
-        msg = BytesParser(policy=custom_policy).parsebytes(raw_email)
-
-        # Safely get Message-ID with fallback and cleaning
-        try:
-            message_id = msg.get('Message-ID', '') or ""
-            # Remove any problematic characters or formatting if needed
-            message_id = message_id.strip('[]')  # Remove square brackets if present
-        except Exception as e:
-            logger.warning(f"Error parsing Message-ID: {e}")
-            message_id = ""
+        # First extract the original email with proper TNEF and message/rfc822 handling
+        original_email = extract_original_email(raw_email)
+        
+        # Convert to bytes if needed and parse with custom policy
+        if isinstance(original_email, str):
+            original_email = original_email.encode('utf-8')
             
-        sender = msg.get('From', '') or ""
-        return_path = msg.get('Return-Path', '') or ""
-        receiver = msg.get('To', '') or ""
-        subject = msg.get('Subject', '') or ""
-        reply_to = msg.get('Reply-To', '') or ""
-        date = msg.get('Date', '') or ""
-        body = get_body(msg)
-    
-        # Extract forwarded message if present
-        forwarded_body = extract_forwarded_message(body)
-        if forwarded_body:
-            logger.info("Forwarded message found and extracted")
-            body = forwarded_body
-        else:
-            logger.info("No forwarded message found")
+        custom_policy = CustomEmailPolicy(raise_on_defect=False)
+        msg = BytesParser(policy=custom_policy).parsebytes(original_email)
 
+        # Initialize header fields with default empty values
+        email_headers = {
+            "message_id": "",
+            "sender": "",
+            "return_path": "",
+            "receiver": "",
+            "subject": "",
+            "reply_to": "",
+            "date": ""
+        }
+
+        # Extract header fields with error handling
+        try:
+            email_headers = {
+                "message_id": msg.get('Message-ID', ''),
+                "sender": msg.get('From', ''),
+                "return_path": msg.get('Return-Path', ''),
+                "receiver": msg.get('To', ''),
+                "subject": msg.get('Subject', ''),
+                "reply_to": msg.get('Reply-To', ''),
+                "date": msg.get('Date', '')
+            }
+        except Exception as e:
+            logger.error(f"Error extracting header fields: {e}")
+
+        # Check for message/rfc822 parts first
+        rfc822_found = False
+        if msg.is_multipart():
+            for part in msg.walk():
+                if part.get_content_type() == 'message/rfc822':
+                    logger.info("Processing message/rfc822 part")
+                    try:
+                        # Get the embedded message
+                        embedded_msg = part.get_payload()[0]
+                        # Update headers from embedded message (only if new values exist)
+                        email_headers = {
+                            "message_id": embedded_msg.get('Message-ID', '') or email_headers["message_id"],
+                            "sender": embedded_msg.get('From', '') or email_headers["sender"],
+                            "return_path": embedded_msg.get('Return-Path', '') or email_headers["return_path"],
+                            "receiver": embedded_msg.get('To', '') or email_headers["receiver"],
+                            "subject": embedded_msg.get('Subject', '') or email_headers["subject"],
+                            "reply_to": embedded_msg.get('Reply-To', '') or email_headers["reply_to"],
+                            "date": embedded_msg.get('Date', '') or email_headers["date"]
+                        }
+                        msg = embedded_msg  # Use embedded message for further processing
+                        rfc822_found = True
+                        break
+                    except Exception as e:
+                        logger.error(f"Error processing message/rfc822 part: {e}")
+
+        # If no message/rfc822 found, check for forwarded message
+        if not rfc822_found:
+            forwarded_msg = extract_forwarded_message_attachment(msg, custom_policy)
+            if forwarded_msg:
+                logger.info("Forwarded message attachment found, re-parsing as standalone email")
+                try:
+                    # Update headers from forwarded message (only if new values exist)
+                    email_headers = {
+                        "message_id": forwarded_msg.get('Message-ID', '') or email_headers["message_id"],
+                        "sender": forwarded_msg.get('From', '') or email_headers["sender"],
+                        "return_path": forwarded_msg.get('Return-Path', '') or email_headers["return_path"],
+                        "receiver": forwarded_msg.get('To', '') or email_headers["receiver"],
+                        "subject": forwarded_msg.get('Subject', '') or email_headers["subject"],
+                        "reply_to": forwarded_msg.get('Reply-To', '') or email_headers["reply_to"],
+                        "date": forwarded_msg.get('Date', '') or email_headers["date"]
+                    }
+                    msg = forwarded_msg  # Use forwarded message for further processing
+                except Exception as e:
+                    logger.error(f"Error processing forwarded message: {e}")
+
+        # Get body content
+        body = get_body(msg)
+
+        # Check for text-based forwarded content if no other forwarded content found
+        if not rfc822_found and not forwarded_msg:
+            forwarded_body = extract_forwarded_message(body)
+            if forwarded_body:
+                logger.info("Forwarded message text detected, attempting re-parsing")
+                try:
+                    forwarded_msg = BytesParser(policy=custom_policy).parsebytes(forwarded_body.encode('utf-8'))
+                    # Update headers from forwarded text (only if new values exist)
+                    email_headers = {
+                        "message_id": forwarded_msg.get('Message-ID', '') or email_headers["message_id"],
+                        "sender": forwarded_msg.get('From', '') or email_headers["sender"],
+                        "return_path": forwarded_msg.get('Return-Path', '') or email_headers["return_path"],
+                        "receiver": forwarded_msg.get('To', '') or email_headers["receiver"],
+                        "subject": forwarded_msg.get('Subject', '') or email_headers["subject"],
+                        "reply_to": forwarded_msg.get('Reply-To', '') or email_headers["reply_to"],
+                        "date": forwarded_msg.get('Date', '') or email_headers["date"]
+                    }
+                    body = get_body(forwarded_msg)
+                except Exception as e:
+                    logger.error(f"Error re-parsing forwarded message text: {e}")
+
+        # Parse authentication results
         dkim_result = parse_authentication_results(msg.get_all('ARC-Authentication-Results', []), "dkim=")
         if dkim_result == "none":
             dkim_result = parse_authentication_results(msg.get_all('Authentication-Results', []), "dkim=")
@@ -619,15 +742,14 @@ def parse_email(raw_email: bytes) -> Dict:
         if dmarc_result == "none":
             dmarc_result = parse_authentication_results(msg.get_all('Authentication-Results', []), "dmarc=")
 
+        # Get SMTP information
         smtp = {
-            "delivered_to": msg.get('Delivered-To', '') or "",
-            "received": msg.get_all('Received', []) or []
+            "delivered_to": msg.get('Delivered-To', ''),
+            "received": msg.get_all('Received', [])
         }
 
-        attachments = get_attachments(msg)
-
-        # Check for PDF attachments
         # Process attachments
+        attachments = get_attachments(msg)
         processed_attachments = []
         for attachment in attachments:
             content_type = attachment["content_type"]
@@ -648,10 +770,9 @@ def parse_email(raw_email: bytes) -> Dict:
                         "content_type": content_type,
                         "error": str(e)
                     })
-            # Add handling for Excel files
             elif content_type in {
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
-                "application/vnd.ms-excel",  # .xls
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "application/vnd.ms-excel",
                 "application/msexcel",
                 "application/x-msexcel",
                 "application/x-ms-excel",
@@ -682,14 +803,16 @@ def parse_email(raw_email: bytes) -> Dict:
                     "attachment_sha256": attachment["attachment_sha256"],
                     "content_type": content_type
                 })
+
+        # Construct final email data dictionary
         email_data = {
-            "message_id": message_id,
-            "sender": sender,
-            "return_path": return_path,
-            "receiver": receiver,
-            "reply_to": reply_to,
-            "subject": subject,
-            "date": date,
+            "message_id": email_headers["message_id"],
+            "sender": email_headers["sender"],
+            "return_path": email_headers["return_path"],
+            "receiver": email_headers["receiver"],
+            "reply_to": email_headers["reply_to"],
+            "subject": email_headers["subject"],
+            "date": email_headers["date"],
             "smtp": smtp,
             "dkim_result": dkim_result,
             "spf_result": spf_result,
@@ -701,8 +824,8 @@ def parse_email(raw_email: bytes) -> Dict:
         return email_data
 
     except Exception as e:
-        logger.error(f"Error in main: {e}", exc_info=True)
-        return func.HttpResponse(f"Error processing email: {str(e)}", status_code=500)
+        logger.error(f"Error in parse_email: {e}", exc_info=True)
+        raise  # Re-raise the exception for the caller to handle
 
 
 def dedupe_to_base_urls(urls):
