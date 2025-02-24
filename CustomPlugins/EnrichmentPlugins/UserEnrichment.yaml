@@ -531,3 +531,39 @@ SkillGroups:
               | where Parameters has_any("DeleteMessage") or (Parameters has_any("MoveToFolder") and Parameters has_any("Conversation History"))
               | summarize PackedInfo = make_bag(packed), ActionType=any(ActionType) by UPN, AccountObjectId, IPAddress, ISP, ReportId, TimeGenerated
               | evaluate bag_unpack(PackedInfo)
+
+      - Name: DailyEntraIDRiskDetectionReview
+        DisplayName: Daily Entra ID Risk Detection Review
+        DescriptionForModel: |- 
+          Performs a KQL query on the `AADUserRiskEvents` table to summarize Entra ID risk detections from the previous day. Key features include:
+            - **Risk Detection Summary**: Groups risk events by `RiskEventType`, `RiskLevel`, `Activity`, `RiskDetail`, and `DetectionTimingType`.
+            - **Prioritization**: Assigns priority based on the severity and frequency of events:
+              - High priority for infrequent, high-risk detections.
+              - Medium priority for moderate-risk detections.
+              - Low priority for common or lower-severity detections.
+            - **Detailed Insights**:
+              - Total number of detections.
+              - Number of impacted users.
+              - Time range of detected risks (`FirstDetected`, `LastDetected`).
+            - **Actionable Recommendations**: Highlights detections of interest that may require further investigation or review, assisting analysts in identifying overlooked or significant risk events.
+          This skill aids security teams in efficiently reviewing and prioritizing Entra ID risk detections daily, reducing alert fatigue and ensuring critical threats are investigated.
+        Description: Summarize and prioritize Entra ID risk detections from the past day, highlighting interesting or critical alerts that may require SOC analyst review. Results include impactedUPNs if further analysis is required. 
+        Settings:
+          Target: Defender
+          Template: |-
+            // Summarizes and prioritizes Entra ID risk detections from the previous day.
+            let TimeFrame = ago(1d);
+            AADUserRiskEvents
+            | where TimeGenerated >= TimeFrame
+            | summarize 
+                TotalDetections = count(), 
+                ImpactedUsers = dcount(UserPrincipalName),
+                ImpactedUPNs = make_set(UserPrincipalName, 50), // Include impacted users explicitly
+                FirstDetected = min(DetectedDateTime),
+                LastDetected = max(DetectedDateTime)
+              by RiskEventType, RiskLevel, Activity, RiskDetail, DetectionTimingType, Source
+            | extend RiskPriority = case(
+                RiskLevel == "high" and TotalDetections < 10, "High",
+                RiskLevel == "medium" and TotalDetections < 5, "Medium",
+                "Low")
+            | order by RiskPriority asc, TotalDetections asc
