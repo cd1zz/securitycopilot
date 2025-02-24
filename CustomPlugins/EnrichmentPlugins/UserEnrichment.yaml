@@ -325,81 +325,107 @@ SkillGroups:
             | project TimeGenerated, FailedAttempts, UniqueIPs, Locations, ResultDescriptions
             | order by TimeGenerated desc
 
-      - Name: UserRiskDetections
-        DisplayName: Entra User Risk Detections
-        Description: "Analyze risk events for a specific user by joining user risk detections with security alerts to provide enriched insights. This query identifies and correlates risk activities with security alerts, highlighting types, details, timing, and severity. It supports detailed investigations by surfacing connected risks and alerts for prioritization and actionable response."
-        DescriptionForModel: |-
-          Performs a KQL query on the AADUserRiskEvents table, filtering for a specified user's principal name (UserPrincipalName) and joining with the SecurityAlert table to correlate user risk events with associated security alerts. Key features include:
-
-          - **Risk and Alert Correlation**:
-            - Links risk events (Id) with related security alerts (VendorOriginalId) for enhanced context.
-            - Provides detailed information on RiskLevel, RiskDetail, and RiskState alongside alert-specific data like AlertName, AlertSeverity, and CompromisedEntity.
-
-          - **User-Focused Insights**:
-            - Focuses on a single user's activity, helping analysts investigate incidents involving that user.
-            - Highlights the date and time of events (ActivityDateTime and StartTime) for timeline reconstruction.
-
-          - **Enhanced Investigation**:
-            - Surfaces patterns in risk and alert data, aiding in anomaly detection and prioritization.
-            - Supports actions like user-specific remediations and incident containment.
-
-          This skill enables efficient monitoring and investigation of user-specific risks and alerts, helping prioritize and mitigate potential threats effectively.
-
+      - Name: EnhancedUserRiskAssessment
+        DisplayName: Enhanced User Risk Assessment
+        Description: >
+          Combines user risk events, recent sign-ins, high-risk user indicators, and security alerts to deliver detailed context around risky user activities for a specific user. Useful for threat detection, incident prioritization, and remediation planning.
         Inputs:
           - Name: upn
-            Description: The UPN to search for. For example, mscott@dunder.com
+            Description: User principal name. i.e., mscott@woodgrove.ms
             Required: true
+        ExamplePrompt:
+          - "Get enhanced user risk details"
+          - "Fetch detailed user risk assessment"
+          - "Run comprehensive user risk check"
         Settings:
           Target: Defender
           Template: |-
-            AADUserRiskEvents
-            | where TimeGenerated > ago(7d)
-            | where UserPrincipalName == "{{upn}}"
-            | join kind=inner (SecurityAlert) on $left.Id == $right.VendorOriginalId
+            let TimeFrame = ago(7d);
+            let upn = "{{upn}}";
+            let UserRiskEvents = AADUserRiskEvents
+            | where TimeGenerated > TimeFrame and RiskLevel != "none" and RiskState != "remediated" and UserPrincipalName == upn
+            | project 
+                UserPrincipalName,
+                RiskLevel,
+                RiskEventType,
+                RiskDetail,
+                Activity,
+                ActivityDateTime,
+                DetectedDateTime,
+                IpAddress,
+                Location,
+                RiskState,
+                Id,
+                CorrelationId;
+            let RecentSignIns = SigninLogs
+            | where TimeGenerated > TimeFrame
+            | project
+                SignInId = Id,
+                UserPrincipalName,
+                SignInTime = TimeGenerated,
+                ResultType,
+                ResultDescription,
+                AppDisplayName,
+                ClientAppUsed,
+                SignInIPAddress = IPAddress,
+                SignInLocationDetails = LocationDetails,
+                DeviceDetail,
+                RiskLevelDuringSignIn,
+                ConditionalAccessStatus,
+                AuthenticationMethodsUsed,
+                CorrelationId;
+            let HighRiskUsers = AADRiskyUsers
+            | where TimeGenerated > TimeFrame and RiskLevel in ("high", "medium")
+            | project
+                UserPrincipalName,
+                UserRiskLevel = RiskLevel,
+                RiskState,
+                RiskLastUpdatedDateTime;
+            let Alerts = SecurityAlert
+            | where TimeGenerated > TimeFrame
+            | project
+                AlertName,
+                AlertSeverity,
+                CompromisedEntity,
+                AlertStartTime = StartTime,
+                AlertEndTime = EndTime,
+                VendorOriginalId;
+            UserRiskEvents
+            | join kind=leftouter RecentSignIns on CorrelationId
+            | join kind=leftouter HighRiskUsers on UserPrincipalName
+            | join kind=leftouter Alerts on $left.Id == $right.VendorOriginalId
+            | project
+                UserPrincipalName,
+                RiskLevel,
+                RiskEventType,
+                RiskDetail,
+                RiskState,
+                Activity,
+                ActivityDateTime,
+                DetectedDateTime,
+                IpAddress,
+                Location,
+                SignInTime,
+                ResultType,
+                ResultDescription,
+                AppDisplayName,
+                ClientAppUsed,
+                SignInIPAddress,
+                SignInLocationDetails,
+                DeviceDetail,
+                RiskLevelDuringSignIn,
+                ConditionalAccessStatus,
+                AuthenticationMethodsUsed,
+                UserRiskLevel,
+                RiskLastUpdatedDateTime,
+                AlertName,
+                AlertSeverity,
+                CompromisedEntity,
+                AlertStartTime,
+                AlertEndTime
+            | order by RiskLevel desc, DetectedDateTime desc
+            | take 10
 
-      - Name: HighRiskUserDetection
-        DisplayName: High-Risk User Detection
-        Description: Identify high-risk users with recent activity by correlating risk events and user status. Highlights unresolved risks, focusing on key details such as risk type, IP address, and recent activity for prioritizing remediation steps.
-        DescriptionForModel: |-
-          Performs a KQL query to analyze high-risk users by joining the `AADRiskyUsers` and `AADUserRiskEvents` tables. Key features include:
-
-          - **Risk Correlation**:
-            - Retrieves recent high-risk events (`DetectedDateTime` within the last 7 days) for a specified user.
-            - Joins data with high-risk user statuses from `AADRiskyUsers` to focus on unresolved risks.
-
-          - **Detailed Insights**:
-            - Columns include:
-              - `RiskEventType`: Type of risk detected.
-              - `RiskDetail`: Specific details about the risk.
-              - `IpAddress`: Location associated with risky activity.
-              - `DetectedDateTime`: Timestamp of the detection.
-              - `RiskLastUpdatedDateTime`: Last update time for the user's risk status.
-
-          - **Prioritization**:
-            - Orders results by `RiskLastUpdatedDateTime` to highlight users with the most recent unresolved high-risk activity.
-            - Ensures focus on persistent risks and users requiring immediate action.
-
-          - **Goal**:
-            - Enables security analysts to identify patterns of risky behavior, such as multiple high-risk sign-ins or repeated attempts from unusual locations.
-            - Supports prioritized investigations and swift remediation actions, such as enforcing MFA, reviewing user activity, or disabling accounts.
-
-          This skill helps analysts detect and respond to unresolved risks in high-risk users effectively.
-        Inputs:
-          - Name: upn
-            Description: The UPN to search for. For example, mscott@dunder.com
-            Required: true
-        Settings:
-          Target: Defender
-          Template: |-
-            let recentEvents = AADUserRiskEvents
-            | where DetectedDateTime > ago(7d)
-            | where RiskLevel == "high"
-            | where UserPrincipalName == "{{upn}}"
-            | project UserPrincipalName, Activity, DetectedDateTime, RiskEventType, RiskDetail, IpAddress;
-            AADRiskyUsers
-            | where RiskLevel == "high" 
-            | join kind=inner (recentEvents) on UserPrincipalName
-            | order by RiskLastUpdatedDateTime desc
 
       - Name: ImpossibleTravel
         DisplayName: Impossible Travel
