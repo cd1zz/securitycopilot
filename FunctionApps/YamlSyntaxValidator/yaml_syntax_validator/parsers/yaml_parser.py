@@ -3,10 +3,11 @@ import re
 import yaml
 import sys
 import traceback
+import logging
 from typing import Dict, Any, Tuple, List
-from ..security.validator import SecurityConfig, SecurityError, validate_yaml_security, check_nesting_depth
-from ..analysis.statistics import get_structure_info, get_best_practices, get_yaml_statistics
-from ..errors.error_handler import parse_yaml_error, get_detailed_error
+from security.validator import SecurityConfig, SecurityError, validate_yaml_security, check_nesting_depth
+from analysis.statistics import get_structure_info, get_best_practices, get_yaml_statistics
+from errors.error_handler import parse_yaml_error, get_detailed_error
 
 def collect_yaml_errors(content: str) -> List[Dict[str, Any]]:
     """Collect all YAML errors in the content using line-by-line analysis."""
@@ -91,11 +92,16 @@ def collect_yaml_errors(content: str) -> List[Dict[str, Any]]:
 
 def parse_yaml(content: str, security_config: SecurityConfig) -> Tuple[bool, Dict[str, Any]]:
     """Parse YAML content with comprehensive error handling."""
+    logging.info("Starting parse_yaml function")
+    
     try:
         # Security validation
         try:
+            logging.info("Attempting security validation")
             validate_yaml_security(content, security_config)
+            logging.info("Security validation passed successfully")
         except SecurityError as se:
+            logging.error(f"Security validation failed: {str(se)}")
             return False, {
                 "error": se,
                 "error_type": "SecurityError",
@@ -104,8 +110,10 @@ def parse_yaml(content: str, security_config: SecurityConfig) -> Tuple[bool, Dic
             }
         
         # First collect all syntax errors
+        logging.info("Collecting syntax errors")
         all_errors = collect_yaml_errors(content)
         if all_errors:
+            logging.info(f"Found {len(all_errors)} syntax errors")
             return False, {
                 "error": "Multiple YAML errors found",
                 "error_type": "YAMLError",
@@ -113,13 +121,16 @@ def parse_yaml(content: str, security_config: SecurityConfig) -> Tuple[bool, Dic
                 "error_count": len(all_errors),
                 "content": content
             }
+        logging.info("No syntax errors found in collect_yaml_errors")
 
         # If no syntax errors, try full parsing
         try:
+            logging.info("Attempting full YAML parsing")
             data = yaml.safe_load(content)
             
             # Handle None result
             if data is None:
+                logging.warning("YAML content parsed to None")
                 return False, {
                     "error": ValueError("Empty YAML content"),
                     "error_type": "EmptyContent",
@@ -129,8 +140,11 @@ def parse_yaml(content: str, security_config: SecurityConfig) -> Tuple[bool, Dic
                 
             # Depth check
             try:
+                logging.info("Checking nesting depth")
                 check_nesting_depth(data)
+                logging.info("Nesting depth check passed")
             except SecurityError as de:
+                logging.error(f"Depth check failed: {str(de)}")
                 return False, {
                     "error": de,
                     "error_type": "DepthError",
@@ -139,8 +153,11 @@ def parse_yaml(content: str, security_config: SecurityConfig) -> Tuple[bool, Dic
                 }
             
             # Memory usage check
+            logging.info("Checking memory usage")
             current_memory = sys.getsizeof(data)
+            logging.info(f"Current memory usage: {current_memory} bytes")
             if current_memory > security_config.max_size:
+                logging.error(f"Memory usage exceeded: {current_memory} > {security_config.max_size}")
                 return False, {
                     "error": SecurityError(f"Parsed YAML exceeds memory limit of {security_config.max_size} bytes"),
                     "error_type": "MemoryError",
@@ -149,16 +166,27 @@ def parse_yaml(content: str, security_config: SecurityConfig) -> Tuple[bool, Dic
                 }
             
             # If we get here, the YAML is valid
+            logging.info("YAML validation successful")
+            structure_info = get_structure_info(data)
+            logging.info(f"Generated structure info with {len(structure_info)} elements")
+            
+            best_practices = get_best_practices(content)
+            logging.info(f"Generated {len(best_practices)} best practice suggestions")
+            
+            statistics = get_yaml_statistics(content)
+            logging.info(f"Generated statistics: {statistics}")
+            
             return True, {
                 "data": data,
-                "structure": get_structure_info(data),
-                "suggestions": get_best_practices(content),
-                "statistics": get_yaml_statistics(content),
+                "structure": structure_info,
+                "suggestions": best_practices,
+                "statistics": statistics,
                 "content": content,
                 "message": "YAML validation successful"
             }
             
         except yaml.YAMLError as ye:
+            logging.error(f"YAML parsing error: {str(ye)}")
             error_details = get_detailed_error(ye, content)
             return False, {
                 "error": ye,
@@ -169,6 +197,8 @@ def parse_yaml(content: str, security_config: SecurityConfig) -> Tuple[bool, Dic
             }
             
     except Exception as e:
+        logging.error(f"Unexpected error in parse_yaml: {str(e)}")
+        logging.error(traceback.format_exc())
         return False, {
             "error": e,
             "error_type": "UnexpectedError",

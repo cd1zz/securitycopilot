@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Any
 import sys, yaml
-from ..config import MAX_YAML_SIZE, MAX_NESTING_DEPTH, MAX_SEQUENCE_ITEMS
+from config import MAX_YAML_SIZE, MAX_NESTING_DEPTH, MAX_SEQUENCE_ITEMS
 
 @dataclass
 class SecurityConfig:
@@ -16,24 +16,20 @@ class SecurityError(Exception):
     """Custom exception for security-related errors."""
     pass
 
-def validate_yaml_security(content: str, config: SecurityConfig) -> None:
-    """Validate YAML content against security constraints."""
-    if len(content.encode('utf-8')) > config.max_size:
-        raise SecurityError(f"YAML content exceeds maximum size of {config.max_size} bytes")
-    
-    if "!!python/object" in content or "!!python/module" in content:
-        raise SecurityError("Potentially dangerous YAML tags detected")
-
 def check_nesting_depth(data: Any, current_depth: int = 0) -> int:
     """Recursively check nesting depth of YAML structure."""
     if current_depth > MAX_NESTING_DEPTH:
         raise SecurityError(f"Maximum nesting depth of {MAX_NESTING_DEPTH} exceeded")
     
     if isinstance(data, dict):
+        if not data:  # Handle empty dict
+            return current_depth
         return max((check_nesting_depth(value, current_depth + 1) for value in data.values()), default=current_depth)
     elif isinstance(data, list):
         if len(data) > MAX_SEQUENCE_ITEMS:
             raise SecurityError(f"Maximum sequence items limit of {MAX_SEQUENCE_ITEMS} exceeded")
+        if not data:  # Handle empty list
+            return current_depth
         return max((check_nesting_depth(item, current_depth + 1) for item in data), default=current_depth)
     return current_depth
 
@@ -67,11 +63,16 @@ def get_deep_size(obj: Any) -> int:
     
     return sizeof(obj)
 
-# Update security validation to use the new size calculation
 def validate_yaml_security(content: str, config: SecurityConfig) -> None:
+    """Validate YAML content against security constraints."""
+    # Check raw content size
     content_size = len(content.encode('utf-8'))
     if content_size > config.max_size:
         raise SecurityError(f"YAML content exceeds maximum size of {config.max_size} bytes")
+    
+    # Check for dangerous tags
+    if "!!python/object" in content or "!!python/module" in content:
+        raise SecurityError("Potentially dangerous YAML tags detected")
     
     # Parse and check memory usage
     try:

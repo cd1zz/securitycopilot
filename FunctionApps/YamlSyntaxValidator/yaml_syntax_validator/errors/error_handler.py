@@ -2,7 +2,7 @@
 
 import yaml
 from typing import Dict, Any, List, Tuple
-from ..security.validator import SecurityError
+from security.validator import SecurityError
 
 # Registry of known YAML error patterns and their human-readable details
 ERROR_PATTERNS = {
