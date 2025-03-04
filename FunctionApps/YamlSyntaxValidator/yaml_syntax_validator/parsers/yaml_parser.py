@@ -441,10 +441,13 @@ def should_filter_error(error: Dict[str, Any]) -> bool:
         Boolean indicating if the error should be filtered (True = filter out)
     """
     # Option to completely ignore certain warnings
-    ignored_rules = []  # Add any rules you want to completely ignore
+    ignored_rules = [
+        "new-line-at-end-of-file",    # Ignore "no new line character at the end of file"
+        "document-start",             # Ignore "missing document start '---'" warnings
+        "new-lines"                   # Ignore "wrong new line character: expected \n"
+    ]
     
     if (error.get("error_type") == "YAMLLintError" and 
-        error.get("level") == "warning" and
         error.get("rule") in ignored_rules):
         return True
         
