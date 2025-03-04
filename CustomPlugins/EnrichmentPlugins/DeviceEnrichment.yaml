@@ -1087,3 +1087,63 @@ SkillGroups:
             | where TriggerCount > 10
             | extend ExclusionPath = iff(isnotempty(FolderPath) and isnotempty(FileName), strcat(FolderPath, "\\", FileName), "")
             | order by TriggerCount desc
+
+      - Name: ASRProcessAnalysis
+        DisplayName: ASR Rule Process Trigger Analysis
+        DescriptionForModel: |-
+          Executes a KQL query against DeviceEvents to analyze which processes are triggering ASR rules. This skill:
+            1. **Identifies Specific Processes**: Examines initiating process details for each ASR rule
+            2. **Quantifies Process Impact**: Shows how many devices and users are affected by each process
+            3. **Tracks Timing Patterns**: Monitors when processes first began triggering rules and their recurrence
+          This skill helps security teams determine if ASR triggers are from legitimate or suspicious processes.
+        Description: |-
+          Analyzes which specific processes are triggering ASR rules to determine if exclusions are needed. Key insights include:
+          
+          - **Process-Level Analysis**:
+            • Detailed information on process paths, file names, and command lines
+            • Frequency analysis of process triggers per ASR rule
+            
+          - **Context for Decision-Making**:
+            • Timeline data showing first and last occurrences
+            • Device and user scope for each process trigger pattern
+            
+          Results help security teams distinguish between legitimate software needing exclusions and potentially malicious activity.
+        Settings:
+          Target: Defender
+          Template: |-
+            DeviceEvents
+            | where tolower(ActionType) startswith "asr"
+            | where TimeGenerated > ago(30d)
+            | extend RuleName = case(
+                ActionType == "AsrRuleBlockOfficeChildProcessCreation", "Block all Office applications from creating child processes",
+                ActionType == "AsrRuleBlockOfficeExeContentExecution", "Block Office applications from creating executable content",
+                ActionType == "AsrRuleBlockOfficeMacroChildProcesses", "Block Office applications from injecting code into other processes",
+                ActionType == "AsrRuleBlockPersistenceThroughWmiEventSubscription", "Block persistence through WMI event subscription",
+                ActionType == "AsrRuleBlockAdobeReaderChildProcess", "Block Adobe Reader from creating child processes",
+                ActionType == "AsrRuleBlockObfuscatedScripts", "Block execution of potentially obfuscated scripts",
+                ActionType == "AsrRuleBlockOfficeCommsChildProcess", "Block Office communication application from creating child processes",
+                ActionType == "AsrRuleBlockWin32ApiCallsFromOfficeMacros", "Block Win32 API calls from Office macros",
+                ActionType == "AsrRuleBlockCredentialStealingFromWindowsLocalSecurityAuthoritySubsystem", "Block credential stealing from the Windows local security authority subsystem (lsass.exe)",
+                ActionType == "AsrRuleBlockUntrustedUnsignedProcessThatRunFromUsb", "Block untrusted and unsigned processes that run from USB",
+                ActionType == "AsrRuleBlockExecutableContentFromEmailClientAndWebmail", "Block executable content from email client and webmail",
+                ActionType == "AsrRuleBlockExecutableFilesRunningUnlessMeetCriteria", "Block executable files from running unless they meet a prevalence, age, or trusted list criterion",
+                ActionType == "AsrRuleBlockJavaScriptOrVBScriptFromLaunchingDownloadedExecutableContent", "Block JavaScript or VBScript from launching downloaded executable content",
+                ActionType == "AsrRuleBlockExecutionOfPotentiallyObfuscatedScripts", "Block execution of potentially obfuscated scripts",
+                ActionType == "AsrRuleUseAdvancedProtectionAgainstRansomware", "Use advanced protection against ransomware",
+                ActionType == "AsrRuleBlockProcessCreationsFromPsexecAndWmiCommands", "Block process creations originating from PSExec and WMI commands",
+                ActionType == "AsrRuleBlockRebootingMachineInSafeMode", "Block rebooting machine in Safe Mode (preview)",
+                ActionType == "AsrRuleBlockAbuseOfExploitedVulnerableSignedDrivers", "Block abuse of exploited vulnerable signed drivers",
+                ActionType == "AsrRuleBlockUseOfCopiedOrImpersonatedSystemTools", "Block use of copied or impersonated system tools (preview)",
+                ActionType == "AsrRuleBlockWebshellCreationForServers", "Block Webshell creation for Servers",
+                ActionType
+            )
+            | summarize 
+                TriggerCount = count(), 
+                FirstSeen = min(TimeGenerated),
+                LastSeen = max(TimeGenerated),
+                DeviceCount = dcount(DeviceName),
+                UserCount = dcount(AccountName),
+                DeviceList = make_set(DeviceName, 5),
+                UserList = make_set(AccountName, 5)
+                by RuleName, ActionType, InitiatingProcessFileName, InitiatingProcessFolderPath, InitiatingProcessCommandLine
+            | order by RuleName asc, TriggerCount desc
