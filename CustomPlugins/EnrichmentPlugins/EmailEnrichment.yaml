@@ -46,6 +46,30 @@ SkillGroups:
             | where TimeGenerated >= ago(7d)
             | project TimeGenerated, SenderFromAddress, RecipientEmailAddress, Subject, NetworkMessageId
 
+      - Name: SubjectEmailSummary
+        DisplayName: Summarize Email Count by Subject
+        DescriptionForModel: |-
+          Performs a KQL query on the `EmailEvents` table to count how many times an email with a specified subject line has been received within the last 7 days. Returns a summary including:
+          - `Subject`: The subject line of the email.
+          - `TotalCount`: The number of times the email with this subject has been received.
+          - `UniqueSenders`: The number of unique sender email addresses associated with this subject.
+          - `FirstSeen`: The earliest recorded timestamp of this email being received within the timeframe.
+          - `LastSeen`: The most recent recorded timestamp of this email being received.
+          This skill is designed to help security analysts track email trends, detect potential phishing campaigns, and analyze recurring email patterns.
+        Description: Count how many times an email with a specified subject line has been received in the last 7 days. Provides key summary details, including the subject, total occurrences, unique senders, and time range of the occurrences.
+        Inputs:
+          - Name: EmailSubject
+            Description: The subject text to search for in the `EmailEvents` table. Example 'Invoice Payment'
+            Required: true
+        Settings:
+          Target: Defender
+          Template: |-
+            EmailEvents
+            | where Subject contains "{{EmailSubject}}"
+            | where TimeGenerated >= ago(7d)
+            | summarize TotalCount=count(), UniqueSenders=dcount(SenderFromAddress), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated) by Subject
+            | project Subject, TotalCount, UniqueSenders, FirstSeen, LastSeen
+
       - Name: RecipientEmailSearch
         DisplayName: Search Emails by Recipient
         DescriptionForModel: |-
