@@ -93,7 +93,7 @@ def get_error_context(lines: List[str], error_line: int, context_lines: int = 2)
     end_line = min(len(lines), error_line + context_lines + 1)
     return lines[start_line:end_line], start_line, end_line
 
-def format_context_lines(lines: List[str], error_line: int, error_column: int, start_line: int) -> List[str]:
+def format_context_lines(lines: List[str], error_line: int, error_column: int, start_line: int, level: str = "error") -> List[str]:
     """
     Format context lines with consistent line numbers and error indicators.
     
@@ -102,14 +102,17 @@ def format_context_lines(lines: List[str], error_line: int, error_column: int, s
         error_line: The line number where the error occurred (1-based)
         error_column: The column number where the error occurred (1-based)
         start_line: The starting line number of the context (0-based)
+        level: The level of the issue ("error" or "warning")
     
     Returns:
         List of formatted context lines with error indicators
     """
     formatted_lines = []
+    prefix = "-> " if level == "error" else "~> "  # Different prefix for warnings
+    
     for i, line in enumerate(lines):
         current_line = start_line + i + 1
-        indicator = '-> ' if current_line == error_line else '   '
+        indicator = prefix if current_line == error_line else '   '
         formatted_lines.append(f"{indicator}{current_line}: {line}")
         if current_line == error_line:
             # Add pointer to the specific column
@@ -184,7 +187,8 @@ def parse_yaml_error(e: yaml.YAMLError) -> Dict[str, Any]:
         "column": None,
         "problem_mark": None,
         "suggestion": get_error_suggestion(str(e)),
-        "example_fix": None
+        "example_fix": None,
+        "level": "error"  # YAML errors from parser are always errors
     }
 
     if not hasattr(e, 'problem_mark'):
@@ -233,7 +237,8 @@ def get_detailed_error(e: Exception, yaml_content: str) -> Dict[str, Any]:
         "line": None,
         "column": None,
         "context": [],
-        "error_type": get_error_type(e)
+        "error_type": get_error_type(e),
+        "level": "error"  # Default to error for exceptions
     }
 
     try:
@@ -252,7 +257,7 @@ def get_detailed_error(e: Exception, yaml_content: str) -> Dict[str, Any]:
             "line": line_num,
             "column": col_num,
             "message": get_human_readable_error(str(e)),
-            "context": format_context_lines(context_lines, line_num, col_num, start_line),
+            "context": format_context_lines(context_lines, line_num, col_num, start_line, level=error_info.get("level", "error")),
             "code_context": {
                 'lines': context_lines,
                 'start_line': start_line + 1,
@@ -268,3 +273,49 @@ def get_detailed_error(e: Exception, yaml_content: str) -> Dict[str, Any]:
         })
 
     return error_info
+
+def convert_yamllint_problems(problems, yaml_content):
+    """
+    Convert yamllint problems to our error format.
+    
+    Args:
+        problems: YAMLlint problem objects
+        yaml_content: The original YAML content
+        
+    Returns:
+        List of formatted error/warning objects
+    """
+    errors = []
+    lines = yaml_content.split('\n')
+    
+    for problem in problems:
+        # Get context lines for the error
+        line_index = problem.line - 1
+        start_line = max(0, line_index - 2)
+        end_line = min(len(lines), line_index + 3)
+        context_lines = lines[start_line:end_line]
+        
+        error_details = {
+            "line": problem.line,
+            "column": problem.column + 1,  # Convert 0-based to 1-based for consistency
+            "error_type": "YAMLLintError",
+            "level": problem.level,  # "error" or "warning"
+            "rule": problem.rule,    # The yamllint rule that was violated
+            "message": problem.desc, # The description from yamllint
+            "code_context": {
+                'lines': context_lines,
+                'start_line': start_line + 1,
+                'problematic_line': problem.line,
+                'problematic_column': problem.column + 1
+            },
+            "context": format_context_lines(
+                context_lines, 
+                problem.line, 
+                problem.column + 1, 
+                start_line, 
+                level=problem.level
+            )
+        }
+        errors.append(error_details)
+    
+    return errors

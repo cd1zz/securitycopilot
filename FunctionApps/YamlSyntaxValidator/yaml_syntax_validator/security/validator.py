@@ -63,7 +63,7 @@ def get_deep_size(obj: Any) -> int:
     
     return sizeof(obj)
 
-def validate_yaml_security(content: str, config: SecurityConfig) -> None:
+def validate_yaml_security(content: str, config: SecurityConfig, parsed_data: Any = None) -> None:
     """Validate YAML content against security constraints."""
     # Check raw content size
     content_size = len(content.encode('utf-8'))
@@ -74,12 +74,15 @@ def validate_yaml_security(content: str, config: SecurityConfig) -> None:
     if "!!python/object" in content or "!!python/module" in content:
         raise SecurityError("Potentially dangerous YAML tags detected")
     
-    # Parse and check memory usage
-    try:
-        data = yaml.safe_load(content)
-        if data is not None:
-            actual_size = get_deep_size(data)
-            if actual_size > config.max_size:
-                raise SecurityError(f"Parsed YAML exceeds memory limit of {config.max_size} bytes")
-    except yaml.YAMLError:
-        pass  # Let the parser handle YAML errors
+    # Parse and check memory usage if we don't have parsed data yet
+    if parsed_data is None:
+        try:
+            parsed_data = yaml.safe_load(content)
+        except yaml.YAMLError:
+            pass  # Let the parser handle YAML errors
+    
+    # Memory check on parsed data if available
+    if parsed_data is not None:
+        actual_size = get_deep_size(parsed_data)
+        if actual_size > config.max_size:
+            raise SecurityError(f"Parsed YAML exceeds memory limit of {config.max_size} bytes")
