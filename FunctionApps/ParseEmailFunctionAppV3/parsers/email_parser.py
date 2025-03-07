@@ -2,6 +2,8 @@ import email
 import base64
 import os
 import sys
+import logging
+import re
 from email import policy
 from email.parser import BytesParser, Parser
 
@@ -16,7 +18,7 @@ from utils.mime_utils import analyze_mime_structure
 
 def parse_email(email_content, depth=0, max_depth=10, container_path=None):
     """
-    Main function to parse an email with recursive unwrapping to find original phishing email.
+    Main function to parse an email with recursive unwrapping to find original email.
     
     Args:
         email_content (str or bytes): Raw email content
@@ -25,7 +27,7 @@ def parse_email(email_content, depth=0, max_depth=10, container_path=None):
         container_path (list): Path of containers (how this email was contained)
         
     Returns:
-        dict: Parsed email data in JSON format with original phishing email identified
+        dict: Original email data only, without debug/progress information
     """
     if depth > max_depth:
         return {"error": f"Maximum recursion depth ({max_depth}) exceeded"}
@@ -33,7 +35,9 @@ def parse_email(email_content, depth=0, max_depth=10, container_path=None):
     if container_path is None:
         container_path = []
     
-    # Initialize result structure
+    logging.debug(f"Parsing email at depth {depth} with container path {container_path}")
+    
+    # Initialize result structure - not returned but used internally
     parsed_data = {
         "email_content": {
             "message_id": "",
@@ -50,24 +54,14 @@ def parse_email(email_content, depth=0, max_depth=10, container_path=None):
             "dkim_result": "",
             "spf_result": "",
             "dmarc_result": "",
-            "body": {
-                "plain": "",
-                "html": ""
-            },
+            "body": "",  # Single string body
             "attachments": [],
-            "is_original_phishing_email": False,
             "email_depth": depth,
             "container_type": container_path[-1] if container_path else "root"
         },
         "ip_addresses": [],
         "urls": [],
-        "domains": [],
-        "mime_analysis": {
-            "parts_count": 0,
-            "boundaries": [],
-            "content_types": [],
-            "reconstructed_parts": []
-        }
+        "domains": []
     }
     
     # Convert to bytes if string is provided
@@ -78,66 +72,97 @@ def parse_email(email_content, depth=0, max_depth=10, container_path=None):
     try:
         msg = BytesParser(policy=policy.default).parsebytes(email_content)
     except Exception as e:
+        logging.error(f"Failed to parse email: {str(e)}")
         return {"error": f"Failed to parse email: {str(e)}"}
     
     # Extract headers
     headers = extract_headers(msg)
     parsed_data["email_content"].update(headers)
     
-    # Extract body content
-    body = extract_body(msg)
-    parsed_data["email_content"]["body"] = body
+    # Extract body content - this will now return plain, html, and the combined body
+    body_data = extract_body(msg)
     
-    # Extract and process URLs from body
-    urls = extract_urls(body["plain"] + " " + body["html"])
+    # Store only the combined body in the output
+    parsed_data["email_content"]["body"] = body_data["body"]
+    
+    # Extract and process URLs from both plain and HTML parts for analysis
+    urls = extract_urls(body_data["plain"] + " " + body_data["html"])
     parsed_data["urls"] = urls
     
     # Extract IP addresses from body and headers
     headers_text = " ".join([f"{k}: {v}" for k, v in msg.items()])
-    ip_addresses = extract_ip_addresses(body["plain"] + " " + body["html"] + " " + headers_text)
+    ip_addresses = extract_ip_addresses(body_data["plain"] + " " + body_data["html"] + " " + headers_text)
     parsed_data["ip_addresses"] = ip_addresses
     
     # Extract domains from URLs
     domains = extract_domains(urls)
     parsed_data["domains"] = domains
     
+    # Variable to track if we've found an original email deeper in the structure
+    found_original_email = False
+    original_email = None
+    
     # Check if this is a forwarded email
-    if is_forwarded_email(msg):
+    if is_forwarded_email(msg, body_data):
+        logging.debug("Email is forwarded, parsing forwarded content")
         forwarded_data = parse_forwarded_email(
             msg, 
             depth + 1, 
             max_depth, 
             container_path + ["forwarded"]
         )
-        parsed_data["forwarded_content"] = forwarded_data
         
-        # If this forwarded content appears to be the original phishing email
-        if is_likely_phishing_email(forwarded_data):
-            parsed_data["original_phishing_email"] = extract_original_email(forwarded_data)
-            parsed_data["original_phishing_email"]["container_path"] = container_path + ["forwarded"]
-            parsed_data["original_phishing_email"]["reconstruction_method"] = "forwarded"
+        # Always extract the forwarded content as the original email
+        original_email = extract_original_email(forwarded_data)
+        original_email["container_path"] = container_path + ["forwarded"]
+        original_email["reconstruction_method"] = "forwarded"
+        original_email["urls"] = forwarded_data.get("urls", [])
+        original_email["ip_addresses"] = forwarded_data.get("ip_addresses", [])
+        original_email["domains"] = extract_domains(forwarded_data.get("urls", []))
+        found_original_email = True
     
     # Extract and process attachments, looking for embedded emails
     attachments = extract_attachments(msg, depth, max_depth, container_path)
+    # Filter out None values (image attachments will be None)
+    attachments = [attachment for attachment in attachments if attachment is not None]
     parsed_data["email_content"]["attachments"] = attachments
     
     # Process any email attachments recursively
     for i, attachment in enumerate(attachments):
         if attachment.get("is_email", False) and "parsed_email" in attachment:
-            # If this attached email appears to be the original phishing email
-            if is_likely_phishing_email(attachment["parsed_email"]["email_content"]):
-                parsed_data["original_phishing_email"] = extract_original_email(attachment["parsed_email"]["email_content"])
-                parsed_data["original_phishing_email"]["container_path"] = container_path + [f"attachment[{i}]"]
-                parsed_data["original_phishing_email"]["reconstruction_method"] = "attachment"
+            # If this is the first embedded email found
+            if not found_original_email:
+                logging.debug(f"Found original email in attachment {i}")
+                # Get the original email directly from the parsed attachment
+                if isinstance(attachment["parsed_email"], dict) and "original_email" in attachment["parsed_email"]:
+                    original_email = attachment["parsed_email"]["original_email"]
+                elif isinstance(attachment["parsed_email"], dict) and "email_content" in attachment["parsed_email"]:
+                    original_email = extract_original_email(attachment["parsed_email"]["email_content"])
+                else:
+                    # Skip if we can't extract a proper original email
+                    logging.warning(f"Could not extract original email from attachment {i}")
+                    continue
+                    
+                original_email["container_path"] = container_path + [f"attachment[{i}]"]
+                original_email["reconstruction_method"] = "attachment"
+                
+                # Add URLs, IPs, and domains if available
+                if isinstance(attachment["parsed_email"], dict):
+                    original_email["urls"] = attachment["parsed_email"].get("urls", [])
+                    original_email["ip_addresses"] = attachment["parsed_email"].get("ip_addresses", [])
+                    original_email["domains"] = attachment["parsed_email"].get("domains", 
+                                               extract_domains(attachment["parsed_email"].get("urls", [])))
+                    
+                found_original_email = True
     
     # Handle multipart MIME structure
     if msg.is_multipart():
         mime_analysis = analyze_mime_structure(msg)
-        parsed_data["mime_analysis"] = mime_analysis
         
         # Check for embedded emails in MIME parts that aren't formal attachments
         for part_index, part in enumerate(mime_analysis["reconstructed_parts"]):
             if is_embedded_email(part["content"]):
+                logging.debug(f"Found potential embedded email in MIME part {part_index}")
                 embedded_email = parse_email(
                     part["content"], 
                     depth + 1, 
@@ -145,27 +170,35 @@ def parse_email(email_content, depth=0, max_depth=10, container_path=None):
                     container_path + [f"mime_part[{part_index}]"]
                 )
                 
-                # If this embedded content appears to be the original phishing email
-                if "email_content" in embedded_email and is_likely_phishing_email(embedded_email["email_content"]):
-                    parsed_data["original_phishing_email"] = extract_original_email(embedded_email["email_content"])
-                    parsed_data["original_phishing_email"]["container_path"] = container_path + [f"mime_part[{part_index}]"]
-                    parsed_data["original_phishing_email"]["reconstruction_method"] = "mime_embedded"
+                # If we found an original email in the embedded content
+                if isinstance(embedded_email, dict) and "original_email" in embedded_email and not found_original_email:
+                    logging.debug(f"Using original email from MIME part {part_index}")
+                    original_email = embedded_email["original_email"]
+                    original_email["container_path"] = container_path + [f"mime_part[{part_index}]"]
+                    original_email["reconstruction_method"] = "mime_embedded"
+                    found_original_email = True
     
-    # If we haven't found an original phishing email deeper in the structure,
-    # check if the current email might be it
-    if "original_phishing_email" not in parsed_data and is_likely_phishing_email(parsed_data["email_content"]):
-        parsed_data["original_phishing_email"] = extract_original_email(parsed_data["email_content"])
-        parsed_data["original_phishing_email"]["container_path"] = container_path
-        parsed_data["original_phishing_email"]["reconstruction_method"] = "direct"
+    # If we haven't found an original email deeper in the structure,
+    # use the current email as the original
+    if not found_original_email:
+        logging.debug("Using current email as the original")
+        original_email = extract_original_email(parsed_data["email_content"])
+        original_email["container_path"] = container_path
+        original_email["reconstruction_method"] = "direct"
+        original_email["urls"] = parsed_data["urls"]
+        original_email["ip_addresses"] = parsed_data["ip_addresses"]
+        original_email["domains"] = parsed_data["domains"]
     
-    return parsed_data
+    # Return just the original email data, not the full parsed data
+    return {"original_email": original_email}
 
-def is_forwarded_email(msg):
+def is_forwarded_email(msg, body_data=None):
     """
     Check if the email is a forwarded email based on various indicators.
     
     Args:
         msg (email.message.Message): Email message object
+        body_data (dict, optional): Body data if already extracted
         
     Returns:
         bool: True if it's a forwarded email, False otherwise
@@ -176,8 +209,20 @@ def is_forwarded_email(msg):
         return True
     
     # Check content for forwarding patterns
-    body = extract_body(msg)
-    body_text = body['plain'] + body['html']
+    if body_data is None:
+        # If body_data wasn't provided, extract it now
+        body_data = extract_body(msg)
+    
+    # Use both plain and HTML for checking patterns
+    body_text = ""
+    if isinstance(body_data, dict):
+        if "plain" in body_data and "html" in body_data:
+            body_text = body_data["plain"] + " " + body_data["html"]
+        elif "body" in body_data:
+            body_text = body_data["body"]
+    else:
+        # Fallback if body_data is not a dict
+        body_text = str(body_data)
     
     # Common forwarding patterns from different email clients
     forwarding_patterns = [
@@ -208,25 +253,18 @@ def parse_forwarded_email(msg, depth, max_depth, container_path):
         dict: Parsed forwarded email data
     """
     # This would be implemented in forwarded_parser.py
-    # For now, we'll return a placeholder
-    return {
-        "client_type": "unknown",
-        "original_sender": "",
-        "original_recipient": "",
-        "original_subject": "",
-        "original_date": "",
-        "original_body": "",
-        "is_original_phishing_email": False,
-        "urls": [],
-        "ip_addresses": []
-    }
+    # Import here to avoid circular import
+    from parsers.forwarded_parser import parse_forwarded_email as parse_forwarded
+    
+    # Call the actual implementation
+    return parse_forwarded(msg, depth, max_depth, container_path)
 
 def is_embedded_email(content):
     """
     Check if content is an embedded email.
     
     Args:
-        content (str): Content to check
+        content (str or bytes): Content to check
         
     Returns:
         bool: True if it's an embedded email, False otherwise
@@ -249,70 +287,11 @@ def is_embedded_email(content):
     
     header_count = 0
     for pattern in header_patterns:
-        if pattern.lower() in content.lower():
+        if re.search(pattern, content, re.IGNORECASE):
             header_count += 1
     
     # If we find at least 3 header patterns, it's likely an embedded email
     return header_count >= 3
-
-def is_likely_phishing_email(email_data):
-    """
-    Determine if an email is likely to be the original phishing email.
-    
-    Args:
-        email_data (dict): Parsed email data
-        
-    Returns:
-        bool: True if likely a phishing email, False otherwise
-    """
-    # Implement heuristics to identify phishing emails
-    # For now, a simple implementation
-    
-    # Check for suspicious URLs
-    suspicious_url_patterns = [
-        "login", "verify", "confirm", "account", "secure", "update", "bank", 
-        "paypal", "amazon", "microsoft", "google", "apple", "password"
-    ]
-    
-    urls = []
-    if "urls" in email_data:
-        urls = email_data["urls"]
-    elif "email_content" in email_data and "body" in email_data["email_content"]:
-        body = email_data["email_content"]["body"]
-        urls = extract_urls(body["plain"] + " " + body["html"])
-    
-    for url in urls:
-        url_str = url.get("original_url", "").lower()
-        for pattern in suspicious_url_patterns:
-            if pattern in url_str:
-                return True
-    
-    # Check subject for suspicious keywords
-    subject = ""
-    if "subject" in email_data:
-        subject = email_data["subject"]
-    elif "email_content" in email_data and "subject" in email_data["email_content"]:
-        subject = email_data["email_content"]["subject"]
-    
-    suspicious_subject_patterns = [
-        "urgent", "attention", "important", "alert", "verify", "confirm", 
-        "account", "password", "security", "update", "bank", "suspicious"
-    ]
-    
-    for pattern in suspicious_subject_patterns:
-        if pattern in subject.lower():
-            return True
-    
-    # Check for authentication failures
-    if "email_content" in email_data:
-        if email_data["email_content"].get("dkim_result", "").lower() == "fail":
-            return True
-        if email_data["email_content"].get("spf_result", "").lower() == "fail":
-            return True
-        if email_data["email_content"].get("dmarc_result", "").lower() == "fail":
-            return True
-    
-    return False
 
 def extract_original_email(email_data):
     """
@@ -332,10 +311,7 @@ def extract_original_email(email_data):
         "reply_to": "",
         "subject": "",
         "date": "",
-        "body": {
-            "plain": "",
-            "html": ""
-        },
+        "body": "",  
         "attachments": [],
         "container_path": [],
         "reconstruction_method": ""
@@ -357,7 +333,22 @@ def extract_original_email(email_data):
     if "date" in email_data:
         original_email["date"] = email_data["date"]
     if "body" in email_data:
-        original_email["body"] = email_data["body"]
+        # Handle both string and dict formats for backwards compatibility
+        if isinstance(email_data["body"], dict):
+            if "body" in email_data["body"]:
+                original_email["body"] = email_data["body"]["body"]
+            elif "plain" in email_data["body"]:
+                # Fallback to plain text if available
+                original_email["body"] = email_data["body"]["plain"]
+            elif "html" in email_data["body"]:
+                # Fallback to HTML with tags removed
+                html_body = email_data["body"]["html"]
+                plain_body = re.sub(r'<[^>]+>', ' ', html_body)
+                plain_body = re.sub(r'\s+', ' ', plain_body).strip()
+                original_email["body"] = plain_body
+        else:
+            # If it's already a string
+            original_email["body"] = email_data["body"]
     if "attachments" in email_data:
         original_email["attachments"] = email_data["attachments"]
     

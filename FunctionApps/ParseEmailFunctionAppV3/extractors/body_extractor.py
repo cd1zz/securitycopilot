@@ -12,11 +12,13 @@ def extract_body(msg):
         msg (email.message.Message): Email message object
         
     Returns:
-        dict: Dictionary containing plain text and HTML body content
+        dict: Dictionary containing plain text and HTML body content for processing
+              and a single combined body text for storage
     """
     logging.debug("Extracting body content from email message")
     
-    body = {
+    # Keep both plain and html initially for processing
+    body_parts = {
         "plain": "",
         "html": ""
     }
@@ -29,18 +31,20 @@ def extract_body(msg):
             
             # Process text parts
             if content_type == "text/plain":
-                body["plain"] += decode_content(part)
+                body_parts["plain"] += decode_content(part)
             
             # Process HTML parts
             elif content_type == "text/html":
-                body["html"] += decode_content(part)
+                body_parts["html"] += decode_content(part)
             
             # Recursively process nested multipart messages
             elif part.is_multipart():
                 logging.debug("Found nested multipart, recursively extracting")
                 nested_body = extract_body(part)
-                body["plain"] += nested_body["plain"]
-                body["html"] += nested_body["html"]
+                # Get the plain and html parts from the nested content
+                if isinstance(nested_body, dict) and "plain" in nested_body and "html" in nested_body:
+                    body_parts["plain"] += nested_body["plain"]
+                    body_parts["html"] += nested_body["html"]
     
     # Handle single part messages
     else:
@@ -48,16 +52,32 @@ def extract_body(msg):
         content = decode_content(msg)
         
         if content_type == "text/plain":
-            body["plain"] = content
+            body_parts["plain"] = content
         elif content_type == "text/html":
-            body["html"] = content
+            body_parts["html"] = content
         else:
             # For unrecognized content types, default to plain text
             logging.warning(f"Unrecognized content type: {content_type}, treating as plain text")
-            body["plain"] = content
+            body_parts["plain"] = content
     
-    logging.debug(f"Body extraction complete. Plain text length: {len(body['plain'])}, HTML length: {len(body['html'])}")
-    return body
+    # Create the combined body content
+    # Prefer plain text if available, otherwise use HTML with basic tag stripping
+    combined_body = body_parts["plain"]
+    if not combined_body and body_parts["html"]:
+        # Simple HTML tag stripping for the combined body
+        combined_body = re.sub(r'<[^>]+>', ' ', body_parts["html"])
+        combined_body = re.sub(r'\s+', ' ', combined_body).strip()
+    
+    logging.debug(f"Body extraction complete. Plain text length: {len(body_parts['plain'])}, HTML length: {len(body_parts['html'])}, Combined body length: {len(combined_body)}")
+    
+    # Return all forms for processing but make it clear which is the combined one
+    result = {
+        "plain": body_parts["plain"],
+        "html": body_parts["html"],
+        "body": combined_body
+    }
+    
+    return result
 
 def decode_content(part):
     """

@@ -14,15 +14,15 @@ app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 @app.route(route="", methods=["POST"])
 def parse_email_functionapp(req: func.HttpRequest) -> func.HttpResponse:
     """
-    Azure Function endpoint to parse phishing emails.
+    Azure Function endpoint to parse emails and extract the original email.
     
     Args:
         req (func.HttpRequest): HTTP request object
         
     Returns:
-        func.HttpResponse: HTTP response with parsed email data in JSON format
+        func.HttpResponse: HTTP response with original email data in JSON format
     """
-    logging.info("Phishing Parser function processed a request.")
+    logging.info("Email Parser function processing a request.")
     
     try:
         # Get email content from the request
@@ -55,7 +55,7 @@ def parse_email_functionapp(req: func.HttpRequest) -> func.HttpResponse:
         except (ValueError, TypeError):
             pass
         
-        # Parse the email
+        # Parse the email - now returns just the original email data
         parsed_data = parse_email(email_content, max_depth=max_depth)
         
         # Return the parsed data as JSON

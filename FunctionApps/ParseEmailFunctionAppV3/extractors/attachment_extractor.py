@@ -109,6 +109,7 @@ def get_filename(part):
 def process_attachment(part, depth, max_depth, container_path):
     """
     Process an attachment part and extract relevant information.
+    Ignores image attachments completely.
     
     Args:
         part (email.message.Message): Email message part
@@ -117,11 +118,17 @@ def process_attachment(part, depth, max_depth, container_path):
         container_path (list): Path of containers
         
     Returns:
-        dict: Attachment information dictionary
+        dict: Attachment information dictionary or None if it's an image
     """
     try:
         filename = get_filename(part)
         content_type = part.get_content_type()
+        
+        # Skip image attachments
+        if content_type.startswith('image/'):
+            logging.debug(f"Skipping image attachment: {filename}, type: {content_type}")
+            return None
+            
         content_id = part.get("Content-ID", "")
         
         # Clean up Content-ID if it's in angle brackets
