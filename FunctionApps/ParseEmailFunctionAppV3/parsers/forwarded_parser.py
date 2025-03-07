@@ -1,10 +1,11 @@
 import logging
+import traceback
 import re
-import email
-from extractors.header_extractor import extract_headers
 from extractors.body_extractor import extract_body
 from extractors.url_extractor import extract_urls
 from extractors.ip_extractor import extract_ip_addresses
+
+logger = logging.getLogger(__name__)
 
 def parse_forwarded_email(msg, depth, max_depth, container_path):
     """
@@ -20,12 +21,17 @@ def parse_forwarded_email(msg, depth, max_depth, container_path):
     Returns:
         dict: Parsed forwarded email data
     """
-    logging.debug(f"Parsing forwarded email at depth {depth}")
+    logger.debug(f"Parsing forwarded email at depth {depth}")
     
     # Extract body content
-    body = extract_body(msg)
-    body_text = body['plain'] + body['html']
-    
+    body_data = extract_body(msg)
+
+    # Get the text string from the body dictionary
+    if isinstance(body_data, dict) and "body" in body_data:
+        body_text = body_data["body"]
+    else:
+        body_text = str(body_data)
+        
     # Initialize result
     forwarded_data = {
         "client_type": "unknown",
@@ -36,32 +42,33 @@ def parse_forwarded_email(msg, depth, max_depth, container_path):
         "original_body": "",
         "is_original_phishing_email": False,
         "urls": [],
-        "ip_addresses": []
+        "ip_addresses": [],
+        "domains": []  # Add domains key to ensure it exists
     }
     
     # Try different email client forwarding patterns
     
     # Gmail forwarding pattern
     if "---------- Forwarded message ---------" in body_text:
-        logging.debug("Detected Gmail forwarding pattern")
+        logger.debug("Detected Gmail forwarding pattern")
         forwarded_data["client_type"] = "gmail"
         forwarded_data = parse_gmail_forwarded(body_text, forwarded_data)
     
     # Apple Mail forwarding pattern
     elif "Begin forwarded message:" in body_text:
-        logging.debug("Detected Apple Mail forwarding pattern")
+        logger.debug("Detected Apple Mail forwarding pattern")
         forwarded_data["client_type"] = "apple_mail"
         forwarded_data = parse_apple_mail_forwarded(body_text, forwarded_data)
     
-    # Outlook forwarding pattern
-    elif re.search(r"From:.+?Sent:.+?To:.+?Subject:", body_text, re.DOTALL | re.IGNORECASE):
-        logging.debug("Detected Outlook forwarding pattern")
+    # Outlook forwarding pattern - more precise pattern to avoid false positives
+    elif re.search(r"^From:.+?\r?\nSent:.+?\r?\nTo:.+?\r?\nSubject:", body_text, re.MULTILINE | re.DOTALL | re.IGNORECASE):
+        logger.debug("Detected Outlook forwarding pattern")
         forwarded_data["client_type"] = "outlook"
         forwarded_data = parse_outlook_forwarded(body_text, forwarded_data)
     
     # Generic forwarding pattern
     elif "-----Original Message-----" in body_text:
-        logging.debug("Detected generic forwarding pattern")
+        logger.debug("Detected generic forwarding pattern")
         forwarded_data["client_type"] = "generic"
         forwarded_data = parse_generic_forwarded(body_text, forwarded_data)
     
@@ -69,6 +76,10 @@ def parse_forwarded_email(msg, depth, max_depth, container_path):
     if forwarded_data["original_body"]:
         forwarded_data["urls"] = extract_urls(forwarded_data["original_body"])
         forwarded_data["ip_addresses"] = extract_ip_addresses(forwarded_data["original_body"])
+        
+        # Add domain extraction
+        from extractors.domain_extractor import extract_domains
+        forwarded_data["domains"] = extract_domains(forwarded_data["urls"])
     
     return forwarded_data
 
@@ -188,43 +199,68 @@ def parse_outlook_forwarded(body_text, forwarded_data):
         dict: Updated forwarded email data
     """
     logging.debug("Parsing Outlook forwarded email")
+    logging.debug(f"Body text length: {len(body_text)}")
+    if len(body_text) > 0:
+        logging.debug(f"First 200 chars of body text: {body_text[:200]}")
     
     try:
-        # Extract the entire header block
-        outlook_pattern = r"(From:.+?Sent:.+?To:.+?Subject:.+?)(?:\n\n|\Z)"
+        # Extract the entire header block - more permissive pattern
+        outlook_pattern = r"(From:\s*.+?(?:Sent|Date):\s*.+?To:\s*.+?Subject:\s*.+?)(?:\r?\n\r?\n|\Z)"
         header_match = re.search(outlook_pattern, body_text, re.DOTALL | re.IGNORECASE)
         
         if header_match:
             header_section = header_match.group(1)
+            logging.debug(f"Found header section: {header_section}")
             
             # Extract From
-            from_match = re.search(r"From:\s*(.*?)(?:\n|$)", header_section)
+            from_match = re.search(r"From:\s*(.*?)(?:\r?\n|$)", header_section, re.IGNORECASE)
             if from_match:
                 forwarded_data["original_sender"] = from_match.group(1).strip()
+                logging.debug(f"Extracted sender: {forwarded_data['original_sender']}")
             
-            # Extract Sent (Date)
-            date_match = re.search(r"Sent:\s*(.*?)(?:\n|$)", header_section)
+            # Extract Sent (Date) - look for both Sent: and Date:
+            date_match = re.search(r"(?:Sent|Date):\s*(.*?)(?:\r?\n|$)", header_section, re.IGNORECASE)
             if date_match:
                 forwarded_data["original_date"] = date_match.group(1).strip()
+                logging.debug(f"Extracted date: {forwarded_data['original_date']}")
             
             # Extract Subject
-            subject_match = re.search(r"Subject:\s*(.*?)(?:\n|$)", header_section)
+            subject_match = re.search(r"Subject:\s*(.*?)(?:\r?\n|$)", header_section, re.IGNORECASE)
             if subject_match:
                 forwarded_data["original_subject"] = subject_match.group(1).strip()
+                logging.debug(f"Extracted subject: {forwarded_data['original_subject']}")
             
             # Extract To
-            to_match = re.search(r"To:\s*(.*?)(?:\n|$)", header_section)
+            to_match = re.search(r"To:\s*(.*?)(?:\r?\n|$)", header_section, re.IGNORECASE)
             if to_match:
                 forwarded_data["original_recipient"] = to_match.group(1).strip()
-        
-        # Extract the body content after the header section
-        header_end_index = body_text.find(header_match.group(0)) + len(header_match.group(0)) if header_match else -1
-        
-        if header_end_index > 0 and header_end_index < len(body_text):
-            forwarded_data["original_body"] = body_text[header_end_index:].strip()
-        
+                logging.debug(f"Extracted recipient: {forwarded_data['original_recipient']}")
+            
+            # Extract the body content
+            # Find where the header ends in the original text
+            full_match = header_match.group(0)
+            header_start = body_text.find(full_match)
+            if header_start >= 0:
+                header_end = header_start + len(full_match)
+                # The body is everything after the header
+                if header_end < len(body_text):
+                    forwarded_data["original_body"] = body_text[header_end:].strip()
+                    logging.debug(f"Extracted body of length: {len(forwarded_data['original_body'])}")
+                    if len(forwarded_data["original_body"]) > 0:
+                        logging.debug(f"First 200 chars of body: {forwarded_data['original_body'][:200]}")
+                else:
+                    logging.warning("Header ends at end of text, no body content found")
+            else:
+                logging.warning("Could not locate header in original text")
+        else:
+            logging.warning("No matching Outlook header pattern found")
+            # Fallback: treat the entire body as the forwarded content
+            if len(body_text) > 0:
+                forwarded_data["original_body"] = body_text
+                logging.debug("Using entire text as body (fallback)")
     except Exception as e:
         logging.error(f"Error parsing Outlook forwarded email: {str(e)}")
+        logging.error(traceback.format_exc())
     
     return forwarded_data
 

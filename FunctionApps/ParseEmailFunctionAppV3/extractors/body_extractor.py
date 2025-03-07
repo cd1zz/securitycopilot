@@ -1,8 +1,5 @@
 import logging
-from email.message import Message
 import re
-import base64
-import quopri
 
 def extract_body(msg):
     """
@@ -12,72 +9,90 @@ def extract_body(msg):
         msg (email.message.Message): Email message object
         
     Returns:
-        dict: Dictionary containing plain text and HTML body content for processing
-              and a single combined body text for storage
+        dict: Dictionary with body text content
     """
     logging.debug("Extracting body content from email message")
     
-    # Keep both plain and html initially for processing
-    body_parts = {
-        "plain": "",
-        "html": ""
-    }
+    # Import the strip_html_tags function
+    from extractors.url_extractor import strip_html_tags
+    
+    # Initialize plain and html content
+    plain_content = ""
+    html_content = ""
     
     # Handle multipart messages
     if msg.is_multipart():
         logging.debug("Message is multipart, processing parts")
-        for part in msg.get_payload():
+        logging.debug(f"Number of parts: {len(msg.get_payload())}")
+        
+        for i, part in enumerate(msg.get_payload()):
             content_type = part.get_content_type().lower()
+            logging.debug(f"Part {i}: Content-Type: {content_type}")
             
-            # Process text parts
+            # Collect text content
             if content_type == "text/plain":
-                body_parts["plain"] += decode_content(part)
+                decoded_content = decode_content(part)
+                logging.debug(f"Found text/plain part of length {len(decoded_content)}")
+                if len(decoded_content) > 0:
+                    logging.debug(f"First 100 chars: {decoded_content[:100]}")
+                plain_content += decoded_content
             
-            # Process HTML parts
+            # Collect HTML content
             elif content_type == "text/html":
-                body_parts["html"] += decode_content(part)
+                decoded_content = decode_content(part)
+                logging.debug(f"Found text/html part of length {len(decoded_content)}")
+                if len(decoded_content) > 0:
+                    logging.debug(f"First 100 chars: {decoded_content[:100]}")
+                html_content += decoded_content
             
             # Recursively process nested multipart messages
             elif part.is_multipart():
-                logging.debug("Found nested multipart, recursively extracting")
+                logging.debug(f"Found nested multipart in part {i}, recursively extracting")
                 nested_body = extract_body(part)
-                # Get the plain and html parts from the nested content
-                if isinstance(nested_body, dict) and "plain" in nested_body and "html" in nested_body:
-                    body_parts["plain"] += nested_body["plain"]
-                    body_parts["html"] += nested_body["html"]
+                if isinstance(nested_body, dict) and "body" in nested_body:
+                    nested_body_content = nested_body["body"]
+                    logging.debug(f"Found nested body of length {len(nested_body_content)}")
+                    # If no plain content yet, use the nested body
+                    if not plain_content:
+                        plain_content = nested_body_content
     
     # Handle single part messages
     else:
         content_type = msg.get_content_type().lower()
+        logging.debug(f"Message is single part with content-type: {content_type}")
         content = decode_content(msg)
+        logging.debug(f"Decoded content length: {len(content)}")
+        if len(content) > 0:
+            logging.debug(f"First 100 chars: {content[:100]}")
         
         if content_type == "text/plain":
-            body_parts["plain"] = content
+            plain_content = content
         elif content_type == "text/html":
-            body_parts["html"] = content
-        else:
-            # For unrecognized content types, default to plain text
-            logging.warning(f"Unrecognized content type: {content_type}, treating as plain text")
-            body_parts["plain"] = content
+            html_content = content
     
-    # Create the combined body content
-    # Prefer plain text if available, otherwise use HTML with basic tag stripping
-    combined_body = body_parts["plain"]
-    if not combined_body and body_parts["html"]:
-        # Simple HTML tag stripping for the combined body
-        combined_body = re.sub(r'<[^>]+>', ' ', body_parts["html"])
-        combined_body = re.sub(r'\s+', ' ', combined_body).strip()
+    # Prioritize plain text content
+    if plain_content:
+        logging.debug(f"Returning plain text content of length {len(plain_content)}")
+        return {"body": plain_content}
     
-    logging.debug(f"Body extraction complete. Plain text length: {len(body_parts['plain'])}, HTML length: {len(body_parts['html'])}, Combined body length: {len(combined_body)}")
+    # If no plain text, extract text from HTML using strip_html_tags
+    if html_content:
+        try:
+            logging.debug("Stripping HTML tags from content")
+            text = strip_html_tags(html_content)
+            text = re.sub(r'\s+', ' ', text).strip()
+            logging.debug(f"Returning HTML-derived content of length {len(text)}")
+            return {"body": text}
+        except Exception as e:
+            logging.error(f"Error stripping HTML tags: {str(e)}")
+            text = re.sub(r'<[^>]+>', ' ', html_content)
+            text = re.sub(r'\s+', ' ', text).strip()
+            logging.debug(f"Returning regex-stripped HTML content of length {len(text)}")
+            return {"body": text}
     
-    # Return all forms for processing but make it clear which is the combined one
-    result = {
-        "plain": body_parts["plain"],
-        "html": body_parts["html"],
-        "body": combined_body
-    }
-    
-    return result
+    # No content found
+    logging.warning("No content found in message")
+    return {"body": ""}
 
 def decode_content(part):
     """

@@ -1,3 +1,4 @@
+# extractors/attachment_extractor.py
 import logging
 import hashlib
 import base64
@@ -5,10 +6,14 @@ import quopri
 import os
 import re
 from email.message import Message
+import traceback
+
+logger = logging.getLogger(__name__)
 
 def extract_attachments(msg, depth=0, max_depth=10, container_path=None):
     """
     Extract attachments from an email message.
+    Enhanced to handle TNEF and message/rfc822 formats better.
     
     Args:
         msg (email.message.Message): Email message object
@@ -22,34 +27,140 @@ def extract_attachments(msg, depth=0, max_depth=10, container_path=None):
     if container_path is None:
         container_path = []
     
-    logging.debug(f"Extracting attachments at depth {depth}")
+    logger.debug(f"Extracting attachments at depth {depth}")
     attachments = []
     
-    # Handle multipart messages
-    if msg.is_multipart():
-        logging.debug("Message is multipart, processing parts")
-        for part in msg.get_payload():
-            # Check if it's an attachment
-            if is_attachment(part):
-                attachment = process_attachment(part, depth, max_depth, container_path)
-                if attachment:
-                    attachments.append(attachment)
-            
-            # Recursively process nested multipart parts
-            elif part.is_multipart():
-                logging.debug("Found nested multipart, recursively extracting attachments")
-                nested_attachments = extract_attachments(
-                    part, depth, max_depth, container_path
-                )
-                attachments.extend(nested_attachments)
+    try:
+        # Handle multipart messages
+        if msg.is_multipart():
+            logger.debug("Message is multipart, processing parts")
+            for part in msg.walk():
+                # Skip the container multipart parts
+                if part.get_content_maintype() == 'multipart':
+                    continue
+                    
+                # Check if it's an attachment
+                if is_attachment(part):
+                    attachment = process_attachment(part, depth, max_depth, container_path)
+                    if attachment:
+                        attachments.append(attachment)
+        
+        # Handle single part message with attachment
+        elif is_attachment(msg):
+            attachment = process_attachment(msg, depth, max_depth, container_path)
+            if attachment:
+                attachments.append(attachment)
+        
+        # Check for possible application/ms-tnef content
+        for part in msg.walk():
+            if part.get_content_type() == 'application/ms-tnef':
+                logger.info("Found TNEF attachment, processing")
+                try:
+                    # Try to import tnefparse if available
+                    try:
+                        from tnefparse import TNEF
+                        tnef_data = part.get_payload(decode=True)
+                        if tnef_data:
+                            tnef_attachments = process_tnef_attachment(tnef_data, depth, max_depth, container_path)
+                            if tnef_attachments:
+                                attachments.extend(tnef_attachments)
+                    except ImportError:
+                        logger.warning("tnefparse module not available, cannot process TNEF attachment")
+                        # Still add the TNEF attachment itself for reference
+                        tnef_attachment = {
+                            "attachment_name": part.get_filename() or "winmail.dat",
+                            "attachment_sha256": hashlib.sha256(part.get_payload(decode=True) or b"").hexdigest(),
+                            "content_type": "application/ms-tnef",
+                            "size": len(part.get_payload(decode=True) or b""),
+                            "content_id": part.get("Content-ID", ""),
+                            "is_email": False,
+                            "attachment_text": "TNEF attachment (requires tnefparse module)"
+                        }
+                        attachments.append(tnef_attachment)
+                except Exception as e:
+                    logger.error(f"Error processing TNEF attachment: {str(e)}")
+                    logger.debug(traceback.format_exc())
+        
+        logger.debug(f"Found {len(attachments)} attachments")
+        return attachments
     
-    # Handle single part message with attachment
-    elif is_attachment(msg):
-        attachment = process_attachment(msg, depth, max_depth, container_path)
-        if attachment:
-            attachments.append(attachment)
+    except Exception as e:
+        logger.error(f"Error in extract_attachments: {str(e)}")
+        logger.debug(traceback.format_exc())
+        return attachments
+
+def process_tnef_attachment(tnef_data, depth, max_depth, container_path):
+    """
+    Process TNEF attachment data.
     
-    logging.debug(f"Found {len(attachments)} attachments")
+    Args:
+        tnef_data (bytes): TNEF attachment binary data
+        depth (int): Current recursion depth
+        max_depth (int): Maximum recursion depth
+        container_path (list): Path of containers
+        
+    Returns:
+        list: List of attachment information dictionaries
+    """
+    attachments = []
+    
+    try:
+        from tnefparse import TNEF
+        tnef = TNEF(tnef_data)
+        
+        # Process each attachment in the TNEF file
+        for attachment in tnef.attachments:
+            try:
+                # Extract the attachment
+                attachment_name = attachment.name or "unknown"
+                attachment_data = attachment.data
+                
+                # Calculate SHA256 hash
+                attachment_sha256 = hashlib.sha256(attachment_data).hexdigest()
+                
+                # Check for RFC822 message
+                is_email = False
+                parsed_email = None
+                
+                if attachment_name.lower() == "message.rfc822" or attachment.mime_type == "message/rfc822":
+                    is_email = True
+                    if depth < max_depth:
+                        logger.debug(f"Found embedded email in TNEF attachment, recursively parsing at depth {depth+1}")
+                        # Import here to avoid circular import
+                        from parsers.email_parser import parse_email
+                        
+                        parsed_email = parse_email(
+                            attachment_data,
+                            depth + 1,
+                            max_depth,
+                            container_path + ["tnef_attachment"]
+                        )
+                
+                # Create attachment info
+                attachment_info = {
+                    "attachment_name": attachment_name,
+                    "attachment_sha256": attachment_sha256,
+                    "content_type": attachment.mime_type or "application/octet-stream",
+                    "size": len(attachment_data),
+                    "content_id": "",
+                    "is_email": is_email,
+                    "attachment_text": ""
+                }
+                
+                # If it's an email, add the parsed data
+                if parsed_email:
+                    attachment_info["parsed_email"] = parsed_email
+                
+                attachments.append(attachment_info)
+                
+            except Exception as e:
+                logger.error(f"Error processing TNEF attachment {attachment.name}: {str(e)}")
+                logger.debug(traceback.format_exc())
+    
+    except Exception as e:
+        logger.error(f"Error processing TNEF data: {str(e)}")
+        logger.debug(traceback.format_exc())
+    
     return attachments
 
 def is_attachment(part):
@@ -73,7 +184,12 @@ def is_attachment(part):
         return True
     
     # Check if it's an embedded message
-    if part.get_content_type().lower() == "message/rfc822":
+    content_type = part.get_content_type().lower()
+    if content_type == "message/rfc822":
+        return True
+    
+    # Check for TNEF
+    if content_type == "application/ms-tnef":
         return True
     
     # Check Content-ID for inline attachments
@@ -104,12 +220,17 @@ def get_filename(part):
     if filename_match:
         return filename_match.group(1)
     
+    # Try get_filename() method if available
+    if hasattr(part, 'get_filename') and callable(getattr(part, 'get_filename')):
+        filename = part.get_filename()
+        if filename:
+            return filename
+    
     return ""
 
 def process_attachment(part, depth, max_depth, container_path):
     """
     Process an attachment part and extract relevant information.
-    Ignores image attachments completely.
     
     Args:
         part (email.message.Message): Email message part
@@ -124,9 +245,9 @@ def process_attachment(part, depth, max_depth, container_path):
         filename = get_filename(part)
         content_type = part.get_content_type()
         
-        # Skip image attachments
+        # Skip image attachments if requested
         if content_type.startswith('image/'):
-            logging.debug(f"Skipping image attachment: {filename}, type: {content_type}")
+            logger.debug(f"Skipping image attachment: {filename}, type: {content_type}")
             return None
             
         content_id = part.get("Content-ID", "")
@@ -135,12 +256,12 @@ def process_attachment(part, depth, max_depth, container_path):
         if content_id and content_id.startswith("<") and content_id.endswith(">"):
             content_id = content_id[1:-1]
         
-        logging.debug(f"Processing attachment: {filename}, type: {content_type}")
+        logger.debug(f"Processing attachment: {filename}, type: {content_type}")
         
         # Get the attachment content
         content = part.get_payload(decode=True)
         if content is None:
-            logging.warning(f"Empty attachment content for {filename}")
+            logger.warning(f"Empty attachment content for {filename}")
             content = b""
         
         # Calculate SHA256 hash
@@ -153,20 +274,37 @@ def process_attachment(part, depth, max_depth, container_path):
         if content_type.lower() == "message/rfc822":
             is_email = True
             if depth < max_depth:
-                logging.debug(f"Found embedded email, recursively parsing at depth {depth+1}")
+                logger.debug(f"Found embedded email, recursively parsing at depth {depth+1}")
                 # Import here to avoid circular import
                 from parsers.email_parser import parse_email
                 
                 # For embedded emails, get the payload (which should be a list with the message)
-                embedded_msg = part.get_payload()[0]
-                parsed_email = parse_email(
-                    embedded_msg.as_string(),
-                    depth + 1,
-                    max_depth,
-                    container_path + ["attachment"]
-                )
+                # Need to handle different ways message/rfc822 can be structured
+                if isinstance(part.get_payload(), list) and len(part.get_payload()) > 0:
+                    embedded_msg = part.get_payload()[0]
+                    # Convert to string if it's an EmailMessage
+                    if hasattr(embedded_msg, 'as_string'):
+                        email_content = embedded_msg.as_string()
+                    else:
+                        # Otherwise use the raw content
+                        email_content = content
+                        
+                    parsed_email = parse_email(
+                        email_content,
+                        depth + 1,
+                        max_depth,
+                        container_path + ["attachment"]
+                    )
+                else:
+                    # Use the raw content if not a list
+                    parsed_email = parse_email(
+                        content,
+                        depth + 1,
+                        max_depth,
+                        container_path + ["attachment"]
+                    )
             else:
-                logging.warning(f"Maximum recursion depth ({max_depth}) reached, not parsing embedded email")
+                logger.warning(f"Maximum recursion depth ({max_depth}) reached, not parsing embedded email")
         
         # Extract text from attachment for indexing
         attachment_text = ""
@@ -175,8 +313,16 @@ def process_attachment(part, depth, max_depth, container_path):
                 charset = part.get_content_charset() or 'utf-8'
                 attachment_text = content.decode(charset, errors='replace')
             except Exception as e:
-                logging.warning(f"Failed to decode attachment text: {str(e)}")
+                logger.warning(f"Failed to decode attachment text: {str(e)}")
                 attachment_text = content.decode('utf-8', errors='replace')
+        elif content_type == "application/pdf":
+            try:
+                # Try to extract text from PDF
+                from extractors.pdf_extractor import extract_text_from_pdf
+                attachment_text = extract_text_from_pdf(content)
+            except Exception as e:
+                logger.warning(f"Failed to extract PDF text: {str(e)}")
+                attachment_text = "[PDF Text Extraction Failed]"
         
         attachment = {
             "attachment_name": filename,
@@ -194,5 +340,6 @@ def process_attachment(part, depth, max_depth, container_path):
         return attachment
         
     except Exception as e:
-        logging.error(f"Error processing attachment: {str(e)}")
+        logger.error(f"Error processing attachment: {str(e)}")
+        logger.debug(traceback.format_exc())
         return None

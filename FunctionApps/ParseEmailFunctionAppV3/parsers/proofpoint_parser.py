@@ -1,43 +1,70 @@
+# parsers/proofpoint_parser.py
 import logging
 import re
 from extractors.url_extractor import extract_urls
 from extractors.ip_extractor import extract_ip_addresses
 from extractors.domain_extractor import extract_domains
 
-def is_proofpoint_email(email_content):
+logger = logging.getLogger(__name__)
+
+# Define Proofpoint markers
+PROOFPOINT_HEADER_MARKER_BEGIN = "---------- Begin Email Headers ----------"
+PROOFPOINT_HEADER_MARKER_END = "---------- End Email Headers ----------"
+PROOFPOINT_BODY_MARKER_BEGIN = "---------- Begin Reported Email ----------"
+PROOFPOINT_BODY_MARKER_END = "---------- End Reported Email ----------"
+
+# parsers/proofpoint_parser.py (continued)
+def is_proofpoint_email(msg):
     """
-    Determine if the email is in Proofpoint format.
+    Determine if an email is a Proofpoint-reported phishing email.
     
     Args:
-        email_content (str or bytes): Raw email content
+        msg (email.message.Message): Email message object
         
     Returns:
-        bool: True if it's a Proofpoint email
+        bool: True if it's a Proofpoint-reported email, False otherwise
     """
-    if isinstance(email_content, bytes):
+    # Check subject for Proofpoint pattern
+    subject = msg.get('Subject', '')
+    subject_match = subject and "Potential Phish:" in subject
+    
+    # Extract body content to check for Proofpoint markers
+    body = ""
+    if msg.is_multipart():
+        for part in msg.walk():
+            if part.get_content_type() == 'text/plain' or part.get_content_type() == 'text/html':
+                try:
+                    content = part.get_payload(decode=True)
+                    if content:
+                        body += content.decode('utf-8', errors='ignore')
+                except Exception as e:
+                    logger.error(f"Error decoding content in is_proofpoint_email: {str(e)}")
+    else:
         try:
-            email_content = email_content.decode('utf-8', errors='replace')
+            content = msg.get_payload(decode=True)
+            if content:
+                body += content.decode('utf-8', errors='ignore')
         except Exception as e:
-            logging.warning(f"Error decoding email content: {str(e)}")
-            return False
+            logger.error(f"Error decoding content in is_proofpoint_email: {str(e)}")
     
-    proofpoint_indicators = [
-        "---------- Begin Email Headers ----------",
-        "---------- End Email Headers ----------",
-        "---------- Begin Reported Email ----------",
-        "---------- End Reported Email ----------"
-    ]
+    # Check for Proofpoint markers in body
+    body_match = False
+    if PROOFPOINT_HEADER_MARKER_BEGIN in body and PROOFPOINT_HEADER_MARKER_END in body:
+        body_match = True
+    elif "Begin Email Headers" in body and "End Email Headers" in body:
+        body_match = True
+    elif PROOFPOINT_BODY_MARKER_BEGIN in body:
+        body_match = True
     
-    # Check if at least 2 of the indicators are present
-    indicator_count = sum(1 for indicator in proofpoint_indicators if indicator in email_content)
-    return indicator_count >= 2
+    # Both subject and body need to match
+    return subject_match and body_match
 
 def parse_proofpoint_email(email_content, depth=0, max_depth=10, container_path=None):
     """
-    Parse an email in Proofpoint format.
+    Parse a Proofpoint-reported phishing email.
     
     Args:
-        email_content (str or bytes): Raw email content
+        email_content (bytes or str): Raw email content
         depth (int): Current recursion depth
         max_depth (int): Maximum recursion depth
         container_path (list): Path of containers
@@ -48,149 +75,111 @@ def parse_proofpoint_email(email_content, depth=0, max_depth=10, container_path=
     if container_path is None:
         container_path = []
     
-    logging.debug("Parsing Proofpoint-formatted email")
+    logger.debug("Parsing Proofpoint-formatted email")
     
     # Convert bytes to string if needed
     if isinstance(email_content, bytes):
         try:
             email_content = email_content.decode('utf-8', errors='replace')
         except Exception as e:
-            logging.error(f"Error decoding Proofpoint email content: {str(e)}")
+            logger.error(f"Error decoding Proofpoint email content: {str(e)}")
             return {"error": f"Failed to decode Proofpoint email content: {str(e)}"}
     
-    # Initialize output structure
-    parsed_data = {
+    # Extract the header section
+    headers_pattern = rf"{re.escape(PROOFPOINT_HEADER_MARKER_BEGIN)}\r?\n(.*?)\r?\n{re.escape(PROOFPOINT_HEADER_MARKER_END)}"
+    headers_match = re.search(headers_pattern, email_content, re.DOTALL)
+    headers_text = headers_match.group(1).strip() if headers_match else ""
+    
+    # Extract the email content
+    content_pattern = rf"{re.escape(PROOFPOINT_BODY_MARKER_BEGIN)}\r?\n(.*?)(?:\r?\n{re.escape(PROOFPOINT_BODY_MARKER_END)}|$)"
+    content_match = re.search(content_pattern, email_content, re.DOTALL)
+    reported_content = content_match.group(1).strip() if content_match else ""
+    
+    # Parse headers manually
+    header_dict = {}
+    current_header = None
+    current_value = None
+    
+    # Process headers line by line
+    for line in headers_text.splitlines():
+        # Skip empty lines
+        if not line.strip():
+            continue
+            
+        # If line starts with space/tab, it's a continuation
+        if line and line[0] in ' \t' and current_header:
+            current_value += ' ' + line.strip()
+        # Otherwise it's a new header
+        elif ':' in line:
+            # Save the previous header
+            if current_header:
+                header_dict[current_header] = current_value.strip()
+                
+            # Start a new header
+            parts = line.split(':', 1)
+            current_header = parts[0].strip()
+            current_value = parts[1].strip() if len(parts) > 1 else ""
+    
+    # Add the last header
+    if current_header and current_value is not None:
+        header_dict[current_header] = current_value.strip()
+    
+    # Extract authentication results
+    auth_results = header_dict.get('Authentication-Results', '')
+    
+    # Extract DKIM, SPF, DMARC results
+    dkim_result = "none"
+    spf_result = "none"
+    dmarc_result = "none"
+    
+    dkim_match = re.search(r'dkim=(\w+)', auth_results, re.IGNORECASE)
+    if dkim_match:
+        dkim_result = dkim_match.group(1)
+    
+    spf_match = re.search(r'spf=(\w+)', auth_results, re.IGNORECASE)
+    if spf_match:
+        spf_result = spf_match.group(1)
+    
+    dmarc_match = re.search(r'dmarc=(\w+)', auth_results, re.IGNORECASE)
+    if dmarc_match:
+        dmarc_result = dmarc_match.group(1)
+    
+    # Get received headers as a list
+    received_headers = []
+    for key in header_dict:
+        if key.lower() == 'received':
+            received_headers.append(header_dict[key])
+    
+    # Extract URLs and IP addresses from the reported content
+    urls = extract_urls(reported_content)
+    ip_addresses = extract_ip_addresses(reported_content)
+    domains = extract_domains(urls)
+    
+    # Construct the email data
+    email_data = {
         "email_content": {
-            "message_id": "",
-            "sender": "",
-            "return_path": "",
-            "receiver": "",
-            "reply_to": "",
-            "subject": "",
-            "date": "",
+            "message_id": header_dict.get('Message-ID', ''),
+            "sender": header_dict.get('From', ''),
+            "return_path": header_dict.get('Return-Path', ''),
+            "receiver": header_dict.get('To', ''),
+            "reply_to": header_dict.get('Reply-To', ''),
+            "subject": header_dict.get('Subject', ''),
+            "date": header_dict.get('Date', ''),
+            "body": reported_content,
+            "attachments": [],  
+            "container_path": container_path + ["proofpoint"],
+            "reconstruction_method": "proofpoint_reported",
+            "urls": urls,
+            "ip_addresses": ip_addresses,
+            "domains": domains,
             "smtp": {
-                "delivered_to": "",
-                "received": []
+                "delivered_to": header_dict.get('Delivered-To', ''),
+                "received": received_headers
             },
-            "dkim_result": "",
-            "spf_result": "",
-            "dmarc_result": "",
-            "body": {
-                "plain": "",
-                "html": ""
-            },
-            "attachments": [],
-            "is_original_phishing_email": True,  # Proofpoint typically contains the original phishing email
-            "email_depth": depth,
-            "container_type": "proofpoint_report"
-        },
-        "ip_addresses": [],
-        "urls": [],
-        "domains": []
+            "dkim_result": dkim_result,
+            "spf_result": spf_result,
+            "dmarc_result": dmarc_result
+        }
     }
     
-    try:
-        # Extract headers
-        headers_match = re.search(
-            r"---------- Begin Email Headers ----------([\s\S]*?)---------- End Email Headers ----------",
-            email_content, 
-            re.IGNORECASE
-        )
-        
-        if headers_match:
-            headers_text = headers_match.group(1).strip()
-            logging.debug("Successfully extracted Proofpoint email headers")
-            
-            # Parse headers
-            header_lines = headers_text.split('\n')
-            current_header = None
-            headers = {}
-            
-            for line in header_lines:
-                line = line.strip()
-                if not line:
-                    continue
-                    
-                # Check if this is a new header
-                header_match = re.match(r'^([A-Za-z0-9\-]+):\s*(.*)', line)
-                if header_match:
-                    current_header = header_match.group(1)
-                    headers[current_header] = header_match.group(2)
-                elif current_header and line.startswith(' '):
-                    # Continuation of previous header
-                    headers[current_header] += ' ' + line.strip()
-            
-            # Map headers to output structure
-            parsed_data["email_content"]["message_id"] = headers.get("Message-ID", "")
-            parsed_data["email_content"]["sender"] = headers.get("From", "")
-            parsed_data["email_content"]["return_path"] = headers.get("Return-Path", "")
-            parsed_data["email_content"]["receiver"] = headers.get("To", "")
-            parsed_data["email_content"]["reply_to"] = headers.get("Reply-To", "")
-            parsed_data["email_content"]["subject"] = headers.get("Subject", "")
-            parsed_data["email_content"]["date"] = headers.get("Date", "")
-            
-            # Extract SMTP info
-            parsed_data["email_content"]["smtp"]["delivered_to"] = headers.get("Delivered-To", "")
-            if "Received" in headers:
-                parsed_data["email_content"]["smtp"]["received"] = [headers["Received"]]
-            
-            # Extract authentication results
-            auth_results = headers.get("Authentication-Results", "")
-            parsed_data["email_content"]["dkim_result"] = "pass" if "dkim=pass" in auth_results else "fail" if "dkim=fail" in auth_results else ""
-            parsed_data["email_content"]["spf_result"] = "pass" if "spf=pass" in auth_results else "fail" if "spf=fail" in auth_results else ""
-            parsed_data["email_content"]["dmarc_result"] = "pass" if "dmarc=pass" in auth_results else "fail" if "dmarc=fail" in auth_results else ""
-            
-            logging.debug(f"Parsed Proofpoint email headers: Subject={parsed_data['email_content']['subject']}, From={parsed_data['email_content']['sender']}")
-        else:
-            logging.warning("Could not find Proofpoint email headers section")
-        
-        # Extract email body
-        body_match = re.search(
-            r"---------- Begin Reported Email ----------([\s\S]*?)---------- End Reported Email ----------",
-            email_content, 
-            re.IGNORECASE
-        )
-        
-        if body_match:
-            body_text = body_match.group(1).strip()
-            logging.debug("Successfully extracted Proofpoint email body")
-            
-            # Determine if body is HTML or plain text
-            if "<html" in body_text.lower() or "<body" in body_text.lower():
-                parsed_data["email_content"]["body"]["html"] = body_text
-                # Simple HTML tag stripping for plain text version
-                plain_text = re.sub(r'<[^>]+>', '', body_text)
-                parsed_data["email_content"]["body"]["plain"] = plain_text
-            else:
-                parsed_data["email_content"]["body"]["plain"] = body_text
-            
-            # Extract URLs, IPs, and domains from the body
-            body_combined = parsed_data["email_content"]["body"]["plain"] + " " + parsed_data["email_content"]["body"]["html"]
-            parsed_data["urls"] = extract_urls(body_combined)
-            parsed_data["ip_addresses"] = extract_ip_addresses(body_combined)
-            parsed_data["domains"] = extract_domains(parsed_data["urls"])
-            
-            logging.debug(f"Extracted {len(parsed_data['urls'])} URLs, {len(parsed_data['ip_addresses'])} IP addresses, and {len(parsed_data['domains'])} domains")
-        else:
-            logging.warning("Could not find Proofpoint reported email body section")
-        
-        # Set this as the original phishing email since Proofpoint forwards are typically the original
-        parsed_data["original_phishing_email"] = {
-            "message_id": parsed_data["email_content"]["message_id"],
-            "sender": parsed_data["email_content"]["sender"],
-            "return_path": parsed_data["email_content"]["return_path"],
-            "receiver": parsed_data["email_content"]["receiver"],
-            "reply_to": parsed_data["email_content"]["reply_to"],
-            "subject": parsed_data["email_content"]["subject"],
-            "date": parsed_data["email_content"]["date"],
-            "body": parsed_data["email_content"]["body"],
-            "attachments": [],
-            "container_path": container_path,
-            "reconstruction_method": "proofpoint_report"
-        }
-        
-    except Exception as e:
-        logging.error(f"Error parsing Proofpoint email: {str(e)}")
-        parsed_data["error"] = f"Failed to parse Proofpoint email: {str(e)}"
-    
-    return parsed_data
+    return email_data

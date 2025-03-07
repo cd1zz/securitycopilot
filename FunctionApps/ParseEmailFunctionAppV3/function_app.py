@@ -55,7 +55,7 @@ def parse_email_functionapp(req: func.HttpRequest) -> func.HttpResponse:
         except (ValueError, TypeError):
             pass
         
-        # Parse the email - now returns just the original email data
+        # Parse the email - returns the original email data
         parsed_data = parse_email(email_content, max_depth=max_depth)
         
         # Return the parsed data as JSON

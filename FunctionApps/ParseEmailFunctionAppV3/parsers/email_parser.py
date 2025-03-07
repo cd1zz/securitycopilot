@@ -1,24 +1,24 @@
-import email
-import base64
-import os
-import sys
+# parsers/email_parser.py
 import logging
 import re
-from email import policy
-from email.parser import BytesParser, Parser
-
-# Assuming these will be implemented
+from email.parser import BytesParser
+import traceback
 from extractors.header_extractor import extract_headers
 from extractors.body_extractor import extract_body
 from extractors.attachment_extractor import extract_attachments
-from extractors.url_extractor import extract_urls
+from extractors.url_extractor import extract_urls, decode_safelinks, decode_proofpoint_urls
 from extractors.ip_extractor import extract_ip_addresses
 from extractors.domain_extractor import extract_domains
-from utils.mime_utils import analyze_mime_structure
+from utils.email_policy import CustomEmailPolicy
+from parsers.proofpoint_parser import is_proofpoint_email, parse_proofpoint_email
+from parsers.forwarded_parser import parse_forwarded_email
+
+logger = logging.getLogger(__name__)
 
 def parse_email(email_content, depth=0, max_depth=10, container_path=None):
     """
     Main function to parse an email with recursive unwrapping to find original email.
+    Following strict hierarchy: message/RFC822 > TNEF > .eml/.msg > forwarded content.
     
     Args:
         email_content (str or bytes): Raw email content
@@ -35,166 +35,245 @@ def parse_email(email_content, depth=0, max_depth=10, container_path=None):
     if container_path is None:
         container_path = []
     
-    logging.debug(f"Parsing email at depth {depth} with container path {container_path}")
+    logger.debug(f"Parsing email at depth {depth} with container path {container_path}")
     
-    # Initialize result structure - not returned but used internally
-    parsed_data = {
-        "email_content": {
-            "message_id": "",
-            "sender": "",
-            "return_path": "",
-            "receiver": "",
-            "reply_to": "",
-            "subject": "",
-            "date": "",
-            "smtp": {
-                "delivered_to": "",
-                "received": []
-            },
-            "dkim_result": "",
-            "spf_result": "",
-            "dmarc_result": "",
-            "body": "",  # Single string body
-            "attachments": [],
-            "email_depth": depth,
-            "container_type": container_path[-1] if container_path else "root"
-        },
-        "ip_addresses": [],
-        "urls": [],
-        "domains": []
-    }
-    
-    # Convert to bytes if string is provided
-    if isinstance(email_content, str):
-        email_content = email_content.encode('utf-8', errors='replace')
-    
-    # Parse the email content
     try:
-        msg = BytesParser(policy=policy.default).parsebytes(email_content)
-    except Exception as e:
-        logging.error(f"Failed to parse email: {str(e)}")
-        return {"error": f"Failed to parse email: {str(e)}"}
-    
-    # Extract headers
-    headers = extract_headers(msg)
-    parsed_data["email_content"].update(headers)
-    
-    # Extract body content - this will now return plain, html, and the combined body
-    body_data = extract_body(msg)
-    
-    # Store only the combined body in the output
-    parsed_data["email_content"]["body"] = body_data["body"]
-    
-    # Extract and process URLs from both plain and HTML parts for analysis
-    urls = extract_urls(body_data["plain"] + " " + body_data["html"])
-    parsed_data["urls"] = urls
-    
-    # Extract IP addresses from body and headers
-    headers_text = " ".join([f"{k}: {v}" for k, v in msg.items()])
-    ip_addresses = extract_ip_addresses(body_data["plain"] + " " + body_data["html"] + " " + headers_text)
-    parsed_data["ip_addresses"] = ip_addresses
-    
-    # Extract domains from URLs
-    domains = extract_domains(urls)
-    parsed_data["domains"] = domains
-    
-    # Variable to track if we've found an original email deeper in the structure
-    found_original_email = False
-    original_email = None
-    
-    # Check if this is a forwarded email
-    if is_forwarded_email(msg, body_data):
-        logging.debug("Email is forwarded, parsing forwarded content")
-        forwarded_data = parse_forwarded_email(
-            msg, 
-            depth + 1, 
-            max_depth, 
-            container_path + ["forwarded"]
-        )
+        # Convert to bytes if string is provided
+        if isinstance(email_content, str):
+            email_content = email_content.encode('utf-8', errors='replace')
+            
+        # Create custom policy for header parsing    
+        custom_policy = CustomEmailPolicy(raise_on_defect=False)
         
-        # Always extract the forwarded content as the original email
-        original_email = extract_original_email(forwarded_data)
-        original_email["container_path"] = container_path + ["forwarded"]
-        original_email["reconstruction_method"] = "forwarded"
-        original_email["urls"] = forwarded_data.get("urls", [])
-        original_email["ip_addresses"] = forwarded_data.get("ip_addresses", [])
-        original_email["domains"] = extract_domains(forwarded_data.get("urls", []))
-        found_original_email = True
-    
-    # Extract and process attachments, looking for embedded emails
-    attachments = extract_attachments(msg, depth, max_depth, container_path)
-    # Filter out None values (image attachments will be None)
-    attachments = [attachment for attachment in attachments if attachment is not None]
-    parsed_data["email_content"]["attachments"] = attachments
-    
-    # Process any email attachments recursively
-    for i, attachment in enumerate(attachments):
-        if attachment.get("is_email", False) and "parsed_email" in attachment:
-            # If this is the first embedded email found
-            if not found_original_email:
-                logging.debug(f"Found original email in attachment {i}")
-                # Get the original email directly from the parsed attachment
-                if isinstance(attachment["parsed_email"], dict) and "original_email" in attachment["parsed_email"]:
-                    original_email = attachment["parsed_email"]["original_email"]
-                elif isinstance(attachment["parsed_email"], dict) and "email_content" in attachment["parsed_email"]:
-                    original_email = extract_original_email(attachment["parsed_email"]["email_content"])
-                else:
-                    # Skip if we can't extract a proper original email
-                    logging.warning(f"Could not extract original email from attachment {i}")
+        # Parse the email content with our custom policy
+        msg = BytesParser(policy=custom_policy).parsebytes(email_content)
+        
+        # Initialize extraction status to track if we found an embedded email
+        extracted_email_found = False
+        extracted_email_data = None
+        
+        # PRIORITY 1: Check if this is a Proofpoint-reported email (special case)
+        if is_proofpoint_email(msg):
+            logger.info("Detected Proofpoint-reported email format")
+            proofpoint_data = parse_proofpoint_email(email_content)
+            return proofpoint_data
+        
+        # PRIORITY 2: Process any message/RFC822 parts (highest priority)
+        if msg.is_multipart():
+            for part in msg.walk():
+                if part.get_content_type() == 'message/rfc822':
+                    logger.info("Found message/rfc822 attachment")
+                    try:
+                        # Extract the embedded message
+                        rfc822_content = part.get_payload(decode=True)
+                        if not rfc822_content and isinstance(part.get_payload(), list) and len(part.get_payload()) > 0:
+                            embedded_msg = part.get_payload()[0]
+                            if hasattr(embedded_msg, 'as_bytes'):
+                                rfc822_content = embedded_msg.as_bytes()
+                            elif isinstance(embedded_msg, str):
+                                rfc822_content = embedded_msg.encode('utf-8')
+                        
+                        if rfc822_content:
+                            # Recursively parse the embedded email
+                            embedded_email = parse_email(
+                                rfc822_content, 
+                                depth + 1, 
+                                max_depth, 
+                                container_path + ["message/rfc822"]
+                            )
+                            
+                            if embedded_email and "error" not in embedded_email:
+                                extracted_email_found = True
+                                extracted_email_data = embedded_email
+                                break
+                    except Exception as e:
+                        logger.error(f"Error extracting message/rfc822 content: {str(e)}")
+        
+        # PRIORITY 3: Check for TNEF attachments
+        if not extracted_email_found:
+            for part in msg.walk():
+                if part.get_content_type() == 'application/ms-tnef':
+                    logger.info("Found TNEF attachment")
+                    try:
+                        # Try to import tnefparse if available
+                        from tnefparse import TNEF
+                        tnef_data = part.get_payload(decode=True)
+                        if tnef_data:
+                            tnef = TNEF(tnef_data)
+                            for attachment in tnef.attachments:
+                                if attachment.name.lower() == "message.rfc822" or attachment.mime_type == "message/rfc822":
+                                    embedded_email = parse_email(
+                                        attachment.data,
+                                        depth + 1,
+                                        max_depth,
+                                        container_path + ["tnef_attachment"]
+                                    )
+                                    
+                                    if embedded_email and "error" not in embedded_email:
+                                        extracted_email_found = True
+                                        extracted_email_data = embedded_email
+                                        break
+                    except ImportError:
+                        logger.warning("tnefparse module not available, cannot process TNEF attachment")
+                    except Exception as e:
+                        logger.error(f"Error processing TNEF attachment: {str(e)}")
+        
+        # PRIORITY 4: Check for .eml or .msg attachments
+        if not extracted_email_found:
+            for part in msg.walk():
+                if part.get_content_maintype() == 'multipart':
                     continue
-                    
-                original_email["container_path"] = container_path + [f"attachment[{i}]"]
-                original_email["reconstruction_method"] = "attachment"
                 
-                # Add URLs, IPs, and domains if available
-                if isinstance(attachment["parsed_email"], dict):
-                    original_email["urls"] = attachment["parsed_email"].get("urls", [])
-                    original_email["ip_addresses"] = attachment["parsed_email"].get("ip_addresses", [])
-                    original_email["domains"] = attachment["parsed_email"].get("domains", 
-                                               extract_domains(attachment["parsed_email"].get("urls", [])))
-                    
-                found_original_email = True
-    
-    # Handle multipart MIME structure
-    if msg.is_multipart():
-        mime_analysis = analyze_mime_structure(msg)
+                filename = part.get_filename() or ""
+                if filename.lower().endswith(('.eml', '.msg')):
+                    logger.info(f"Found email file attachment: {filename}")
+                    attachment_data = part.get_payload(decode=True)
+                    if attachment_data:
+                        embedded_email = None
+                        
+                        if filename.lower().endswith('.eml'):
+                            # Import here to avoid circular dependency
+                            from parsers.eml_parser import parse_eml
+                            embedded_email = parse_eml(attachment_data, max_depth)
+                        elif filename.lower().endswith('.msg'):
+                            # Import here to avoid circular dependency
+                            from parsers.msg_parser import parse_msg
+                            embedded_email = parse_msg(attachment_data, max_depth)
+                        
+                        if embedded_email and "error" not in embedded_email:
+                            extracted_email_found = True
+                            extracted_email_data = embedded_email
+                            break
         
-        # Check for embedded emails in MIME parts that aren't formal attachments
-        for part_index, part in enumerate(mime_analysis["reconstructed_parts"]):
-            if is_embedded_email(part["content"]):
-                logging.debug(f"Found potential embedded email in MIME part {part_index}")
-                embedded_email = parse_email(
-                    part["content"], 
+        # PRIORITY 5: Check for regular email attachments that might contain emails
+        if not extracted_email_found:
+            # Extract and process attachments
+            attachments = extract_attachments(msg, depth, max_depth, container_path)
+            # Filter out None values (image attachments will be None)
+            attachments = [attachment for attachment in attachments if attachment is not None]
+            
+            # Process any email attachments recursively
+            for i, attachment in enumerate(attachments):
+                if attachment.get("is_email", False) and "parsed_email" in attachment:
+                    logger.debug(f"Found embedded email in attachment {i}")
+                    
+                    attachment_parsed_email = attachment["parsed_email"]
+                    
+                    # If the attachment already has an "original_email" field, use it
+                    if isinstance(attachment_parsed_email, dict) and "original_email" in attachment_parsed_email:
+                        original_email = attachment_parsed_email["original_email"]
+                        
+                        # Update container path
+                        original_email["container_path"] = container_path + [f"attachment[{i}]"]
+                        original_email["reconstruction_method"] = "attachment"
+                        
+                        extracted_email_found = True
+                        extracted_email_data = {"email_content": original_email}
+                        break
+        
+        # PRIORITY 6: Check if this is a forwarded email
+        if not extracted_email_found:
+            # Extract body content for forwarded email check
+            body_data = extract_body(msg)
+            
+            if is_forwarded_email(msg, body_data):
+                logger.debug("Email is forwarded, parsing forwarded content")
+                forwarded_data = parse_forwarded_email(
+                    msg, 
                     depth + 1, 
-                    max_depth,
-                    container_path + [f"mime_part[{part_index}]"]
+                    max_depth, 
+                    container_path + ["forwarded"]
                 )
                 
-                # If we found an original email in the embedded content
-                if isinstance(embedded_email, dict) and "original_email" in embedded_email and not found_original_email:
-                    logging.debug(f"Using original email from MIME part {part_index}")
-                    original_email = embedded_email["original_email"]
-                    original_email["container_path"] = container_path + [f"mime_part[{part_index}]"]
-                    original_email["reconstruction_method"] = "mime_embedded"
-                    found_original_email = True
-    
-    # If we haven't found an original email deeper in the structure,
-    # use the current email as the original
-    if not found_original_email:
-        logging.debug("Using current email as the original")
-        original_email = extract_original_email(parsed_data["email_content"])
-        original_email["container_path"] = container_path
-        original_email["reconstruction_method"] = "direct"
-        original_email["urls"] = parsed_data["urls"]
-        original_email["ip_addresses"] = parsed_data["ip_addresses"]
-        original_email["domains"] = parsed_data["domains"]
-    
-    # Return just the original email data, not the full parsed data
-    return {"original_email": original_email}
+                # If we successfully parsed the forwarded email, use it
+                if forwarded_data and not is_empty_email_data(forwarded_data):
+                    original_email = {
+                        "message_id": "",
+                        "sender": forwarded_data.get("original_sender", ""),
+                        "return_path": "",
+                        "receiver": forwarded_data.get("original_recipient", ""),
+                        "reply_to": "",
+                        "subject": forwarded_data.get("original_subject", ""),
+                        "date": forwarded_data.get("original_date", ""),
+                        "body": forwarded_data.get("original_body", ""),
+                        "attachments": [],
+                        "container_path": container_path + ["forwarded"],
+                        "reconstruction_method": "forwarded",
+                        "urls": forwarded_data.get("urls", []),
+                        "ip_addresses": forwarded_data.get("ip_addresses", []),
+                        "domains": forwarded_data.get("domains", [])
+                    }
+                    
+                    extracted_email_found = True
+                    extracted_email_data = {"email_content": original_email}
+        
+        # If we found an extracted email through any method, return it
+        if extracted_email_found and extracted_email_data:
+            return extracted_email_data
+        
+        # If no embedded email was found, treat this as the original email
+        # Extract all necessary metadata
+        headers = extract_headers(msg)
+        body_data = extract_body(msg) if not 'body_data' in locals() else body_data
+        
+        # Process URLs, IP addresses, and domains
+        all_urls = extract_urls(body_data["body"])
+        processed_urls = []
+        for url in all_urls:
+            if "safelinks.protection.outlook.com" in url:
+                url = decode_safelinks(url)
+            elif "urldefense.com" in url:
+                url = decode_proofpoint_urls(url)
+            processed_urls.append(url)
+
+        # Add this line to expand shortened URLs
+        from extractors.url_extractor import batch_expand_urls
+        processed_urls = batch_expand_urls(processed_urls)        
+
+        # Extract attachments if not already done
+        if 'attachments' not in locals():
+            attachments = extract_attachments(msg, depth, max_depth, container_path)
+            attachments = [attachment for attachment in attachments if attachment is not None]
+        
+        # Extract IP addresses and domains
+        headers_text = " ".join([f"{k}: {v}" for k, v in msg.items()])
+        ip_addresses = extract_ip_addresses(body_data["body"] + " " + headers_text)
+        domains = extract_domains(processed_urls)
+        
+        # Create original email from our parsed data
+        original_email = {
+            "message_id": headers["message_id"],
+            "sender": headers["sender"],
+            "return_path": headers["return_path"],
+            "receiver": headers["receiver"],
+            "reply_to": headers["reply_to"],
+            "subject": headers["subject"],
+            "date": headers["date"],
+            "body": clean_excessive_newlines(body_data["body"]),
+            "attachments": attachments,
+            "container_path": container_path,
+            "reconstruction_method": "direct",
+            "urls": processed_urls,
+            "ip_addresses": ip_addresses,
+            "domains": domains
+        }
+        
+        return {"email_content": original_email}
+        
+    except Exception as e:
+        logger.error(f"Error parsing email: {str(e)}")
+        logger.debug(traceback.format_exc())
+        return {"error": f"Failed to parse email: {str(e)}"}
+
+def clean_excessive_newlines(text):
+    # Replace multiple consecutive newlines (2 or more) with a single newline
+    cleaned_text = re.sub(r'\n{2,}', '\n', text)
+    return cleaned_text
 
 def is_forwarded_email(msg, body_data=None):
     """
     Check if the email is a forwarded email based on various indicators.
+    More precise to avoid false positives from email signatures.
     
     Args:
         msg (email.message.Message): Email message object
@@ -205,9 +284,9 @@ def is_forwarded_email(msg, body_data=None):
     """
     # Check subject for forwarding indicators
     subject = msg.get('Subject', '')
-    if subject.lower().startswith(('fw:', 'fwd:')):
-        return True
-    
+    if subject and (subject.lower().startswith(('fw:', 'fwd:')) or 'forwarded' in subject.lower()):
+        logger.debug("Email subject indicates forwarded message")
+        
     # Check content for forwarding patterns
     if body_data is None:
         # If body_data wasn't provided, extract it now
@@ -216,9 +295,7 @@ def is_forwarded_email(msg, body_data=None):
     # Use both plain and HTML for checking patterns
     body_text = ""
     if isinstance(body_data, dict):
-        if "plain" in body_data and "html" in body_data:
-            body_text = body_data["plain"] + " " + body_data["html"]
-        elif "body" in body_data:
+        if "body" in body_data:
             body_text = body_data["body"]
     else:
         # Fallback if body_data is not a dict
@@ -228,128 +305,43 @@ def is_forwarded_email(msg, body_data=None):
     forwarding_patterns = [
         "---------- Forwarded message ---------",  # Gmail
         "Begin forwarded message:",              # Apple Mail
-        "From: .* Sent: .* To: .* Subject:",    # Outlook
+        # More specific Outlook pattern to avoid false positives from signatures
+        r"^From:.*?\r?\nSent:.*?\r?\nTo:.*?\r?\nSubject:",  # Outlook with line breaks
         "-----Original Message-----",           # Various clients
         "Forwarded Message",                    # Various clients
     ]
     
     for pattern in forwarding_patterns:
-        if pattern.lower() in body_text.lower():
+        if pattern.startswith('^'):
+            # This is a regex pattern
+            if re.search(pattern, body_text, re.MULTILINE | re.DOTALL | re.IGNORECASE):
+                logger.debug(f"Found forwarded email pattern: {pattern}")
+                return True
+        elif pattern.lower() in body_text.lower():
+            # This is a simple string pattern
+            logger.debug(f"Found forwarded email pattern: {pattern}")
             return True
     
     return False
 
-def parse_forwarded_email(msg, depth, max_depth, container_path):
+def is_empty_email_data(email_data):
     """
-    Parse forwarded email content.
+    Check if email data dictionary has empty values for all important fields.
     
     Args:
-        msg (email.message.Message): Email message object
-        depth (int): Current recursion depth
-        max_depth (int): Maximum recursion depth
-        container_path (list): Path of containers
+        email_data (dict): Email data dictionary
         
     Returns:
-        dict: Parsed forwarded email data
+        bool: True if all important fields are empty, False otherwise
     """
-    # This would be implemented in forwarded_parser.py
-    # Import here to avoid circular import
-    from parsers.forwarded_parser import parse_forwarded_email as parse_forwarded
-    
-    # Call the actual implementation
-    return parse_forwarded(msg, depth, max_depth, container_path)
-
-def is_embedded_email(content):
-    """
-    Check if content is an embedded email.
-    
-    Args:
-        content (str or bytes): Content to check
+    if not isinstance(email_data, dict):
+        return True
         
-    Returns:
-        bool: True if it's an embedded email, False otherwise
-    """
-    # Simple check for email patterns
-    if isinstance(content, bytes):
-        try:
-            content = content.decode('utf-8', errors='replace')
-        except:
-            return False
+    # Check for empty original sender/recipient fields
+    has_sender = bool(email_data.get("original_sender", ""))
+    has_recipient = bool(email_data.get("original_recipient", ""))
+    has_subject = bool(email_data.get("original_subject", ""))
+    has_body = bool(email_data.get("original_body", ""))
     
-    # Check for email headers
-    header_patterns = [
-        r"From:.*\n",
-        r"To:.*\n",
-        r"Subject:.*\n",
-        r"Date:.*\n",
-        r"Message-ID:.*\n"
-    ]
-    
-    header_count = 0
-    for pattern in header_patterns:
-        if re.search(pattern, content, re.IGNORECASE):
-            header_count += 1
-    
-    # If we find at least 3 header patterns, it's likely an embedded email
-    return header_count >= 3
-
-def extract_original_email(email_data):
-    """
-    Extract the original email from parsed data.
-    
-    Args:
-        email_data (dict): Parsed email data
-        
-    Returns:
-        dict: Original email data
-    """
-    original_email = {
-        "message_id": "",
-        "sender": "",
-        "return_path": "",
-        "receiver": "",
-        "reply_to": "",
-        "subject": "",
-        "date": "",
-        "body": "",  
-        "attachments": [],
-        "container_path": [],
-        "reconstruction_method": ""
-    }
-    
-    # Copy relevant fields from email_data
-    if "message_id" in email_data:
-        original_email["message_id"] = email_data["message_id"]
-    if "sender" in email_data:
-        original_email["sender"] = email_data["sender"]
-    if "return_path" in email_data:
-        original_email["return_path"] = email_data["return_path"]
-    if "receiver" in email_data:
-        original_email["receiver"] = email_data["receiver"]
-    if "reply_to" in email_data:
-        original_email["reply_to"] = email_data["reply_to"]
-    if "subject" in email_data:
-        original_email["subject"] = email_data["subject"]
-    if "date" in email_data:
-        original_email["date"] = email_data["date"]
-    if "body" in email_data:
-        # Handle both string and dict formats for backwards compatibility
-        if isinstance(email_data["body"], dict):
-            if "body" in email_data["body"]:
-                original_email["body"] = email_data["body"]["body"]
-            elif "plain" in email_data["body"]:
-                # Fallback to plain text if available
-                original_email["body"] = email_data["body"]["plain"]
-            elif "html" in email_data["body"]:
-                # Fallback to HTML with tags removed
-                html_body = email_data["body"]["html"]
-                plain_body = re.sub(r'<[^>]+>', ' ', html_body)
-                plain_body = re.sub(r'\s+', ' ', plain_body).strip()
-                original_email["body"] = plain_body
-        else:
-            # If it's already a string
-            original_email["body"] = email_data["body"]
-    if "attachments" in email_data:
-        original_email["attachments"] = email_data["attachments"]
-    
-    return original_email
+    # If all are empty, consider it empty
+    return not (has_sender or has_recipient or has_subject or has_body)
