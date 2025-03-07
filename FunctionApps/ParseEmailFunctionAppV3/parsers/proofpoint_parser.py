@@ -80,20 +80,88 @@ def parse_proofpoint_email(email_content, depth=0, max_depth=10, container_path=
     # Convert bytes to string if needed
     if isinstance(email_content, bytes):
         try:
-            email_content = email_content.decode('utf-8', errors='replace')
+            email_content_str = email_content.decode('utf-8', errors='replace')
         except Exception as e:
             logger.error(f"Error decoding Proofpoint email content: {str(e)}")
             return {"error": f"Failed to decode Proofpoint email content: {str(e)}"}
+    else:
+        email_content_str = email_content
     
-    # Extract the header section
-    headers_pattern = rf"{re.escape(PROOFPOINT_HEADER_MARKER_BEGIN)}\r?\n(.*?)\r?\n{re.escape(PROOFPOINT_HEADER_MARKER_END)}"
-    headers_match = re.search(headers_pattern, email_content, re.DOTALL)
-    headers_text = headers_match.group(1).strip() if headers_match else ""
+    # Parse the email to handle multipart content
+    from email import message_from_string, message_from_bytes
+    if isinstance(email_content, bytes):
+        msg = message_from_bytes(email_content)
+    else:
+        msg = message_from_string(email_content)
     
-    # Extract the email content
-    content_pattern = rf"{re.escape(PROOFPOINT_BODY_MARKER_BEGIN)}\r?\n(.*?)(?:\r?\n{re.escape(PROOFPOINT_BODY_MARKER_END)}|$)"
-    content_match = re.search(content_pattern, email_content, re.DOTALL)
-    reported_content = content_match.group(1).strip() if content_match else ""
+    # Initialize variables to store headers and content
+    headers_text = ""
+    reported_content = ""
+    
+    # Process all parts of the email
+    if msg.is_multipart():
+        logger.debug("Proofpoint email is multipart, processing all parts")
+        for part in msg.walk():
+            # Skip multipart containers
+            if part.get_content_maintype() == 'multipart':
+                continue
+            
+            # Get the content of this part
+            part_content = part.get_payload(decode=True)
+            if part_content is None:
+                continue
+            
+            # Try to decode the content to string
+            try:
+                charset = part.get_content_charset() or 'utf-8'
+                part_text = part_content.decode(charset, errors='replace')
+            except Exception as e:
+                logger.warning(f"Error decoding part: {str(e)}, trying utf-8")
+                part_text = part_content.decode('utf-8', errors='replace')
+            
+            # Search for Proofpoint markers in this part
+            found_headers, found_content = extract_proofpoint_sections(part_text)
+            
+            if found_headers:
+                headers_text = found_headers
+                logger.debug(f"Found headers in email part with content type: {part.get_content_type()}")
+            
+            if found_content:
+                reported_content = found_content
+                logger.debug(f"Found content in email part with content type: {part.get_content_type()}")
+            
+            # If we found both headers and content, we can stop processing parts
+            if headers_text and reported_content:
+                break
+    else:
+        # For non-multipart emails, check the entire content
+        payload = msg.get_payload(decode=True)
+        if payload:
+            try:
+                charset = msg.get_content_charset() or 'utf-8'
+                payload_text = payload.decode(charset, errors='replace')
+            except Exception as e:
+                logger.warning(f"Error decoding payload: {str(e)}, trying utf-8")
+                payload_text = payload.decode('utf-8', errors='replace')
+            
+            headers_text, reported_content = extract_proofpoint_sections(payload_text)
+    
+    # If no headers or content were found, try the original email content
+    if not headers_text or not reported_content:
+        headers_text_orig, reported_content_orig = extract_proofpoint_sections(email_content_str)
+        if not headers_text:
+            headers_text = headers_text_orig
+        if not reported_content:
+            reported_content = reported_content_orig
+    
+    # Log what we found
+    logger.debug(f"Extracted headers length: {len(headers_text)}")
+    if not headers_text:
+        logger.warning("No headers extracted from Proofpoint email")
+    
+    logger.debug(f"Extracted content length: {len(reported_content)}")
+    if not reported_content:
+        logger.warning("No content extracted from Proofpoint email")
     
     # Parse headers manually
     header_dict = {}
@@ -150,20 +218,44 @@ def parse_proofpoint_email(email_content, depth=0, max_depth=10, container_path=
         if key.lower() == 'received':
             received_headers.append(header_dict[key])
     
+    # Look for and extract the original subject if it wasn't found in headers
+    original_subject = header_dict.get('Subject', '')
+    if not original_subject and reported_content:
+        subject_match = re.search(r'Subject:[ \t]*([^\r\n]+)', reported_content, re.IGNORECASE)
+        if subject_match:
+            original_subject = subject_match.group(1).strip()
+            logger.debug(f"Extracted subject from content: {original_subject}")
+    
+    # Look for sender information if it wasn't found in headers
+    original_sender = header_dict.get('From', '')
+    if not original_sender and reported_content:
+        from_match = re.search(r'From:[ \t]*([^\r\n]+)', reported_content, re.IGNORECASE)
+        if from_match:
+            original_sender = from_match.group(1).strip()
+            logger.debug(f"Extracted sender from content: {original_sender}")
+    
     # Extract URLs and IP addresses from the reported content
     urls = extract_urls(reported_content)
     ip_addresses = extract_ip_addresses(reported_content)
     domains = extract_domains(urls)
     
+    # If no subject was found yet, try to extract it from the Proofpoint subject
+    if not original_subject:
+        # Typical Proofpoint subject format: "Potential Phish: Original Email Subject"
+        proofpoint_subject = msg.get('Subject', '')
+        if 'Potential Phish:' in proofpoint_subject:
+            original_subject = proofpoint_subject.split('Potential Phish:', 1)[1].strip()
+            logger.debug(f"Extracted subject from Proofpoint subject line: {original_subject}")
+    
     # Construct the email data
     email_data = {
         "email_content": {
             "message_id": header_dict.get('Message-ID', ''),
-            "sender": header_dict.get('From', ''),
+            "sender": original_sender,
             "return_path": header_dict.get('Return-Path', ''),
             "receiver": header_dict.get('To', ''),
             "reply_to": header_dict.get('Reply-To', ''),
-            "subject": header_dict.get('Subject', ''),
+            "subject": original_subject,
             "date": header_dict.get('Date', ''),
             "body": reported_content,
             "attachments": [],  
@@ -182,4 +274,64 @@ def parse_proofpoint_email(email_content, depth=0, max_depth=10, container_path=
         }
     }
     
+    # Add any additional useful Proofpoint-specific fields if they exist in headers
+    proofpoint_fields = {
+        "x_proofpoint_spam": header_dict.get('X-Proofpoint-Spam-Details', ''),
+        "x_proofpoint_virus": header_dict.get('X-Proofpoint-Virus-Version', ''),
+        "x_proofpoint_spam_score": header_dict.get('X-Proofpoint-Spam-Score', '')
+    }
+    
+    # Only add non-empty Proofpoint fields
+    proofpoint_data = {k: v for k, v in proofpoint_fields.items() if v}
+    if proofpoint_data:
+        email_data["email_content"]["proofpoint_metadata"] = proofpoint_data
+    
     return email_data
+
+def extract_proofpoint_sections(text):
+    """
+    Extract Proofpoint header and content sections from text.
+    
+    Args:
+        text (str): Text to search for Proofpoint sections
+        
+    Returns:
+        tuple: (headers_text, reported_content)
+    """
+    # Default empty values
+    headers_text = ""
+    reported_content = ""
+    
+    # Define patterns for headers
+    header_patterns = [
+        rf"{re.escape(PROOFPOINT_HEADER_MARKER_BEGIN)}\r?\n(.*?)\r?\n{re.escape(PROOFPOINT_HEADER_MARKER_END)}",
+        r"[-]{2,15} Begin Email Headers [-]{0,15}\r?\n(.*?)\r?\n[-]{2,15} End Email Headers [-]{0,15}",
+        r"Begin Email Headers\s*[-]*\s*\r?\n(.*?)\r?\nEnd Email Headers",
+        r"Email Headers:\r?\n[-]{0,15}\r?\n(.*?)\r?\n[-]{0,15}"
+    ]
+    
+    # Try each header pattern
+    for pattern in header_patterns:
+        headers_match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+        if headers_match:
+            headers_text = headers_match.group(1).strip()
+            logger.debug(f"Found headers with pattern: {pattern[:30]}...")
+            break
+    
+    # Define patterns for content
+    content_patterns = [
+        rf"{re.escape(PROOFPOINT_BODY_MARKER_BEGIN)}\r?\n(.*?)(?:\r?\n{re.escape(PROOFPOINT_BODY_MARKER_END)}|$)",
+        r"[-]{2,15} Begin Reported Email [-]{0,15}\r?\n(.*?)(?:\r?\n[-]{2,15} End Reported Email [-]{0,15}|$)",
+        r"Begin Reported Email\s*[-]*\s*\r?\n(.*?)(?:\r?\nEnd Reported Email|$)",
+        r"Reported Email:\r?\n[-]{0,15}\r?\n(.*?)(?:\r?\n[-]{0,15}|$)"
+    ]
+    
+    # Try each content pattern
+    for pattern in content_patterns:
+        content_match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+        if content_match:
+            reported_content = content_match.group(1).strip()
+            logger.debug(f"Found content with pattern: {pattern[:30]}...")
+            break
+    
+    return headers_text, reported_content
