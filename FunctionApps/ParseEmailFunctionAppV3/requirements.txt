@@ -1,8 +1,9 @@
 azure-functions
-olefile
-extract-msg>=0.30.0
-pdfminer.six>=20200517
-requests>=2.25.0
-python-magic>=0.4.18
-email-validator>=1.1.2
-beautifulsoup4>=4.9.3
+pdfminer.six
+pandas
+openpyxl
+xlrd
+beautifulsoup4
+requests
+tnefparse
+python-magic
