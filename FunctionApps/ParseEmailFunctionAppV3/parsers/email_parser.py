@@ -3,6 +3,8 @@ import logging
 import re
 from email.parser import BytesParser
 import traceback
+import urllib.parse
+from tnefparse import TNEF
 from extractors.header_extractor import extract_headers
 from extractors.body_extractor import extract_body
 from extractors.attachment_extractor import extract_attachments
@@ -214,21 +216,84 @@ def parse_email(email_content, depth=0, max_depth=10, container_path=None):
         # If no embedded email was found, treat this as the original email
         # Extract all necessary metadata
         headers = extract_headers(msg)
-        body_data = extract_body(msg) if not 'body_data' in locals() else body_data
+        body_data = extract_body(msg) if "body_data" not in locals() else body_data
         
         # Process URLs, IP addresses, and domains
-        all_urls = extract_urls(body_data["body"])
+        all_urls = []
+        
+        # Extract URLs from HTML content if available (before it gets stripped)
+        if "html" in body_data and body_data["html"]:
+            html_content = body_data["html"]
+            # First decode any quoted-printable encoding in HTML
+            from extractors.url_extractor import decode_quoted_printable
+            decoded_html = decode_quoted_printable(html_content)
+            logger.debug(f"decode_quoted_printable: {decoded_html[:200]}")  # Log first 200 chars
+            
+            from extractors.url_extractor import extract_urls_from_html
+            html_urls_extracted = extract_urls_from_html(decoded_html)
+            logger.debug(f"extract_urls_from_html: {decoded_html[:200]}")  # Log same content
+            logger.debug(f"Extracted {len(html_urls_extracted)} URLs directly from HTML")
+            all_urls.extend(html_urls_extracted)
+            
+            # Also use the regular URL extractor on HTML content
+            html_urls = extract_urls(decoded_html)
+            logger.debug(f"Extracted {len(html_urls)} URLs from HTML with regex")
+            all_urls.extend(html_urls)
+        
+        # Also extract from plain text body
+        body_text = body_data.get("body", "")
+        from extractors.url_extractor import decode_quoted_printable
+        decoded_body = decode_quoted_printable(body_text)
+        logger.debug(f"decode_quoted_printable: {decoded_body[:200]}")  # Log first 200 chars
+        
+        body_urls = extract_urls(decoded_body)
+        logger.debug(f"extract_urls: {decoded_body[:200]}")  # Log same content
+        logger.debug(f"Extracted {len(body_urls)} URLs from plain text body")
+        all_urls.extend(body_urls)
+        
+        # Remove duplicate URLs - convert to dictionary format for consistent handling
         processed_urls = []
+        seen_urls = set()
+        
         for url in all_urls:
-            if "safelinks.protection.outlook.com" in url:
-                url = decode_safelinks(url)
-            elif "urldefense.com" in url:
-                url = decode_proofpoint_urls(url)
-            processed_urls.append(url)
+            url_str = url if isinstance(url, str) else url.get("original_url", "")
+            
+            # Skip if we've seen this URL already
+            if url_str in seen_urls:
+                continue
+            
+            seen_urls.add(url_str)
+            
+            # Standardize URL format
+            url_obj = {"original_url": url_str, "is_shortened": False, "expanded_url": url_str}
+            if isinstance(url, dict):
+                url_obj.update(url)
+            
+            # Handle Microsoft SafeLinks
+            if "safelinks.protection.outlook.com" in url_str:
+                decoded_url = decode_safelinks(url_str)
+                url_obj["original_url"] = decoded_url
+                url_obj["expanded_url"] = decoded_url
+            # Handle Proofpoint URL Defense
+            elif "urldefense.com" in url_str:
+                decoded_url = decode_proofpoint_urls(url_str)
+                url_obj["original_url"] = decoded_url
+                url_obj["expanded_url"] = decoded_url
+            
+            processed_urls.append(url_obj)
 
         # Add this line to expand shortened URLs
         from extractors.url_extractor import batch_expand_urls
-        processed_urls = batch_expand_urls(processed_urls)        
+        processed_urls = batch_expand_urls(processed_urls)
+        logger.debug(f"After URL processing and expansion, have {len(processed_urls)} unique URLs")
+
+        # Apply URL deduplication if non-shortened URL count exceeds 20
+        non_shortened_count = sum(1 for url in processed_urls if not url.get('is_shortened', False))
+        if non_shortened_count > 20:
+            processed_urls = dedupe_to_base_urls(processed_urls)
+            logger.debug(f"Applied URL deduplication. Final URL count: {len(processed_urls)}")
+        else:
+            logger.debug(f"URL count within threshold ({non_shortened_count} non-shortened) - skipping deduplication")
 
         # Extract attachments if not already done
         if 'attachments' not in locals():
@@ -237,8 +302,9 @@ def parse_email(email_content, depth=0, max_depth=10, container_path=None):
         
         # Extract IP addresses and domains
         headers_text = " ".join([f"{k}: {v}" for k, v in msg.items()])
-        ip_addresses = extract_ip_addresses(body_data["body"] + " " + headers_text)
+        ip_addresses = extract_ip_addresses(body_text + " " + headers_text)
         domains = extract_domains(processed_urls)
+        logger.debug(f"Extracted {len(domains)} domains")
         
         # Create original email from our parsed data
         original_email = {
@@ -249,7 +315,7 @@ def parse_email(email_content, depth=0, max_depth=10, container_path=None):
             "reply_to": headers["reply_to"],
             "subject": headers["subject"],
             "date": headers["date"],
-            "body": clean_excessive_newlines(body_data["body"]),
+            "body": clean_excessive_newlines(body_data.get("body", "")),
             "attachments": attachments,
             "container_path": container_path,
             "reconstruction_method": "direct",
@@ -345,3 +411,59 @@ def is_empty_email_data(email_data):
     
     # If all are empty, consider it empty
     return not (has_sender or has_recipient or has_subject or has_body)
+
+def dedupe_to_base_urls(url_list):
+    """
+    Deduplicates URLs by extracting and keeping only the unique base parts,
+    while preserving all shortened URLs intact.
+    
+    Args:
+        url_list (list): List of URL dictionaries with 'original_url', 'is_shortened', and 'expanded_url' keys
+        
+    Returns:
+        list: List of deduplicated URL dictionaries
+    """
+    logger.debug(f"Deduplicating {len(url_list)} URLs")
+    
+    # Separate shortened and non-shortened URLs
+    shortened_urls = []
+    non_shortened_urls = []
+    
+    for url_obj in url_list:
+        if url_obj.get("is_shortened", False):
+            shortened_urls.append(url_obj)
+        else:
+            non_shortened_urls.append(url_obj)
+    
+    logger.debug(f"Found {len(shortened_urls)} shortened URLs and {len(non_shortened_urls)} non-shortened URLs")
+    
+    # Only deduplicate non-shortened URLs
+    deduplicated_non_shortened = []
+    seen_base_urls = set()
+    
+    for url_obj in non_shortened_urls:
+        original_url = url_obj.get("original_url", "")
+        try:
+            parsed_url = urllib.parse.urlparse(original_url)
+            base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            
+            if base_url not in seen_base_urls:
+                seen_base_urls.add(base_url)
+                # Create a new object with just the base URL
+                deduplicated_obj = {
+                    "original_url": base_url,
+                    "is_shortened": False,
+                    "expanded_url": base_url
+                }
+                deduplicated_non_shortened.append(deduplicated_obj)
+                logger.debug(f"Adding unique base URL: {base_url}")
+        except Exception as e:
+            logger.error(f"Error deduplicating URL {original_url}: {str(e)}")
+            # If there's an error, keep the original URL object
+            deduplicated_non_shortened.append(url_obj)
+    
+    # Combine shortened URLs with deduplicated non-shortened URLs
+    final_url_list = shortened_urls + deduplicated_non_shortened
+    logger.debug(f"Final deduplicated URL count: {len(final_url_list)}")
+    
+    return final_url_list

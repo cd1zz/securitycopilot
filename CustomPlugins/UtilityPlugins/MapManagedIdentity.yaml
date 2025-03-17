@@ -1,0 +1,23 @@
+Descriptor:
+  Name: Map Managed Identity to Resource
+  DisplayName: Map Managed Identity to Resource
+  Description: Map Managed Identity to Resource (user or system assigned)
+
+SkillGroups:
+  - Format: LogicApp
+    Skills:
+      - Name: MapManagedIdentity
+        DisplayName: MapManagedIdentity
+        Description: Map Managed Identity to Resource (user or system assigned)
+        Inputs:
+          - Name: ObjectId
+            Description: ObjectId
+            Required: false
+          - Name: identityName
+            Description: identityName
+            Required: false
+        Settings:
+          SubscriptionId: ""
+          ResourceGroup: craig_group
+          WorkflowName: MapManagedIdentity
+          TriggerName: http_trigger

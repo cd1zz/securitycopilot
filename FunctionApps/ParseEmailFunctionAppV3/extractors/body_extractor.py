@@ -9,7 +9,7 @@ def extract_body(msg):
         msg (email.message.Message): Email message object
         
     Returns:
-        dict: Dictionary with body text content
+        dict: Dictionary with body text content and original HTML content if available
     """
     logging.debug("Extracting body content from email message")
     
@@ -49,12 +49,15 @@ def extract_body(msg):
             elif part.is_multipart():
                 logging.debug(f"Found nested multipart in part {i}, recursively extracting")
                 nested_body = extract_body(part)
-                if isinstance(nested_body, dict) and "body" in nested_body:
-                    nested_body_content = nested_body["body"]
-                    logging.debug(f"Found nested body of length {len(nested_body_content)}")
-                    # If no plain content yet, use the nested body
-                    if not plain_content:
-                        plain_content = nested_body_content
+                if isinstance(nested_body, dict):
+                    if "body" in nested_body:
+                        nested_body_content = nested_body["body"]
+                        logging.debug(f"Found nested body of length {len(nested_body_content)}")
+                        # If no plain content yet, use the nested body
+                        if not plain_content:
+                            plain_content = nested_body_content
+                    if "html" in nested_body and not html_content:
+                        html_content = nested_body["html"]
     
     # Handle single part messages
     else:
@@ -70,29 +73,37 @@ def extract_body(msg):
         elif content_type == "text/html":
             html_content = content
     
-    # Prioritize plain text content
+    # Create result dictionary with both plain text and HTML content
+    result = {}
+    
+    # Prioritize plain text content for the body field
     if plain_content:
         logging.debug(f"Returning plain text content of length {len(plain_content)}")
-        return {"body": plain_content}
-    
-    # If no plain text, extract text from HTML using strip_html_tags
-    if html_content:
+        result["body"] = plain_content
+    # If no plain text, extract text from HTML
+    elif html_content:
         try:
             logging.debug("Stripping HTML tags from content")
             text = strip_html_tags(html_content)
             text = re.sub(r'\s+', ' ', text).strip()
             logging.debug(f"Returning HTML-derived content of length {len(text)}")
-            return {"body": text}
+            result["body"] = text
         except Exception as e:
             logging.error(f"Error stripping HTML tags: {str(e)}")
             text = re.sub(r'<[^>]+>', ' ', html_content)
             text = re.sub(r'\s+', ' ', text).strip()
             logging.debug(f"Returning regex-stripped HTML content of length {len(text)}")
-            return {"body": text}
+            result["body"] = text
+    else:
+        # No content found
+        logging.warning("No content found in message")
+        result["body"] = ""
     
-    # No content found
-    logging.warning("No content found in message")
-    return {"body": ""}
+    # Always include the original HTML content if available
+    if html_content:
+        result["html"] = html_content
+    
+    return result
 
 def decode_content(part):
     """

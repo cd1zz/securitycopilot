@@ -36,7 +36,10 @@ def extract_urls(text):
     if not text:
         return []
     
-    logger.debug("Extracting URLs from text content")
+    logger.debug(f"extract_urls: {text}")
+    
+    # Decode quoted-printable encoding (common in email content)
+    text = decode_quoted_printable(text)
     
     # Extract URLs using regex
     regex_urls = re.findall(URL_PATTERN, text)
@@ -71,6 +74,38 @@ def extract_urls(text):
     logger.debug(f"Extracted {len(urls)} URLs")
     return urls
 
+def decode_quoted_printable(text):
+    """
+    Decode quoted-printable encoding in text, especially focused on URLs.
+    
+    Args:
+        text (str): Text that may contain quoted-printable encoded content
+        
+    Returns:
+        str: Decoded text
+    """
+    logger.debug(f"decode_quoted_printable: {text}")
+    try:
+        # Look for patterns like href=3D"http
+        if "=3D" in text:
+            # Use regex to find and replace quoted-printable sequences
+            text = re.sub(r'=3D(["\'])(https?://[^"\']+)(\1)', r'=\1\2\3', text)
+            
+            # Try to use quopri for more comprehensive decoding
+            import quopri
+            from io import BytesIO
+            
+            # Only decode if it looks like quoted-printable
+            if re.search(r'=[0-9A-F]{2}', text):
+                encoded_text = text.encode('utf-8', errors='replace')
+                decoded_text = quopri.decode(encoded_text)
+                text = decoded_text.decode('utf-8', errors='replace')
+        
+        return text
+    except Exception as e:
+        logger.error(f"Error decoding quoted-printable content: {str(e)}")
+        return text
+
 def extract_urls_from_html(content):
     """
     Extracts URLs from HTML content using BeautifulSoup.
@@ -79,11 +114,55 @@ def extract_urls_from_html(content):
         content (str): HTML content
         
     Returns:
-        list: List of URLs found in href attributes
+        list: List of URLs found in HTML elements
     """
+    logger.debug(f"extract_urls_from_html: {content}")
+    
     try:
         soup = BeautifulSoup(content, "html.parser")
-        urls = [a['href'] for a in soup.find_all('a', href=True)]
+        urls = []
+        
+        # Extract from anchor tags
+        for a in soup.find_all('a', href=True):
+            href = a['href'].strip()
+            if href and not href.startswith(('#', 'javascript:', 'mailto:')):
+                urls.append(href)
+        
+        # Extract from image sources
+        for img in soup.find_all('img', src=True):
+            src = img['src'].strip()
+            if src and not src.startswith(('data:', 'cid:')):
+                urls.append(src)
+        
+        # Extract from link tags
+        for link in soup.find_all('link', href=True):
+            href = link['href'].strip()
+            if href:
+                urls.append(href)
+        
+        # Extract from script sources
+        for script in soup.find_all('script', src=True):
+            src = script['src'].strip()
+            if src:
+                urls.append(src)
+        
+        # Extract from form actions
+        for form in soup.find_all('form', action=True):
+            action = form['action'].strip()
+            if action and not action.startswith('#'):
+                urls.append(action)
+        
+        # Extract URLs from inline styles
+        for tag in soup.find_all(style=True):
+            style_urls = re.findall(r'url\([\'"]?(https?://[^\'"\)]+)[\'"]?\)', tag['style'])
+            urls.extend(style_urls)
+        
+        # Extract URLs from style tags
+        for style in soup.find_all('style'):
+            if style.string:
+                style_urls = re.findall(r'url\([\'"]?(https?://[^\'"\)]+)[\'"]?\)', style.string)
+                urls.extend(style_urls)
+        
         return urls
     except Exception as e:
         logger.error(f"Error extracting URLs from HTML: {str(e)}")

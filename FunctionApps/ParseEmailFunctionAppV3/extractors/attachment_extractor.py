@@ -1,11 +1,8 @@
 # extractors/attachment_extractor.py
 import logging
 import hashlib
-import base64
-import quopri
-import os
 import re
-from email.message import Message
+from tnefparse import TNEF
 import traceback
 
 logger = logging.getLogger(__name__)
@@ -308,10 +305,24 @@ def process_attachment(part, depth, max_depth, container_path):
         
         # Extract text from attachment for indexing
         attachment_text = ""
+        attachment_urls = []
+        
         if content_type.startswith("text/"):
             try:
                 charset = part.get_content_charset() or 'utf-8'
                 attachment_text = content.decode(charset, errors='replace')
+                
+                # Extract URLs from text attachments
+                if content_type == "text/html":
+                    # For HTML, use our specialized extractor
+                    from extractors.url_extractor import extract_urls, decode_quoted_printable
+                    # First decode any quoted-printable encoding
+                    decoded_text = decode_quoted_printable(attachment_text)
+                    attachment_urls = extract_urls(decoded_text)
+                elif attachment_text:
+                    from extractors.url_extractor import extract_urls
+                    attachment_urls = extract_urls(attachment_text)
+                
             except Exception as e:
                 logger.warning(f"Failed to decode attachment text: {str(e)}")
                 attachment_text = content.decode('utf-8', errors='replace')
@@ -320,6 +331,12 @@ def process_attachment(part, depth, max_depth, container_path):
                 # Try to extract text from PDF
                 from extractors.pdf_extractor import extract_text_from_pdf
                 attachment_text = extract_text_from_pdf(content)
+                
+                # Extract URLs from PDF text
+                if attachment_text:
+                    from extractors.url_extractor import extract_urls
+                    attachment_urls = extract_urls(attachment_text)
+                
             except Exception as e:
                 logger.warning(f"Failed to extract PDF text: {str(e)}")
                 attachment_text = "[PDF Text Extraction Failed]"
@@ -334,8 +351,18 @@ def process_attachment(part, depth, max_depth, container_path):
             "attachment_text": attachment_text
         }
         
+        # Add URLs found in the attachment
+        if attachment_urls:
+            attachment["urls"] = attachment_urls
+        
         if parsed_email:
             attachment["parsed_email"] = parsed_email
+            
+            # If the parsed email has URLs, add them to attachment URLs
+            if "email_content" in parsed_email and "urls" in parsed_email["email_content"]:
+                if "urls" not in attachment:
+                    attachment["urls"] = []
+                attachment["urls"].extend(parsed_email["email_content"]["urls"])
         
         return attachment
         

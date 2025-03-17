@@ -1,5 +1,6 @@
 azure-functions
 olefile
+tnefparse
 extract-msg>=0.30.0
 pdfminer.six>=20200517
 requests>=2.25.0

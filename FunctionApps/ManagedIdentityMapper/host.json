@@ -3,12 +3,12 @@
   "logging": {
     "applicationInsights": {
       "samplingSettings": {
-        "isEnabled": false,
-        "excludedTypes": ""
+        "isEnabled": false
       }
     },
     "logLevel": {
-      "default": "Debug"
+      "Function": "Debug",
+      "Host": "Debug"
     }
   },
   "extensionBundle": {
