@@ -305,9 +305,43 @@ def process_attachment(part, depth, max_depth, container_path):
         
         # Extract text from attachment for indexing
         attachment_text = ""
-        attachment_urls = []
         
-        if content_type.startswith("text/"):
+        # PDF handling with extended content type recognition
+        if content_type in {"application/pdf", "application/x-pdf", "application/octet-stream"} and (
+            content_type != "application/octet-stream" or (filename and filename.lower().endswith('.pdf'))
+        ):
+            try:
+                # Try to extract text from PDF
+                from extractors.pdf_extractor import extract_text_from_pdf
+                attachment_text = extract_text_from_pdf(content)
+                logger.debug(f"Extracted {len(attachment_text)} characters of text from PDF")
+            except Exception as e:
+                logger.warning(f"Failed to extract PDF text: {str(e)}")
+                attachment_text = f"[PDF Text Extraction Failed: {str(e)}]"
+                
+        # Excel file handling
+        elif content_type in {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-excel",
+            "application/msexcel",
+            "application/x-msexcel",
+            "application/x-ms-excel",
+            "application/x-excel",
+            "application/x-dos_ms_excel",
+            "application/xls",
+            "application/x-xls"
+        } or (filename and filename.lower().endswith(('.xls', '.xlsx'))):
+            try:
+                # Import Excel extractor
+                from extractors.excel_extractor import extract_text_from_excel
+                attachment_text = extract_text_from_excel(content)
+                logger.debug(f"Extracted {len(attachment_text)} characters of text from Excel")
+            except Exception as e:
+                logger.warning(f"Failed to extract Excel text: {str(e)}")
+                attachment_text = f"[Excel Text Extraction Failed: {str(e)}]"
+        
+        # Plain text handling
+        elif content_type.startswith("text/"):
             try:
                 charset = part.get_content_charset() or 'utf-8'
                 attachment_text = content.decode(charset, errors='replace')
@@ -326,20 +360,6 @@ def process_attachment(part, depth, max_depth, container_path):
             except Exception as e:
                 logger.warning(f"Failed to decode attachment text: {str(e)}")
                 attachment_text = content.decode('utf-8', errors='replace')
-        elif content_type == "application/pdf":
-            try:
-                # Try to extract text from PDF
-                from extractors.pdf_extractor import extract_text_from_pdf
-                attachment_text = extract_text_from_pdf(content)
-                
-                # Extract URLs from PDF text
-                if attachment_text:
-                    from extractors.url_extractor import extract_urls
-                    attachment_urls = extract_urls(attachment_text)
-                
-            except Exception as e:
-                logger.warning(f"Failed to extract PDF text: {str(e)}")
-                attachment_text = "[PDF Text Extraction Failed]"
         
         attachment = {
             "attachment_name": filename,
