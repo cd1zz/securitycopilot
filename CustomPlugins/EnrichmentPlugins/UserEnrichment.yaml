@@ -30,6 +30,10 @@ SkillGroups:
           - Name: upn
             Description: User principal name, e.g., mscott@woodgrove.ms
             Required: true
+          - Name: exclude_ip
+            Description: Any IP address that should be excluded from the results.
+            Default: ""
+            Required: false
         Settings:
           Target: Defender
           Template: |-
@@ -42,6 +46,7 @@ SkillGroups:
             // Retrieve and summarize the user's login activity, focusing on successful vs failed attempts and identifying unusual patterns.
             SigninLogs 
             | where TimeGenerated > TimeFrame
+            | where IPAddress != "{{exclude_ip}}" // exclude_ip from query
             | where UserPrincipalName =~ UPN
             | summarize FirstSeen = min(TimeGenerated), LastObserved = max(TimeGenerated), SuccessfullCount = count(ResultType = 0), FailureCount = count(ResultType != 0) 
             by UserPrincipalName, IPAddress, Location, tostring(DeviceDetail.deviceId), UserAgent, ClientAppUsed, AppDisplayName
@@ -319,11 +324,16 @@ SkillGroups:
           - Name: lookback_period
             Description: The time range to look back. i.e., 1d, 7d, 30d (default is 1d)
             Required: false
+          - Name: exclude_ip
+            Description: Any IP address that should be excluded from the results.
+            Default: ""
+            Required: false
         Settings:
           Target: Defender
           Template: |-
             SigninLogs
             | where TimeGenerated >= ago(1d) // Specify the lookback_period, default 1d
+            | where IPAddress != "{{exclude_ip}}" // exclude_ip from query
             | where ResultType != 0  // Filtering for failed sign-ins; 0 indicates success
             | where UserPrincipalName == "{{upn}}"
             | summarize FailedAttempts = count(), UniqueIPs = dcount(IPAddress), Locations = dcount(Location), ResultDescriptions = makeset(ResultDescription) by bin(TimeGenerated, 1d)
@@ -463,6 +473,10 @@ SkillGroups:
           - Name: upn
             Description: The UPN (User Principal Name) to search for.
             Required: true
+          - Name: exclude_ip
+            Description: Any IP address that should be excluded from the results.
+            Default: ""
+            Required: false
         Settings:
           Target: Defender
           Template: |-
@@ -481,6 +495,7 @@ SkillGroups:
             SigninLogs
             | where ResultType == 0 // Filter for successful logins
             | where TimeGenerated > ago(7d)
+            | where IPAddress != "{{exclude_ip}}" // exclude_ip from query
             | extend LocationDetails = parse_json(LocationDetails) // Parse location details
             | extend Latitude = tostring(LocationDetails.geoCoordinates.latitude),
                     Longitude = tostring(LocationDetails.geoCoordinates.longitude),
