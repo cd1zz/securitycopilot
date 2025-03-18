@@ -222,6 +222,10 @@ SkillGroups:
           - Name: upn
             Description: User principle name. i.e., mscott@woodgrove.ms
             Required: true
+          - Name: exclude_ip
+            Description: Any IP address that should be excluded from the results.
+            Default: ""
+            Required: false
         Settings:
           Target: Defender
           Template: |-
@@ -234,12 +238,13 @@ SkillGroups:
             let TimeFrame = ago(30d);
             // Identify the most frequently used IP address for the user.
             let MostCommonIP = toscalar(
-                SigninLogs
-                | where TimeGenerated > TimeFrame
-                | where UserPrincipalName =~ UPN
-                | summarize IPCount = count() by IPAddress
-                | top 1 by IPCount desc
-                | project IPAddress
+              SigninLogs
+              | where TimeGenerated > TimeFrame
+              | where UserPrincipalName =~ UPN
+              | where IPAddress != "{{exclude_ip}}" // exclude_ip from query
+              | summarize IPCount = count() by IPAddress
+              | top 1 by IPCount desc
+              | project IPAddress
             );
             // Identify the most frequently used location (e.g., city, country) for the user.
             let MostCommonLocation = toscalar(
