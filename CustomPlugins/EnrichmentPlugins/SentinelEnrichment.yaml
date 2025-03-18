@@ -1,0 +1,76 @@
+Descriptor:
+  Name: Sentinel Custom Enrichment Queries
+  DisplayName: Sentinel Sentinel Enrichment Queries
+  DescriptionForModel: A plugin to help security analysts list watchlists and check if a user is part of a specified watchlist for quick threat hunting and user validation.
+  Description: Tools to enumerate watchlists and check user presence in a specific watchlist.
+  SupportedAuthTypes:
+    - None
+  Settings:
+    - Name: TenantId
+      Label: TenantId
+      Description: Azure TenantId.
+      HintText: TenantId
+      SettingType: String
+      Required: true
+
+    - Name: SubscriptionId
+      Label: SubscriptionnId
+      Description: This is the subscription id that security copilot will use for sentinel.
+      HintText: SubscriptionId
+      SettingType: String
+      Required: true
+      
+    - Name: WorkspaceName
+      Label: WorkspaceName
+      Description: This is the  workspace name that security copilot will use for sentinel.
+      HintText: yourworkspace
+      SettingType: String
+      Required: true
+
+    - Name: ResourceGroupName
+      Label: ResourceGroupName
+      Description: This is the resource group name that security copilot will use for sentinel.
+      HintText: yourresourcegroup
+      SettingType: String
+      Required: true
+  
+
+SkillGroups:
+  - Format: KQL
+    Skills:
+      - Name: ListSentinelWatchlists
+        DisplayName: List Sentinel Watchlists
+        DescriptionForModel: Retrieves all watchlists configured in Microsoft Sentinel, including their names, descriptions, and source information.
+        Description: Lists all watchlists available in Microsoft Sentinel.
+        Settings:
+          Target: Sentinel
+          TenantId: "{{TenantId}}"
+          SubscriptionId: "{{SubscriptionId}}"
+          ResourceGroupName: "{{ResourceGroupName}}"
+          WorkspaceName: "{{WorkspaceName}}"
+          Template: |-
+            Watchlist
+            | summarize WatchlistName = any(WatchlistName), WatchlistAlias = any(WatchlistAlias) by WatchlistId
+
+      - Name: CheckUserInSentinelWatchlist
+        DisplayName: Check if User is in Watchlist
+        DescriptionForModel: Given a watchlist name and user principal name, this skill checks if the user exists within the specified watchlist entries.
+        Description: Checks if the provided user principal name is present in a specified watchlist.
+        Inputs:
+          - Name: user_email
+            Description: User principal name  to search for.
+            Required: true
+          - Name: watchlist_context
+            Description: The context of the watchlist
+            Required: false
+        Settings:
+          Target: Sentinel
+          TenantId: "{{TenantId}}"
+          SubscriptionId: "{{SubscriptionId}}"
+          ResourceGroupName: "{{ResourceGroupName}}"
+          WorkspaceName: "{{WorkspaceName}}"
+          Template: |-
+            //The context of this watchlist is: {{watchlist_context}}
+            Watchlist
+            | where SearchKey == "{{user_email}}"  
+            | project WatchlistItem
