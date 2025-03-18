@@ -20,10 +20,10 @@ Descriptor:
       SettingType: String
       Required: true
 
-    - Name: SubscriptionName
-      Label: SubscriptionName
+    - Name: SubscriptionId
+      Label: SubscriptionId
       Description: This is the subscription name that security copilot will use for Sentinel.
-      HintText: yoursubscriptionname
+      HintText: yourSubscriptionId
       SettingType: String
       Required: true
       
@@ -64,7 +64,7 @@ SkillGroups:
         Settings:
           Target: Sentinel
           TenantId: "{{TenantId}}"
-          SubscriptionName: "{{SubscriptionName}}"
+          SubscriptionId: "{{SubscriptionId}}"
           ResourceGroupName: "{{ResourceGroupName}}"
           WorkspaceName: "{{WorkspaceName}}"
           Template: |-
@@ -104,7 +104,7 @@ SkillGroups:
         Settings:
           Target: Sentinel
           TenantId: "{{TenantId}}"
-          SubscriptionName: "{{SubscriptionName}}"
+          SubscriptionId: "{{SubscriptionId}}"
           ResourceGroupName: "{{ResourceGroupName}}"
           WorkspaceName: "{{WorkspaceName}}"
           Template: |-
