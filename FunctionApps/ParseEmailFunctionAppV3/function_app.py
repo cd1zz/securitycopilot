@@ -5,6 +5,7 @@ import base64
 from parsers.email_parser import parse_email
 from functions.json_cleaner.cleaner import clean_json_input
 from functions.html_report.generator import generate_html_report
+from functions.regex_extractor.extractor import extract_regex
 
 logging.getLogger().setLevel(logging.DEBUG)
 logger = logging.getLogger("AzureFunction")
@@ -105,3 +106,18 @@ def generate_html_report_functionapp(req: func.HttpRequest) -> func.HttpResponse
     """
     logging.info("HTML Report Generator function processing a request.")
     return generate_html_report(req)
+
+@app.function_name("extract_regex_functionapp")
+@app.route(methods=["POST"], route="")
+def extract_regex_functionapp(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Azure Function endpoint to extract content from a string using regex pattern matching.
+    
+    Args:
+        req (func.HttpRequest): HTTP request object containing pattern and subject
+        
+    Returns:
+        func.HttpResponse: HTTP response with regex match results
+    """
+    logging.info("Regex Extractor function processing a request.")
+    return extract_regex(req)

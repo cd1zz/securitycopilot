@@ -22,7 +22,7 @@
     "variables": {
         "UniqueSuffix": "[substring(uniqueString(resourceGroup().id), 0, 6)]",
         "FunctionAppName": "[concat(parameters('FunctionAppName'), variables('UniqueSuffix'))]",
-        "StorageAccountName": "[concat('phish', toLower(parameters('FunctionAppName')), variables('UniqueSuffix'))]"
+        "StorageAccountName": "[concat(toLower(parameters('FunctionAppName')), variables('UniqueSuffix'))]"
     },
     "resources": [
         {
