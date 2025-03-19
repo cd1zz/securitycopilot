@@ -19,7 +19,7 @@ An automated solution for phishing email analysis using Azure Logic Apps, Functi
 
 ### 1. Deploy Function App
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Latest_Release%2Ffunctionapp_azuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Latest_Release_Proofpoint_Compatible%2Ffunctionapp_azuredeploy.json)
 
 Required Parameters:
 - FunctionAppName (name is prepended with "phish" and random characters are appended)
@@ -29,7 +29,7 @@ Wait for the Function App to fully deploy before moving on to step 2.
 
 ### 2. Deploy Logic App
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Latest_Release%2Flogicapp_azuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPhishingLogicApp%2FPhishingLA_Latest_Release_Proofpoint_Compatible%2Flogicapp_azuredeploy.json)
 
 Required Parameters:
 - SubscriptionId
