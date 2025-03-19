@@ -225,6 +225,8 @@ def get_filename(part):
     
     return ""
 
+# Fix for process_attachment function in attachment_extractor.py
+
 def process_attachment(part, depth, max_depth, container_path):
     """
     Process an attachment part and extract relevant information.
@@ -306,6 +308,9 @@ def process_attachment(part, depth, max_depth, container_path):
         # Extract text from attachment for indexing
         attachment_text = ""
         
+        # Initialize attachment_urls here to avoid the UnboundLocalError
+        attachment_urls = []
+        
         # PDF handling with extended content type recognition
         if content_type in {"application/pdf", "application/x-pdf", "application/octet-stream"} and (
             content_type != "application/octet-stream" or (filename and filename.lower().endswith('.pdf'))
@@ -336,6 +341,12 @@ def process_attachment(part, depth, max_depth, container_path):
                 from extractors.excel_extractor import extract_text_from_excel
                 attachment_text = extract_text_from_excel(content)
                 logger.debug(f"Extracted {len(attachment_text)} characters of text from Excel")
+                
+                # Extract URLs from the Excel content if any
+                if attachment_text:
+                    from extractors.url_extractor import extract_urls
+                    attachment_urls = extract_urls(attachment_text)
+                
             except Exception as e:
                 logger.warning(f"Failed to extract Excel text: {str(e)}")
                 attachment_text = f"[Excel Text Extraction Failed: {str(e)}]"
@@ -360,6 +371,10 @@ def process_attachment(part, depth, max_depth, container_path):
             except Exception as e:
                 logger.warning(f"Failed to decode attachment text: {str(e)}")
                 attachment_text = content.decode('utf-8', errors='replace')
+                
+                # Still try to extract URLs with fallback decoding
+                from extractors.url_extractor import extract_urls
+                attachment_urls = extract_urls(attachment_text)
         
         attachment = {
             "attachment_name": filename,

@@ -3,6 +3,8 @@ import azure.functions as func
 import json
 import base64
 from parsers.email_parser import parse_email
+from functions.json_cleaner.cleaner import clean_json_input
+from functions.html_report.generator import generate_html_report
 
 logging.getLogger().setLevel(logging.DEBUG)
 logger = logging.getLogger("AzureFunction")
@@ -11,7 +13,8 @@ logger.setLevel(logging.DEBUG)
 # Initialize the function app
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 
-@app.route(route="", methods=["POST"])
+@app.function_name("parse_email_functionapp")
+@app.route(methods=["POST"], route="")
 def parse_email_functionapp(req: func.HttpRequest) -> func.HttpResponse:
     """
     Azure Function endpoint to parse emails and extract the original email.
@@ -71,3 +74,34 @@ def parse_email_functionapp(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500
         )
+
+@app.function_name("clean_json_functionapp")
+@app.route(methods=["POST"], route="")
+def clean_json_functionapp(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Azure Function endpoint to clean and validate JSON input by removing markdown notation
+    and replacing null values with "None" strings.
+    
+    Args:
+        req (func.HttpRequest): HTTP request object
+        
+    Returns:
+        func.HttpResponse: HTTP response with cleaned JSON
+    """
+    logging.info("JSON Cleaner function processing a request.")
+    return clean_json_input(req)
+
+@app.function_name("generate_html_report_functionapp")
+@app.route(methods=["POST"], route="")
+def generate_html_report_functionapp(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Azure Function endpoint to generate an HTML report from phishing analysis results.
+    
+    Args:
+        req (func.HttpRequest): HTTP request object containing phishing analysis JSON
+        
+    Returns:
+        func.HttpResponse: HTTP response with HTML report
+    """
+    logging.info("HTML Report Generator function processing a request.")
+    return generate_html_report(req)

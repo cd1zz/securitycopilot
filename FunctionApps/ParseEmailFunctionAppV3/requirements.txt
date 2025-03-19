@@ -7,3 +7,4 @@ requests>=2.25.0
 python-magic>=0.4.18
 email-validator>=1.1.2
 beautifulsoup4>=4.9.3
+jinja2>=3.0.0

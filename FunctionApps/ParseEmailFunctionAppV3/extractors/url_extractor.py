@@ -84,7 +84,7 @@ def decode_quoted_printable(text):
     Returns:
         str: Decoded text
     """
-    logger.debug(f"decode_quoted_printable: {text}")
+    #logger.debug(f"decode_quoted_printable: {text}")
     try:
         # Look for patterns like href=3D"http
         if "=3D" in text:
@@ -116,7 +116,7 @@ def extract_urls_from_html(content):
     Returns:
         list: List of URLs found in HTML elements
     """
-    logger.debug(f"extract_urls_from_html: {content}")
+    #logger.debug(f"extract_urls_from_html: {content}")
     
     try:
         soup = BeautifulSoup(content, "html.parser")
