@@ -33,7 +33,7 @@
     },
     "useSystemAssignedIdentity": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
         "description": "Use system assigned identity for storage access"
       }
@@ -53,8 +53,7 @@
     "LogAnalyticsName": "[concat(variables('FunctionAppName'), '-log')]",
     "ApplicationInsightsName": "[concat(variables('FunctionAppName'), '-insights')]",
     "FunctionPlanName": "[concat('FLEX-', variables('FunctionAppName'), '-', substring(variables('resourceToken'), 0, 4))]",
-    "deploymentStorageContainerName": "[concat('app-package-', variables('FunctionAppName'), '-', substring(variables('resourceToken'), 0, 6))]",
-    "storageRoleDefinitionId": "b7e6dc6d-f1e8-4753-8033-0f276bb0955b"
+    "deploymentStorageContainerName": "[concat('app-package-', variables('FunctionAppName'), '-', substring(variables('resourceToken'), 0, 6))]"
   },
   "resources": [
     {
@@ -98,7 +97,7 @@
       "kind": "StorageV2",
       "properties": {
         "accessTier": "Hot",
-        "allowSharedKeyAccess": "[not(parameters('useSystemAssignedIdentity'))]",
+        "allowSharedKeyAccess": true,
         "supportsHttpsTrafficOnly": true,
         "encryption": {
           "services": {
@@ -231,8 +230,8 @@
               "type": "blobContainer",
               "value": "[concat(reference(resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))).primaryEndpoints.blob, variables('deploymentStorageContainerName'))]",
               "authentication": {
-                "type": "[if(parameters('useSystemAssignedIdentity'), 'SystemAssignedIdentity', 'storageAccountConnectionString')]",
-                "storageAccountConnectionStringName": "[if(parameters('useSystemAssignedIdentity'), json('null'), 'DEPLOYMENT_STORAGE_CONNECTION_STRING')]"
+                "type": "storageAccountConnectionString",
+                "storageAccountConnectionStringName": "DEPLOYMENT_STORAGE_CONNECTION_STRING"
               }
             }
           },
@@ -275,62 +274,28 @@
               "value": "[reference(resourceId('Microsoft.Insights/components', variables('ApplicationInsightsName')), '2020-02-02').ConnectionString]"
             },
             {
+              "name": "AzureWebJobsStorage",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2023-01-01').keys[0].value, ';EndpointSuffix=core.windows.net')]"
+            },
+            {
+              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2023-01-01').keys[0].value, ';EndpointSuffix=core.windows.net')]"
+            },
+            {
+              "name": "DEPLOYMENT_STORAGE_CONNECTION_STRING",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2023-01-01').keys[0].value, ';EndpointSuffix=core.windows.net')]"
+            },
+            {
               "name": "WEBSITE_CONTENTSHARE",
               "value": "[toLower(variables('FunctionAppName'))]"
             }
           ]
         }
       },
-      "resources": [
-        {
-          "condition": "[not(parameters('useSystemAssignedIdentity'))]",
-          "type": "config",
-          "apiVersion": "2023-12-01",
-          "name": "appsettings",
-          "dependsOn": [
-            "[resourceId('Microsoft.Web/sites', variables('FunctionAppName'))]"
-          ],
-          "properties": {
-            "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2023-01-01').keys[0].value, ';EndpointSuffix=core.windows.net')]",
-            "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2023-01-01').keys[0].value, ';EndpointSuffix=core.windows.net')]",
-            "DEPLOYMENT_STORAGE_CONNECTION_STRING": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2023-01-01').keys[0].value, ';EndpointSuffix=core.windows.net')]"
-          }
-        }
-      ],
       "dependsOn": [
         "[resourceId('Microsoft.Web/serverfarms', variables('FunctionPlanName'))]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
         "[resourceId('Microsoft.Insights/components', variables('ApplicationInsightsName'))]"
-      ]
-    },
-    {
-      "condition": "[parameters('useSystemAssignedIdentity')]",
-      "type": "Microsoft.Authorization/roleAssignments",
-      "apiVersion": "2022-04-01",
-      "name": "[guid(resourceGroup().id, variables('StorageAccountName'), variables('FunctionAppName'))]",
-      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-      "properties": {
-        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', variables('storageRoleDefinitionId'))]",
-        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('FunctionAppName')), '2023-12-01', 'Full').identity.principalId]",
-        "principalType": "ServicePrincipal"
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-        "[resourceId('Microsoft.Web/sites', variables('FunctionAppName'))]"
-      ]
-    },
-    {
-      "condition": "[parameters('useSystemAssignedIdentity')]",
-      "type": "Microsoft.Web/sites/config",
-      "apiVersion": "2023-12-01",
-      "name": "[format('{0}/{1}', variables('FunctionAppName'), 'appsettings')]",
-      "properties": {
-        "AzureWebJobsStorage__accountName": "[variables('StorageAccountName')]",
-        "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING__accountName": "[variables('StorageAccountName')]"
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Web/sites', variables('FunctionAppName'))]",
-        "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, variables('StorageAccountName'), variables('FunctionAppName')))]"
       ]
     }
   ],
