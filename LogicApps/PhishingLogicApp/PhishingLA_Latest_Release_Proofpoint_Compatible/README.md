@@ -1,11 +1,11 @@
 # Phishing Analysis with Security Copilot
 **Author:** Craig Freyman
 
-An automated solution for phishing email analysis using Azure Logic Apps, Function Apps, and Security Copilot. The system monitors a shared Office 365 mailbox, analyzes submitted emails for security threats, and generates detailed reports. Optional integration with Microsoft Sentinel for incident tracking and management.
+An automated phishing email analysis solution leveraging Azure Logic Apps, Function Apps, and Security Copilot. With the right permissions, it can be deployed in five minutes. The Logic App monitors a shared Office 365 mailbox and triggers analysis when an email arrives. Security Copilot assesses the message for malicious intent, generating detailed HTML reports sent via email. Optional integration with Microsoft Sentinel enables incident tracking and management. This project demonstrates what’s possible with Security Copilot and Azure. It may work out of the box or require tuning — the good news: only a single Security Copilot prompt is used, making it easy to customize for your organization.
 
 ## Overview
 
-This solution provides an end-to-end workflow for analyzing suspected phishing emails. The core functionality is handled by a series of Azure Functions that parse emails, extract important data, clean JSON input, and generate HTML reports. When combined with Security Copilot and Logic Apps, it creates a powerful system for detecting and documenting phishing attempts.
+This solution provides an end-to-end workflow for analyzing suspected phishing emails. The core functionality is handled by a series of Azure Functions that parse emails, extract important data, clean JSON input, and generate HTML reports. When combined with Security Copilot and Logic Apps, it creates a powerful system to distinguish between legitimate, spam, suspicious, and phishing emails.
 
 ### Key Components
 
