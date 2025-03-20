@@ -7,3 +7,4 @@
 **/*.msg
 **/*.env
 **/.env
+**/.python_packages.zip
