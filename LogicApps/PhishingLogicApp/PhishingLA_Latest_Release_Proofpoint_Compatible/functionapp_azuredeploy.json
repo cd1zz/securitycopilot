@@ -269,14 +269,6 @@
                         {
                             "name": "DEPLOYMENT_STORAGE_CONNECTION_STRING",
                             "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2023-01-01').keys[0].value, ';EndpointSuffix=core.windows.net')]"
-                        },
-                        {
-                            "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
-                            "value": "true"
-                        },
-                        {
-                            "name": "AzureWebJobsFeatureFlags",
-                            "value": "EnableWorkerIndexing"
                         }
 
                     ]
