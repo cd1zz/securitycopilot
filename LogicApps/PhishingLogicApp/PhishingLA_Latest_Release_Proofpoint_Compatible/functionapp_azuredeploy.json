@@ -15,8 +15,7 @@
     "variables": {
         "resourceToken": "[toLower(uniqueString(subscription().id, resourceGroup().name, resourceGroup().location))]",
         "FunctionAppName": "[concat(parameters('FunctionAppName'), substring(variables('resourceToken'), 0, 6))]",
-        "StorageAccountName": "[concat(toLower(parameters('FunctionAppName')), substring(variables('resourceToken'), 0, 6))]",
-        "FunctionPlanName": "[concat('ASP-', variables('FunctionAppName'), '-', substring(variables('resourceToken'), 0, 4))]"
+        "StorageAccountName": "[concat(toLower(parameters('FunctionAppName')), substring(variables('resourceToken'), 0, 6))]"
     },
     "resources": [
         {
@@ -54,7 +53,6 @@
             "name": "[variables('FunctionAppName')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[resourceId('Microsoft.Web/serverfarms', variables('FunctionPlanName'))]",
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
             ],
             "kind": "functionapp,linux",
@@ -62,7 +60,7 @@
                 "type": "SystemAssigned"
             },
             "properties": {
-                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionPlanName'))]",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionAppName'))]",
                 "httpsOnly": true,
                 "reserved": true,
                 "siteConfig": {
