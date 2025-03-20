@@ -35,11 +35,12 @@
             "apiVersion": "2023-12-01",
             "name": "[variables('FunctionPlanName')]",
             "location": "[resourceGroup().location]",
+            
             "sku": {
                 "tier": "Dynamic",
                 "name": "Y1"
             },
-            "kind": "functionapp",
+            "kind": "functionapp,linux",
             "properties": {
                 "name": "[variables('FunctionPlanName')]"
             }
