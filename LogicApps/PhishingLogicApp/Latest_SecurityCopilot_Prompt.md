@@ -21,7 +21,7 @@ Your analysis must assume the email is suspicious and focus on identifying wheth
   "body": "@{variables('email_body')}",
   "attachments": ["@{string(variables('attachments'))}"],
   "urls": ["@{string(variables('urls'))}"],
-  "email_date": @{body('Process_parseEmail_JSON')?['email_content']?['date']}
+  "email_date": "@{body('Process_parseEmail_JSON')?['email_content']?['date']}"
 }
 ```
 
