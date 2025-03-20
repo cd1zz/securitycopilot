@@ -210,7 +210,7 @@
                         },
                         {
                             "name": "WEBSITE_RUN_FROM_PACKAGE",
-                            "value": "https://github.com/cd1zz/securitycopilot/raw/refs/heads/main/LogicApps/PhishingLogicApp/PhishingLA_Latest_Release_Proofpoint_Compatible/LatestFuncAppProofpointCompatible.zip"
+                            "value": "https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/LogicApps/PhishingLogicApp/PhishingLA_Latest_Release_Proofpoint_Compatible/LatestFuncAppProofpointCompatible.zip"
                         },
                         {
                             "name": "AzureWebJobsStorage",
