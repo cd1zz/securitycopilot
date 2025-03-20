@@ -32,17 +32,20 @@
         },
         {
             "type": "Microsoft.Web/serverfarms",
-            "apiVersion": "2023-12-01",
-            "name": "[variables('FunctionPlanName')]",
+            "apiVersion": "2018-02-01",
+            "name": "[variables('FunctionAppName')]",
             "location": "[resourceGroup().location]",
-            
             "sku": {
-                "tier": "Dynamic",
-                "name": "Y1"
+                "name": "Y1",
+                "tier": "Dynamic"
             },
             "kind": "functionapp,linux",
             "properties": {
-                "name": "[variables('FunctionPlanName')]"
+                "name": "[variables('FunctionAppName')]",
+                "workerSize": "0",
+                "workerSizeId": "0",
+                "numberOfWorkers": "1",
+                "reserved": true
             }
         },
         {
