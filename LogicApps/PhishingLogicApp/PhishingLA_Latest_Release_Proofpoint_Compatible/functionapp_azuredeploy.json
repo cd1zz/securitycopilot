@@ -23,57 +23,16 @@
                 4096
             ],
             "type": "Int"
-        },
-        "deploymentPackageUrl": {
-            "defaultValue": "https://github.com/cd1zz/securitycopilot/raw/refs/heads/main/LogicApps/PhishingLogicApp/PhishingLA_Latest_Release_Proofpoint_Compatible/LatestFuncAppProofpointCompatible.zip",
-            "type": "String",
-            "metadata": {
-                "description": "URL to the deployment package"
-            }
-        },
-        "existingLogAnalyticsWorkspaceName": {
-            "defaultValue": "",
-            "type": "String",
-            "metadata": {
-                "description": "Name of an existing Log Analytics workspace. If empty, new App Insights will be created without Log Analytics integration."
-            }
-        },
-        "existingLogAnalyticsResourceGroup": {
-            "type": "String",
-            "metadata": {
-                "description": "Resource group containing the Log Analytics workspace. Defaults to the current resource group if not specified."
-            }
-        },
-        "existingLogAnalyticsSubscriptionId": {
-            "type": "String",
-            "metadata": {
-                "description": "Subscription ID containing the Log Analytics workspace. Defaults to the current subscription if not specified."
-            }
         }
     },
     "variables": {
         "resourceToken": "[toLower(uniqueString(subscription().id, resourceGroup().name, resourceGroup().location))]",
         "FunctionAppName": "[concat(parameters('FunctionAppName'), substring(variables('resourceToken'), 0, 6))]",
         "StorageAccountName": "[concat(toLower(parameters('FunctionAppName')), substring(variables('resourceToken'), 0, 6))]",
-        "ApplicationInsightsName": "[concat(variables('FunctionAppName'), '-insights')]",
         "FunctionPlanName": "[concat('FLEX-', variables('FunctionAppName'), '-', substring(variables('resourceToken'), 0, 4))]",
-        "deploymentStorageContainerName": "[concat('app-package-', variables('FunctionAppName'), '-', substring(variables('resourceToken'), 0, 6))]",
-        "useExistingLogAnalytics": "[not(equals(parameters('existingLogAnalyticsWorkspaceName'), ''))]",
-        "logAnalyticsResourceId": "[if(variables('useExistingLogAnalytics'), concat('/subscriptions/', parameters('existingLogAnalyticsSubscriptionId'), '/resourceGroups/', parameters('existingLogAnalyticsResourceGroup'), '/providers/Microsoft.OperationalInsights/workspaces/', parameters('existingLogAnalyticsWorkspaceName')), json('null'))]"
+        "deploymentStorageContainerName": "[concat('app-package-', variables('FunctionAppName'), '-', substring(variables('resourceToken'), 0, 6))]"
     },
     "resources": [
-        {
-            "type": "Microsoft.Insights/components",
-            "apiVersion": "2020-02-02",
-            "name": "[variables('ApplicationInsightsName')]",
-            "location": "[resourceGroup().location]",
-            "dependsOn": [],
-            "kind": "web",
-            "properties": {
-                "Application_Type": "web",
-                "WorkspaceResourceId": "[if(variables('useExistingLogAnalytics'), variables('logAnalyticsResourceId'), json('null'))]"
-            }
-        },
         {
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2023-01-01",
@@ -207,8 +166,7 @@
             "location": "[resourceGroup().location]",
             "dependsOn": [
                 "[resourceId('Microsoft.Web/serverfarms', variables('FunctionPlanName'))]",
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-                "[resourceId('Microsoft.Insights/components', variables('ApplicationInsightsName'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
             ],
             "kind": "functionapp,linux",
             "identity": {
@@ -252,15 +210,7 @@
                         },
                         {
                             "name": "WEBSITE_RUN_FROM_PACKAGE",
-                            "value": "[parameters('deploymentPackageUrl')]"
-                        },
-                        {
-                            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
-                            "value": "[reference(resourceId('Microsoft.Insights/components', variables('ApplicationInsightsName')), '2020-02-02').InstrumentationKey]"
-                        },
-                        {
-                            "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
-                            "value": "[reference(resourceId('Microsoft.Insights/components', variables('ApplicationInsightsName')), '2020-02-02').ConnectionString]"
+                            "value": "https://github.com/cd1zz/securitycopilot/raw/refs/heads/main/LogicApps/PhishingLogicApp/PhishingLA_Latest_Release_Proofpoint_Compatible/LatestFuncAppProofpointCompatible.zip"
                         },
                         {
                             "name": "AzureWebJobsStorage",
