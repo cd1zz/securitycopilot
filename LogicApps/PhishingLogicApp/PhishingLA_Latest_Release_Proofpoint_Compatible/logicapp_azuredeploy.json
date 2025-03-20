@@ -717,9 +717,6 @@
                                         "email_summary": {
                                             "type": "object",
                                             "properties": {
-                                                "description": {
-                                                    "type": "string"
-                                                },
                                                 "subject": {
                                                     "type": "string"
                                                 },
@@ -731,9 +728,6 @@
                                         "behavioral_triggers": {
                                             "type": "object",
                                             "properties": {
-                                                "description": {
-                                                    "type": "string"
-                                                },
                                                 "tone": {
                                                     "type": "string"
                                                 },
@@ -742,15 +736,32 @@
                                                 },
                                                 "alignment_with_purpose": {
                                                     "type": "string"
+                                                },
+                                                "lack_of_context": {
+                                                    "type": "string"
+                                                },
+                                                "engagement_bait": {
+                                                    "type": "string"
+                                                },
+                                                "phone_based_social_engineering": {
+                                                    "type": "string"
+                                                },
+                                                "short_vague_request": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "detected": {
+                                                            "type": "string"
+                                                        },
+                                                        "engagement_request": {
+                                                            "type": "string"
+                                                        }
+                                                    }
                                                 }
                                             }
                                         },
                                         "logical_coherence": {
                                             "type": "object",
                                             "properties": {
-                                                "description": {
-                                                    "type": "string"
-                                                },
                                                 "is_consistent": {
                                                     "type": "string"
                                                 },
@@ -759,34 +770,109 @@
                                                 },
                                                 "logical_actions": {
                                                     "type": "string"
+                                                },
+                                                "subtle_inconsistencies": {
+                                                    "type": "array"
+                                                },
+                                                "business_context_check": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "clear_business_purpose": {
+                                                            "type": "string"
+                                                        },
+                                                        "workflow_alignment": {
+                                                            "type": "string"
+                                                        }
+                                                    }
                                                 }
                                             }
                                         },
                                         "intent_verification": {
                                             "type": "object",
                                             "properties": {
-                                                "description": {
-                                                    "type": "string"
-                                                },
                                                 "likely_intent": {
                                                     "type": "string"
                                                 },
                                                 "risk_assessment": {
                                                     "type": "string"
+                                                },
+                                                "stated_purpose_mismatch": {
+                                                    "type": "string"
+                                                },
+                                                "financial_role_mismatch": {
+                                                    "type": "string"
+                                                },
+                                                "external_login_requirement": {
+                                                    "type": "string"
+                                                },
+                                                "minimal_text_attachment": {
+                                                    "type": "string"
+                                                },
+                                                "executive_impersonation": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "detected": {
+                                                            "type": "string"
+                                                        },
+                                                        "domain_mismatch": {
+                                                            "type": "string"
+                                                        },
+                                                        "position_claimed": {
+                                                            "type": "string"
+                                                        },
+                                                        "actual_domain": {
+                                                            "type": "string"
+                                                        }
+                                                    }
                                                 }
                                             }
                                         },
                                         "attachment_analysis": {
                                             "type": "object",
                                             "properties": {
-                                                "description": {
-                                                    "type": "string"
-                                                },
                                                 "is_relevant": {
                                                     "type": "string"
                                                 },
-                                                "content_analysis": {
-                                                    "type": "string"
+                                                "attachment_metadata": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "attachment_name": {
+                                                            "type": "string"
+                                                        },
+                                                        "attachment_sha256": {
+                                                            "type": "string"
+                                                        },
+                                                        "content_type": {
+                                                            "type": "string"
+                                                        },
+                                                        "attachment_text": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "text_content": {
+                                                                    "type": "string"
+                                                                },
+                                                                "urls": {
+                                                                    "type": "array"
+                                                                },
+                                                                "hyperlinks": {
+                                                                    "type": "array"
+                                                                },
+                                                                "vba_code": {
+                                                                    "type": "object",
+                                                                    "properties": {}
+                                                                },
+                                                                "formulas": {
+                                                                    "type": "array"
+                                                                },
+                                                                "comments": {
+                                                                    "type": "array"
+                                                                },
+                                                                "embedded_files": {
+                                                                    "type": "array"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 },
                                                 "risks": {
                                                     "type": "string"
@@ -796,22 +882,32 @@
                                         "url_analysis": {
                                             "type": "object",
                                             "properties": {
-                                                "description": {
-                                                    "type": "string"
-                                                },
                                                 "url_categorization": {
                                                     "type": "object",
                                                     "properties": {
                                                         "primary_action_urls": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "type": "string"
-                                                            }
+                                                            "type": "array"
                                                         },
                                                         "informational_urls": {
                                                             "type": "array",
                                                             "items": {
-                                                                "type": "string"
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "original_url": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "is_shortened": {
+                                                                        "type": "boolean"
+                                                                    },
+                                                                    "expanded_url": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "original_url",
+                                                                    "is_shortened",
+                                                                    "expanded_url"
+                                                                ]
                                                             }
                                                         },
                                                         "stylistic_framework_urls": {
@@ -835,40 +931,12 @@
                                                             "type": "string"
                                                         }
                                                     }
-                                                },
-                                                "informational_url_validation": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "purpose": {
-                                                            "type": "string"
-                                                        },
-                                                        "alignment": {
-                                                            "type": "string"
-                                                        },
-                                                        "risks": {
-                                                            "type": "string"
-                                                        }
-                                                    }
-                                                },
-                                                "stylistic_framework_url_validation": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "typicality": {
-                                                            "type": "string"
-                                                        },
-                                                        "risks": {
-                                                            "type": "string"
-                                                        }
-                                                    }
                                                 }
                                             }
                                         },
                                         "pretense_vs_intent_mapping": {
                                             "type": "object",
                                             "properties": {
-                                                "description": {
-                                                    "type": "string"
-                                                },
                                                 "stated_purpose": {
                                                     "type": "string"
                                                 },
@@ -880,17 +948,40 @@
                                                 }
                                             }
                                         },
+                                        "bec_reconnaissance_detection": {
+                                            "type": "object",
+                                            "properties": {
+                                                "detected": {
+                                                    "type": "string"
+                                                },
+                                                "reason": {
+                                                    "type": "string"
+                                                },
+                                                "risk_assessment": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        },
                                         "final_assessment": {
                                             "type": "object",
                                             "properties": {
-                                                "description": {
-                                                    "type": "string"
-                                                },
                                                 "category": {
                                                     "type": "string"
                                                 },
                                                 "rationale": {
                                                     "type": "string"
+                                                },
+                                                "risk_level": {
+                                                    "type": "string"
+                                                },
+                                                "high_risk_flags": {
+                                                    "type": "array"
+                                                },
+                                                "medium_risk_flags": {
+                                                    "type": "array"
+                                                },
+                                                "low_risk_flags": {
+                                                    "type": "array"
                                                 }
                                             }
                                         }
