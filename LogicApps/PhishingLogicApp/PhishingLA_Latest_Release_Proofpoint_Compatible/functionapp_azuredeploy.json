@@ -63,7 +63,7 @@
                 "httpsOnly": true,
                 "reserved": true,
                 "siteConfig": {
-                    "linuxFxVersion": "Python|3.10",
+                    "linuxFxVersion": "python|3.10",
                     "minTlsVersion": "1.2",
                     "appSettings": [
                         {
