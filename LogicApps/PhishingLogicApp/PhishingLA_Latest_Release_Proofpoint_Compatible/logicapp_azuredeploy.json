@@ -513,12 +513,7 @@
                                                             "expanded_url": {
                                                                 "type": "string"
                                                             }
-                                                        },
-                                                        "required": [
-                                                            "original_url",
-                                                            "is_shortened",
-                                                            "expanded_url"
-                                                        ]
+                                                        }
                                                     }
                                                 },
                                                 "ip_addresses": {
@@ -702,6 +697,7 @@
                                 }
                             }
                         },
+
                         "Parse_normalized_JSON": {
                             "runAfter": {
                                 "Normalize_JSON": [
@@ -889,26 +885,7 @@
                                                             "type": "array"
                                                         },
                                                         "informational_urls": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "original_url": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "is_shortened": {
-                                                                        "type": "boolean"
-                                                                    },
-                                                                    "expanded_url": {
-                                                                        "type": "string"
-                                                                    }
-                                                                },
-                                                                "required": [
-                                                                    "original_url",
-                                                                    "is_shortened",
-                                                                    "expanded_url"
-                                                                ]
-                                                            }
+                                                            "type": "array"
                                                         },
                                                         "stylistic_framework_urls": {
                                                             "type": "array"
@@ -989,6 +966,8 @@
                                 }
                             }
                         },
+
+
                         "Initialize_systemalert_id_query_results": {
                             "runAfter": {
                                 "Generate_HTML_report_from_JSON": [
