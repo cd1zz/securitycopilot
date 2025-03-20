@@ -15,6 +15,24 @@ def remove_markdown_notation(input_string):
     logging.debug("Completed markdown notation removal.")
     return cleaned_string.strip()  # Strip leading/trailing whitespace
 
+def sanitize_problematic_characters(input_string):
+    """
+    Replace or properly escape problematic characters that might cause JSON parsing issues.
+    """
+    logging.debug("Starting character sanitization.")
+    
+    # Replace backtick characters (commonly used for code in markdown or for currency)
+    sanitized = re.sub(r'`', "'", input_string)  # Replace backticks with single quotes
+    
+    # Handle form feed characters
+    sanitized = sanitized.replace('\f', '\\f')
+    
+    # Handle other potentially problematic control characters
+    sanitized = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', sanitized)
+    
+    logging.debug("Completed character sanitization.")
+    return sanitized
+
 def replace_nulls_with_none(d):
     logging.debug("Starting replacement of null values with 'None'.")
     if isinstance(d, dict):
@@ -41,10 +59,34 @@ def clean_json_input(req: func.HttpRequest) -> func.HttpResponse:
         # Remove markdown notation
         clean_json = remove_markdown_notation(req_body)
         logging.debug(f"Request body after removing markdown notation: {clean_json}")
+        
+        # Sanitize problematic characters
+        clean_json = sanitize_problematic_characters(clean_json)
+        logging.debug(f"Request body after sanitizing characters: {clean_json}")
 
-        # Attempt to load the cleaned string as JSON to validate
-        parsed_json = json.loads(clean_json)
-        logging.debug(f"Parsed JSON: {parsed_json}")
+        # First try: If the input is already valid JSON
+        try:
+            parsed_json = json.loads(clean_json)
+            logging.debug("Successfully parsed JSON on first attempt.")
+        except json.JSONDecodeError as e:
+            logging.warning(f"First JSON parsing attempt failed: {e}")
+            
+            # Second try: Check if the input has extra opening or closing braces
+            # Sometimes LLMs add extra context before or after the JSON
+            match = re.search(r'\{.*\}', clean_json, re.DOTALL)
+            if match:
+                clean_json = match.group(0)
+                logging.debug(f"Extracted JSON-like content: {clean_json}")
+                
+                try:
+                    parsed_json = json.loads(clean_json)
+                    logging.debug("Successfully parsed JSON on second attempt.")
+                except json.JSONDecodeError as inner_e:
+                    logging.error(f"Second JSON parsing attempt failed: {inner_e}")
+                    raise inner_e
+            else:
+                logging.error("Could not find JSON-like content in the input.")
+                raise e
 
         # Replace null values with the string "None"
         parsed_json = replace_nulls_with_none(parsed_json)
@@ -63,7 +105,7 @@ def clean_json_input(req: func.HttpRequest) -> func.HttpResponse:
     except json.JSONDecodeError as e:
         logging.error(f"JSON decoding error: {e}")
         return func.HttpResponse(
-            "Unable to clean and parse the provided input. Please ensure the input is structured as JSON.",
+            f"Unable to clean and parse the provided input. Please ensure the input is structured as JSON. Error: {e}",
             status_code=400
         )
 
