@@ -1,0 +1,25 @@
+Descriptor:
+  Name: NistNvdApiSearch
+  DisplayName: NIST NVD API CVE search.
+  Description: Search for software vulnerabilities and cves on nist nvd database. 
+
+Authorization:
+  Type: APIKey
+  Location: Header
+  Key: 1C0E8EAB-3EFB-EE11-8340-12CE960CE632
+  Name: apiKey
+
+SkillGroups:
+  - Format: API
+    Settings:
+      OpenApiSpecUrl: https://raw.githubusercontent.com/cd1zz/nistnvd/main/nistnvd_openapi.yaml
+
+    Skills:
+  
+      - Name: NistCpeName
+        Description: Returns all CVEs associated with a specific CPE.
+      - Name: NistCveId
+        Description: Returns a specific vulnerability identified by its CVE ID.
+      - Name: NistKeywordSearch
+        Description: Returns CVEs where specific keywords are found in the description.
+

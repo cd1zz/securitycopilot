@@ -3,13 +3,11 @@ Descriptor:
   DisplayName: IPQualityScore Proxy Detection
   Description: The IPQualityScore Proxy detection api allows you to enrich any IP address with risk data to better identify malicious IP addresses, anonymous IPs, residential proxies, and botnets. The IP address API also provides geo-location, connection type, & ISP data.
 
-  SupportedAuthTypes:
-    - ApiKey
-  Authorization:  
-    Type: APIKey  
-    Location: Header  
-    Key: IPQS-KEY
-    AuthScheme: ''
+Authorization:
+  Type: APIKey
+  Location: Header
+  Key: ZTmkqQzIz2OV5QJyZG6IV6Wss9BrRIbE
+  Name: IPQS-KEY
 
 SkillGroups:  
   - Format: API  

@@ -1,8 +1,8 @@
-openapi: 3.0.3
+openapi: 3.0.0
 info:
   title: IPQS Proxy Detection API
-  version: 1.0.0
-  description: Detect proxies, VPNs, and fraudulent users based on IP and optional metadata.
+  description: Detect proxies, VPNs, and fraudulent activity based on IP intelligence.
+  version: "1.0"
 
 servers:
   - url: https://ipqualityscore.com/api/json/ip
@@ -11,22 +11,177 @@ paths:
   /{ip}:
     get:
       summary: Proxy Detection Lookup
+      description: Performs fraud scoring and proxy detection for the specified IP address.
       parameters:
         - in: path
           name: ip
           required: true
           schema:
             type: string
-          description: IP address to check
+          description: IP address to evaluate
         - in: query
           name: key
           required: true
           schema:
             type: string
-          description: API Key
         - in: query
           name: strictness
           schema:
             type: integer
             enum: [0, 1, 2, 3]
         - in: query
+          name: user_agent
+          schema:
+            type: string
+        - in: query
+          name: user_language
+          schema:
+            type: string
+        - in: query
+          name: fast
+          schema:
+            type: boolean
+        - in: query
+          name: mobile
+          schema:
+            type: boolean
+        - in: query
+          name: allow_public_access_points
+          schema:
+            type: boolean
+        - in: query
+          name: lighter_penalties
+          schema:
+            type: boolean
+        - in: query
+          name: transaction_strictness
+          schema:
+            type: integer
+            enum: [0, 1, 2]
+        - in: query
+          name: phone
+          schema:
+            type: string
+        - in: query
+          name: country
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful proxy detection response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - Invalid or missing parameters
+        '401':
+          description: Unauthorized - Invalid API key
+        '404':
+          description: Resource not found
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: IPQS-KEY
+
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Success.
+        success:
+          type: boolean
+        proxy:
+          type: boolean
+        ISP:
+          type: string
+        organization:
+          type: string
+        ASN:
+          type: integer
+        host:
+          type: string
+        country_code:
+          type: string
+        city:
+          type: string
+        region:
+          type: string
+        is_crawler:
+          type: boolean
+        connection_type:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        zip_code:
+          type: string
+        timezone:
+          type: string
+        vpn:
+          type: boolean
+        tor:
+          type: boolean
+        active_vpn:
+          type: boolean
+        active_tor:
+          type: boolean
+        recent_abuse:
+          type: boolean
+        frequent_abuser:
+          type: boolean
+        high_risk_attacks:
+          type: boolean
+        abuse_velocity:
+          type: string
+        bot_status:
+          type: boolean
+        shared_connection:
+          type: boolean
+        dynamic_connection:
+          type: boolean
+        security_scanner:
+          type: boolean
+        trusted_network:
+          type: boolean
+        mobile:
+          type: boolean
+        fraud_score:
+          type: integer
+        operating_system:
+          type: string
+        browser:
+          type: string
+        device_model:
+          type: string
+        device_brand:
+          type: string
+        transaction_details:
+          type: object
+          additionalProperties: true
+        request_id:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: You have insufficient credits to make this query. Please contact IPQualityScore support if this error persists.
+        request_id:
+          type: string
