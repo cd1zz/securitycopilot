@@ -81,13 +81,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-components:
-  securitySchemes:
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: IPQS-KEY
-
   schemas:
     SuccessResponse:
       type: object
