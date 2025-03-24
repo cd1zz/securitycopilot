@@ -7,7 +7,7 @@ Descriptor:
     - ApiKey
   Authorization:  
     Type: APIKey  
-    Location: query  
+    Location: path  
     Name: api_key
     AuthScheme: ''
 
