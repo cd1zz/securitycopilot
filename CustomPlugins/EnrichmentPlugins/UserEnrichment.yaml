@@ -34,6 +34,10 @@ SkillGroups:
             Description: Any IP address that should be excluded from the results.
             Default: ""
             Required: false
+          - Name: unusualsignin_context
+            Description: Additional context to tune the output appropriately
+            Default: ""
+            Required: false
         Settings:
           Target: Defender
           Template: |-
@@ -41,6 +45,7 @@ SkillGroups:
             // It analyzes login patterns, focusing on anomalies such as high failure rates, sign-ins from unfamiliar IPs or devices, or abnormal client applications.
             // Deviations from the usual patterns may indicate suspicious activity, prompting security actions like MFA review or password reset.
             // The output includes IP addresses, device IDs, and user agents to assist in identifying unusual behavior.
+            // The additional requests from the user are {{unusualsignin_context}}
             let UPN = "{{upn}}";  // Replace with the specific users upn
             let TimeFrame = ago(30d); 
             // Retrieve and summarize the user's login activity, focusing on successful vs failed attempts and identifying unusual patterns.
@@ -231,14 +236,20 @@ SkillGroups:
             Description: Any IP address that should be excluded from the results.
             Default: ""
             Required: false
+          - Name: usersignin_context
+            Description: Additional context to tune the output appropriately
+            Default: ""
+            Required: false
         Settings:
           Target: Defender
           Template: |-
+            // The additional context from the user is {{usersignin_context}}
             // This query establishes a baseline for a user's sign-in activity over the past 30 days by identifying the most frequently used IP address, location, device, application, and client application.
             // It helps detect deviations that may indicate suspicious behavior, such as sign-ins from unfamiliar locations, new devices, or different apps.
             // Anomalies can point to account compromise or unauthorized access, triggering actions like MFA enforcement or security reviews.
             // The query outputs the user's typical behavior patterns and highlights any deviations.
             // Provide a summary of the users baseline and analyze any deviations, recommending actions like enforcing MFA, resetting credentials, or initiating further security reviews if abnormal patterns are detected.            
+            // The additional context from the user is {{usersignin_context}}
             let UPN = "{{upn}}"; // Replace with the specific users email
             let TimeFrame = ago(30d);
             // Identify the most frequently used IP address for the user.

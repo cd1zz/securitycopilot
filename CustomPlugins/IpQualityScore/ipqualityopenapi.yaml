@@ -1,0 +1,32 @@
+openapi: 3.0.3
+info:
+  title: IPQS Proxy Detection API
+  version: 1.0.0
+  description: Detect proxies, VPNs, and fraudulent users based on IP and optional metadata.
+
+servers:
+  - url: https://ipqualityscore.com/api/json/ip
+
+paths:
+  /{ip}:
+    get:
+      summary: Proxy Detection Lookup
+      parameters:
+        - in: path
+          name: ip
+          required: true
+          schema:
+            type: string
+          description: IP address to check
+        - in: query
+          name: key
+          required: true
+          schema:
+            type: string
+          description: API Key
+        - in: query
+          name: strictness
+          schema:
+            type: integer
+            enum: [0, 1, 2, 3]
+        - in: query
