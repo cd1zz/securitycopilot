@@ -5,8 +5,8 @@ info:
   version: "1.0"
 
 servers:
-  - url: https://ipqualityscore.com/api/json/ip
-
+  #- url: https://ipqualityscore.com/api/json/ip
+  - url: http://34.55.14.231
 paths:
   /{ip}:
     get:

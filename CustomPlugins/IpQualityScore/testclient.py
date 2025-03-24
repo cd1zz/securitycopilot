@@ -4,8 +4,11 @@ API_KEY = ''
 IP_ADDRESS = '8.8.8.8'
 BASE_URL = 'https://ipqualityscore.com/api/json/ip'
 
+headers = {
+    'IPQS-KEY': API_KEY  # Custom header for API key
+}
+
 params = {
-    'key': API_KEY,
     'strictness': 1,
     'user_agent': 'Mozilla/5.0',
     'user_language': 'en-US',
@@ -16,7 +19,7 @@ params = {
     'transaction_strictness': 1
 }
 
-response = requests.get(f"{BASE_URL}/{IP_ADDRESS}", params=params)
+response = requests.get(f"{BASE_URL}/{IP_ADDRESS}", headers=headers, params=params)
 
 if response.status_code == 200:
     data = response.json()
