@@ -5,10 +5,10 @@ info:
   version: "1.0"
 
 servers:
-  - url: https://ipqualityscore.com/api/json/ip
-  
+  - url: https://ipqualityscore.com/api/json
+
 paths:
-  /{ip}:
+  /ip/{ip}:
     get:
       summary: Proxy Detection Lookup
       description: Performs fraud scoring and proxy detection for the specified IP address.
