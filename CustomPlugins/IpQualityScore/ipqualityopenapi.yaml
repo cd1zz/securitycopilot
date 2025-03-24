@@ -8,59 +8,52 @@ servers:
   - url: https://ipqualityscore.com/api/json
 
 paths:
-  /ip/{ip}:
-    get:
+  /ip/{api_key}/{ip}:
+    post:
       summary: Proxy Detection Lookup
-      description: Performs fraud scoring and proxy detection for the specified IP address.
+      description: Performs fraud scoring and proxy detection for the specified IP address. API key is passed in the URL path.
       parameters:
+        - in: path
+          name: api_key
+          required: true
+          schema:
+            type: string
+          description: IPQualityScore API key
         - in: path
           name: ip
           required: true
           schema:
             type: string
           description: IP address to evaluate
-        - in: query
-          name: strictness
-          schema:
-            type: integer
-            enum: [0, 1, 2, 3]
-        - in: query
-          name: user_agent
-          schema:
-            type: string
-        - in: query
-          name: user_language
-          schema:
-            type: string
-        - in: query
-          name: fast
-          schema:
-            type: boolean
-        - in: query
-          name: mobile
-          schema:
-            type: boolean
-        - in: query
-          name: allow_public_access_points
-          schema:
-            type: boolean
-        - in: query
-          name: lighter_penalties
-          schema:
-            type: boolean
-        - in: query
-          name: transaction_strictness
-          schema:
-            type: integer
-            enum: [0, 1, 2]
-        - in: query
-          name: phone
-          schema:
-            type: string
-        - in: query
-          name: country
-          schema:
-            type: string
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                strictness:
+                  type: integer
+                  enum: [0, 1, 2, 3]
+                user_agent:
+                  type: string
+                user_language:
+                  type: string
+                fast:
+                  type: boolean
+                mobile:
+                  type: boolean
+                allow_public_access_points:
+                  type: boolean
+                lighter_penalties:
+                  type: boolean
+                transaction_strictness:
+                  type: integer
+                  enum: [0, 1, 2]
+                phone:
+                  type: string
+                country:
+                  type: string
       responses:
         '200':
           description: Successful proxy detection response
@@ -81,6 +74,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+components:
   schemas:
     SuccessResponse:
       type: object
