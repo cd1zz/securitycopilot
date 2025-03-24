@@ -20,11 +20,6 @@ paths:
             type: string
           description: IP address to evaluate
         - in: query
-          name: key
-          required: true
-          schema:
-            type: string
-        - in: query
           name: strictness
           schema:
             type: integer
