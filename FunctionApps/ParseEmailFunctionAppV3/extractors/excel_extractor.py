@@ -2,7 +2,6 @@
 import io
 import logging
 import traceback
-import base64
 import zipfile
 import re
 from xml.etree import ElementTree as ET
@@ -128,7 +127,7 @@ def extract_excel_deep(excel_data):
     metadata = []
 
     try:
-        logging.info("Performing deep extraction from Excel file")
+        logger.info("Performing deep extraction from Excel file")
         
         with zipfile.ZipFile(excel_bytes, 'r') as z:
             # Process VBA code if present
@@ -268,6 +267,6 @@ def extract_excel_deep(excel_data):
         logger.warning("Not a valid XLSX file (bad zip format), passing to other extractors")
         raise
     except Exception as e:
-        logging.error(f"Failed to extract text from Excel (deep extraction): {str(e)}")
+        logger.error(f"Failed to extract text from Excel (deep extraction): {str(e)}")
         logger.debug(traceback.format_exc())
         raise

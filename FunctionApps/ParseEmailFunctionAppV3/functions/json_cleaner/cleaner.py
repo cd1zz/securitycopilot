@@ -3,23 +3,25 @@ import logging
 import re
 import azure.functions as func
 
+logger = logging.getLogger(__name__)
+
 # Set up logging configuration
 logging.basicConfig(level=logging.DEBUG)
 
 def remove_markdown_notation(input_string):
-    logging.debug("Starting markdown notation removal.")
+    logger.debug("Starting markdown notation removal.")
     # Remove markdown notation, handle both triple backticks and variations like ~~~json
     cleaned_string = re.sub(r'```json\n|\n```', '', input_string)  # Remove both starting and trailing markdown notation for triple backticks
     cleaned_string = re.sub(r'~~~json\n|\n~~~', '', cleaned_string)  # Also remove any ~~~json annotations
     cleaned_string = re.sub(r'###.*?\n', '', cleaned_string)  # Remove '###' annotations along with anything until the next newline
-    logging.debug("Completed markdown notation removal.")
+    logger.debug("Completed markdown notation removal.")
     return cleaned_string.strip()  # Strip leading/trailing whitespace
 
 def sanitize_problematic_characters(input_string):
     """
     Replace or properly escape problematic characters that might cause JSON parsing issues.
     """
-    logging.debug("Starting character sanitization.")
+    logger.debug("Starting character sanitization.")
     
     # Replace backtick characters (commonly used for code in markdown or for currency)
     sanitized = re.sub(r'`', "'", input_string)  # Replace backticks with single quotes
@@ -30,18 +32,18 @@ def sanitize_problematic_characters(input_string):
     # Handle other potentially problematic control characters
     sanitized = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', sanitized)
     
-    logging.debug("Completed character sanitization.")
+    logger.debug("Completed character sanitization.")
     return sanitized
 
 def replace_nulls_with_none(d):
-    logging.debug("Starting replacement of null values with 'None'.")
+    logger.debug("Starting replacement of null values with 'None'.")
     if isinstance(d, dict):
         replaced_dict = {k: replace_nulls_with_none(v) for k, v in d.items()}
-        logging.debug(f"Replaced dictionary: {replaced_dict}")
+        logger.debug(f"Replaced dictionary: {replaced_dict}")
         return replaced_dict
     elif isinstance(d, list):
         replaced_list = [replace_nulls_with_none(i) for i in d]
-        logging.debug(f"Replaced list: {replaced_list}")
+        logger.debug(f"Replaced list: {replaced_list}")
         return replaced_list
     elif d is None:
         return "None"  # Replace null with the string "None"
@@ -50,51 +52,51 @@ def replace_nulls_with_none(d):
 
 def clean_json_input(req: func.HttpRequest) -> func.HttpResponse:
     try:
-        logging.debug("Received HTTP request.")
+        logger.debug("Received HTTP request.")
         
         # Get the raw input body as a byte string and decode it
         req_body = req.get_body().decode('utf-8')
-        logging.debug(f"Original request body: {req_body}")
+        logger.debug(f"Original request body: {req_body}")
 
         # Remove markdown notation
         clean_json = remove_markdown_notation(req_body)
-        logging.debug(f"Request body after removing markdown notation: {clean_json}")
+        logger.debug(f"Request body after removing markdown notation: {clean_json}")
         
         # Sanitize problematic characters
         clean_json = sanitize_problematic_characters(clean_json)
-        logging.debug(f"Request body after sanitizing characters: {clean_json}")
+        logger.debug(f"Request body after sanitizing characters: {clean_json}")
 
         # First try: If the input is already valid JSON
         try:
             parsed_json = json.loads(clean_json)
-            logging.debug("Successfully parsed JSON on first attempt.")
+            logger.debug("Successfully parsed JSON on first attempt.")
         except json.JSONDecodeError as e:
-            logging.warning(f"First JSON parsing attempt failed: {e}")
+            logger.warning(f"First JSON parsing attempt failed: {e}")
             
             # Second try: Check if the input has extra opening or closing braces
             # Sometimes LLMs add extra context before or after the JSON
             match = re.search(r'\{.*\}', clean_json, re.DOTALL)
             if match:
                 clean_json = match.group(0)
-                logging.debug(f"Extracted JSON-like content: {clean_json}")
+                logger.debug(f"Extracted JSON-like content: {clean_json}")
                 
                 try:
                     parsed_json = json.loads(clean_json)
-                    logging.debug("Successfully parsed JSON on second attempt.")
+                    logger.debug("Successfully parsed JSON on second attempt.")
                 except json.JSONDecodeError as inner_e:
-                    logging.error(f"Second JSON parsing attempt failed: {inner_e}")
+                    logger.error(f"Second JSON parsing attempt failed: {inner_e}")
                     raise inner_e
             else:
-                logging.error("Could not find JSON-like content in the input.")
+                logger.error("Could not find JSON-like content in the input.")
                 raise e
 
         # Replace null values with the string "None"
         parsed_json = replace_nulls_with_none(parsed_json)
-        logging.debug(f"JSON after replacing null values with 'None': {parsed_json}")
+        logger.debug(f"JSON after replacing null values with 'None': {parsed_json}")
 
         # Convert it back to a string for the response
         validated_json = json.dumps(parsed_json, indent=4)
-        logging.debug(f"Final validated JSON string: {validated_json}")
+        logger.debug(f"Final validated JSON string: {validated_json}")
 
         return func.HttpResponse(
             validated_json,
@@ -103,14 +105,14 @@ def clean_json_input(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     except json.JSONDecodeError as e:
-        logging.error(f"JSON decoding error: {e}")
+        logger.error(f"JSON decoding error: {e}")
         return func.HttpResponse(
             f"Unable to clean and parse the provided input. Please ensure the input is structured as JSON. Error: {e}",
             status_code=400
         )
 
     except Exception as e:
-        logging.error(f"An unexpected error occurred: {e}", exc_info=True)
+        logger.error(f"An unexpected error occurred: {e}", exc_info=True)
         return func.HttpResponse(
             f"An error occurred while processing the request: {e}",
             status_code=500

@@ -2,8 +2,8 @@
 import logging
 import hashlib
 import re
-from tnefparse import TNEF
 import traceback
+from utils.url_utils import is_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -225,8 +225,6 @@ def get_filename(part):
     
     return ""
 
-# Fix for process_attachment function in attachment_extractor.py
-
 def process_attachment(part, depth, max_depth, container_path):
     """
     Process an attachment part and extract relevant information.
@@ -307,8 +305,6 @@ def process_attachment(part, depth, max_depth, container_path):
         
         # Extract text from attachment for indexing
         attachment_text = ""
-        
-        # Initialize attachment_urls here to avoid the UnboundLocalError
         attachment_urls = []
         
         # PDF handling with extended content type recognition
@@ -351,22 +347,27 @@ def process_attachment(part, depth, max_depth, container_path):
                 logger.warning(f"Failed to extract Excel text: {str(e)}")
                 attachment_text = f"[Excel Text Extraction Failed: {str(e)}]"
         
-        # Plain text handling
+        # Plain text and HTML handling - UPDATED TO USE SHARED APPROACH
         elif content_type.startswith("text/"):
             try:
                 charset = part.get_content_charset() or 'utf-8'
-                attachment_text = content.decode(charset, errors='replace')
+                decoded_content = content.decode(charset, errors='replace')
                 
-                # Extract URLs from text attachments
+                # Process HTML attachments using the same approach as body extraction
                 if content_type == "text/html":
-                    # For HTML, use our specialized extractor
-                    from extractors.url_extractor import extract_urls, decode_quoted_printable
-                    # First decode any quoted-printable encoding
-                    decoded_text = decode_quoted_printable(attachment_text)
-                    attachment_urls = extract_urls(decoded_text)
-                elif attachment_text:
+                    from utils.html_processor import process_html_content
+                    processed_result = process_html_content(decoded_content)
+                    attachment_text = processed_result["text"]  # Clean, stripped HTML
+                    attachment_urls = processed_result["urls"]  # URLs extracted from HTML
+                    logger.debug(f"Processed HTML attachment: {len(attachment_text)} chars, {len(attachment_urls)} URLs")
+                else:
+                    # For plain text, just use the content directly
+                    attachment_text = decoded_content
+                    
+                    # Extract URLs from plain text
                     from extractors.url_extractor import extract_urls
                     attachment_urls = extract_urls(attachment_text)
+                    logger.debug(f"Extracted {len(attachment_urls)} URLs from text attachment")
                 
             except Exception as e:
                 logger.warning(f"Failed to decode attachment text: {str(e)}")

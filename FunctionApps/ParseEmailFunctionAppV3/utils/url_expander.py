@@ -1,7 +1,8 @@
 import logging
 import requests
-import urllib.parse
 import time
+
+logger = logging.getLogger(__name__)
 
 def expand_url(url, timeout=5, max_redirects=10):
     """
@@ -18,7 +19,7 @@ def expand_url(url, timeout=5, max_redirects=10):
     if not url:
         return url
     
-    logging.debug(f"Expanding URL: {url}")
+    logger.debug(f"Expanding URL: {url}")
     
     if not (url.startswith('http://') or url.startswith('https://')):
         url = 'http://' + url
@@ -37,15 +38,15 @@ def expand_url(url, timeout=5, max_redirects=10):
         # Get the final URL after redirects
         expanded_url = response.url
         
-        logging.debug(f"URL expanded to: {expanded_url}")
+        logger.debug(f"URL expanded to: {expanded_url}")
         return expanded_url
         
     except requests.exceptions.Timeout:
-        logging.warning(f"Timeout expanding URL: {url}")
+        logger.warning(f"Timeout expanding URL: {url}")
     except requests.exceptions.TooManyRedirects:
-        logging.warning(f"Too many redirects expanding URL: {url}")
+        logger.warning(f"Too many redirects expanding URL: {url}")
     except requests.exceptions.RequestException as e:
-        logging.warning(f"Error expanding URL {url}: {str(e)}")
+        logger.warning(f"Error expanding URL {url}: {str(e)}")
     
     # If expansion fails, return the original URL
     return url
@@ -64,26 +65,42 @@ def batch_expand_urls(urls, delay=0.5):
     if not urls:
         return urls
     
-    logging.debug(f"Batch expanding {len(urls)} URLs")
+    logger.debug(f"Batch expanding {len(urls)} URLs")
     
     expanded_urls = []
     for url_obj in urls:
-        if isinstance(url_obj, dict) and "original_url" in url_obj and url_obj.get("is_shortened", False):
+        logger.debug(f"Processing URL in batch_expand: {url_obj}")
+        
+        if isinstance(url_obj, dict) and "original_url" in url_obj:
             # Clone the URL object
             expanded_url_obj = url_obj.copy()
             
-            # Expand the URL
-            expanded_url = expand_url(url_obj["original_url"])
-            expanded_url_obj["expanded_url"] = expanded_url
+            # Only expand if it's a shortened URL
+            if expanded_url_obj.get("is_shortened", False):
+                # Expand the URL
+                expanded_url = expand_url(expanded_url_obj["original_url"])
+                
+                # Only set expanded_url if it's actually different from the original
+                if expanded_url and expanded_url != expanded_url_obj["original_url"]:
+                    expanded_url_obj["expanded_url"] = expanded_url
+                    logger.debug(f"Expanded shortened URL to: {expanded_url}")
+                else:
+                    # If expansion failed or returned the same URL, set to empty string
+                    expanded_url_obj["expanded_url"] = "Not Applicable"
+                    logger.debug(f"URL expansion failed or returned same URL, setting expanded_url to empty string")
+            else:
+                # Explicitly set expanded_url to empty string for non-shortened URLs
+                expanded_url_obj["expanded_url"] = "Not Applicable"
+                logger.debug(f"URL is not shortened, setting expanded_url to empty string")
             
             expanded_urls.append(expanded_url_obj)
             
             # Add delay to avoid rate limiting
-            if delay > 0:
+            if delay > 0 and expanded_url_obj.get("is_shortened", False):
                 time.sleep(delay)
         else:
-            # If not a shortened URL or not in expected format, keep as is
+            # If not in expected format, keep as is
             expanded_urls.append(url_obj)
     
-    logging.debug(f"Completed batch URL expansion")
+    logger.debug(f"Completed batch URL expansion")
     return expanded_urls

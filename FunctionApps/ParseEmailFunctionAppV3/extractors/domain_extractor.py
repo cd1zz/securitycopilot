@@ -2,6 +2,8 @@ import logging
 import urllib.parse
 import re
 
+logger = logging.getLogger(__name__)
+
 def extract_domains(urls):
     """
     Extract unique domains from a list of URLs.
@@ -15,7 +17,7 @@ def extract_domains(urls):
     if not urls:
         return []
     
-    logging.debug("Extracting domains from URLs")
+    logger.debug("Extracting domains from URLs")
     domains = set()
     
     try:
@@ -32,11 +34,11 @@ def extract_domains(urls):
                 domains.add(domain)
         
         result = list(domains)
-        logging.debug(f"Extracted {len(result)} unique domains")
+        logger.debug(f"Extracted {len(result)} unique domains")
         return result
         
     except Exception as e:
-        logging.error(f"Error extracting domains: {str(e)}")
+        logger.error(f"Error extracting domains: {str(e)}")
         return []
 
 def get_domain_from_url(url):
@@ -78,6 +80,6 @@ def get_domain_from_url(url):
             return domain
             
     except Exception as e:
-        logging.warning(f"Error extracting domain from URL {url}: {str(e)}")
+        logger.warning(f"Error extracting domain from URL {url}: {str(e)}")
     
     return ""

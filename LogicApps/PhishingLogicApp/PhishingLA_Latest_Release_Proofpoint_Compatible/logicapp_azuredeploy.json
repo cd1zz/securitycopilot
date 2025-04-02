@@ -596,8 +596,7 @@
                                 "variables": [
                                     {
                                         "name": "urls",
-                                        "type": "array",
-                                        "value": "@body('Process_parseEmail_JSON')?['email_content']?['urls']"
+                                        "type": "array"
                                     }
                                 ]
                             }
@@ -628,7 +627,7 @@
                                             "type": "AppendToArrayVariable",
                                             "inputs": {
                                                 "name": "urls",
-                                                "value": "@concat(substring(string(item()), 0, 100), '...')"
+                                                "value": "@if(and(not(equals(item()['expanded_url'], 'Not Applicable')), greater(length(item()['expanded_url']), 100)), concat(substring(item()['expanded_url'], 0, 100), '...'), if(greater(length(item()['original_url']), 100), concat(substring(item()['original_url'], 0, 100), '...'), item()['original_url']))"
                                             }
                                         }
                                     },
@@ -638,13 +637,19 @@
                                                 "type": "AppendToArrayVariable",
                                                 "inputs": {
                                                     "name": "urls",
-                                                    "value": "@string(item())"
+                                                    "value": "@if(equals(item()['expanded_url'], 'Not Applicable'), item()['original_url'], item()['expanded_url'])"
                                                 }
                                             }
                                         }
                                     },
                                     "expression": {
-                                        "and": [
+                                        "or": [
+                                            {
+                                                "greater": [
+                                                    "@length(item()['original_url'])",
+                                                    100
+                                                ]
+                                            },
                                             {
                                                 "greater": [
                                                     "@length(item()['expanded_url'])",

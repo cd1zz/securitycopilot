@@ -94,7 +94,7 @@ def parse_gmail_forwarded(body_text, forwarded_data):
     Returns:
         dict: Updated forwarded email data
     """
-    logging.debug("Parsing Gmail forwarded email")
+    logger.debug("Parsing Gmail forwarded email")
     
     try:
         # Extract header section after the forwarded message marker
@@ -131,7 +131,7 @@ def parse_gmail_forwarded(body_text, forwarded_data):
             forwarded_data["original_body"] = body_match.group(1).strip()
         
     except Exception as e:
-        logging.error(f"Error parsing Gmail forwarded email: {str(e)}")
+        logger.error(f"Error parsing Gmail forwarded email: {str(e)}")
     
     return forwarded_data
 
@@ -146,7 +146,7 @@ def parse_apple_mail_forwarded(body_text, forwarded_data):
     Returns:
         dict: Updated forwarded email data
     """
-    logging.debug("Parsing Apple Mail forwarded email")
+    logger.debug("Parsing Apple Mail forwarded email")
     
     try:
         # Extract header section after the forwarded message marker
@@ -183,7 +183,7 @@ def parse_apple_mail_forwarded(body_text, forwarded_data):
             forwarded_data["original_body"] = body_match.group(1).strip()
         
     except Exception as e:
-        logging.error(f"Error parsing Apple Mail forwarded email: {str(e)}")
+        logger.error(f"Error parsing Apple Mail forwarded email: {str(e)}")
     
     return forwarded_data
 
@@ -198,10 +198,10 @@ def parse_outlook_forwarded(body_text, forwarded_data):
     Returns:
         dict: Updated forwarded email data
     """
-    logging.debug("Parsing Outlook forwarded email")
-    logging.debug(f"Body text length: {len(body_text)}")
+    logger.debug("Parsing Outlook forwarded email")
+    logger.debug(f"Body text length: {len(body_text)}")
     if len(body_text) > 0:
-        logging.debug(f"First 200 chars of body text: {body_text[:200]}")
+        logger.debug(f"First 200 chars of body text: {body_text[:200]}")
     
     try:
         # Extract the entire header block - more permissive pattern
@@ -210,31 +210,31 @@ def parse_outlook_forwarded(body_text, forwarded_data):
         
         if header_match:
             header_section = header_match.group(1)
-            logging.debug(f"Found header section: {header_section}")
+            logger.debug(f"Found header section: {header_section}")
             
             # Extract From
             from_match = re.search(r"From:\s*(.*?)(?:\r?\n|$)", header_section, re.IGNORECASE)
             if from_match:
                 forwarded_data["original_sender"] = from_match.group(1).strip()
-                logging.debug(f"Extracted sender: {forwarded_data['original_sender']}")
+                logger.debug(f"Extracted sender: {forwarded_data['original_sender']}")
             
             # Extract Sent (Date) - look for both Sent: and Date:
             date_match = re.search(r"(?:Sent|Date):\s*(.*?)(?:\r?\n|$)", header_section, re.IGNORECASE)
             if date_match:
                 forwarded_data["original_date"] = date_match.group(1).strip()
-                logging.debug(f"Extracted date: {forwarded_data['original_date']}")
+                logger.debug(f"Extracted date: {forwarded_data['original_date']}")
             
             # Extract Subject
             subject_match = re.search(r"Subject:\s*(.*?)(?:\r?\n|$)", header_section, re.IGNORECASE)
             if subject_match:
                 forwarded_data["original_subject"] = subject_match.group(1).strip()
-                logging.debug(f"Extracted subject: {forwarded_data['original_subject']}")
+                logger.debug(f"Extracted subject: {forwarded_data['original_subject']}")
             
             # Extract To
             to_match = re.search(r"To:\s*(.*?)(?:\r?\n|$)", header_section, re.IGNORECASE)
             if to_match:
                 forwarded_data["original_recipient"] = to_match.group(1).strip()
-                logging.debug(f"Extracted recipient: {forwarded_data['original_recipient']}")
+                logger.debug(f"Extracted recipient: {forwarded_data['original_recipient']}")
             
             # Extract the body content
             # Find where the header ends in the original text
@@ -245,22 +245,22 @@ def parse_outlook_forwarded(body_text, forwarded_data):
                 # The body is everything after the header
                 if header_end < len(body_text):
                     forwarded_data["original_body"] = body_text[header_end:].strip()
-                    logging.debug(f"Extracted body of length: {len(forwarded_data['original_body'])}")
+                    logger.debug(f"Extracted body of length: {len(forwarded_data['original_body'])}")
                     if len(forwarded_data["original_body"]) > 0:
-                        logging.debug(f"First 200 chars of body: {forwarded_data['original_body'][:200]}")
+                        logger.debug(f"First 200 chars of body: {forwarded_data['original_body'][:200]}")
                 else:
-                    logging.warning("Header ends at end of text, no body content found")
+                    logger.warning("Header ends at end of text, no body content found")
             else:
-                logging.warning("Could not locate header in original text")
+                logger.warning("Could not locate header in original text")
         else:
-            logging.warning("No matching Outlook header pattern found")
+            logger.warning("No matching Outlook header pattern found")
             # Fallback: treat the entire body as the forwarded content
             if len(body_text) > 0:
                 forwarded_data["original_body"] = body_text
-                logging.debug("Using entire text as body (fallback)")
+                logger.debug("Using entire text as body (fallback)")
     except Exception as e:
-        logging.error(f"Error parsing Outlook forwarded email: {str(e)}")
-        logging.error(traceback.format_exc())
+        logger.error(f"Error parsing Outlook forwarded email: {str(e)}")
+        logger.error(traceback.format_exc())
     
     return forwarded_data
 
@@ -275,7 +275,7 @@ def parse_generic_forwarded(body_text, forwarded_data):
     Returns:
         dict: Updated forwarded email data
     """
-    logging.debug("Parsing generic forwarded email")
+    logger.debug("Parsing generic forwarded email")
     
     try:
         # Extract header section
@@ -313,6 +313,6 @@ def parse_generic_forwarded(body_text, forwarded_data):
             forwarded_data["original_body"] = body_match.group(1).strip()
         
     except Exception as e:
-        logging.error(f"Error parsing generic forwarded email: {str(e)}")
+        logger.error(f"Error parsing generic forwarded email: {str(e)}")
     
     return forwarded_data

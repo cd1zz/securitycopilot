@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 import azure.functions as func
 
 # Set up logging configuration
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 def extract_with_regex(subject: str, pattern: str) -> Tuple[Optional[str], Optional[str]]:
     """
@@ -52,7 +52,7 @@ def extract_regex(req: func.HttpRequest) -> func.HttpResponse:
     }
     """
     try:
-        logging.debug("Received HTTP request.")
+        logger.debug("Received HTTP request.")
         
         # Get request body
         try:
@@ -73,8 +73,8 @@ def extract_regex(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             )
             
-        logging.debug(f"Processing regex pattern: {pattern}")
-        logging.debug(f"Testing against subject: {subject}")
+        logger.debug(f"Processing regex pattern: {pattern}")
+        logger.debug(f"Testing against subject: {subject}")
         
         # Attempt to extract match
         match_result, error_message = extract_with_regex(subject, pattern)
@@ -100,7 +100,7 @@ def extract_regex(req: func.HttpRequest) -> func.HttpResponse:
         )
         
     except Exception as e:
-        logging.error(f"An unexpected error occurred: {e}", exc_info=True)
+        logger.error(f"An unexpected error occurred: {e}", exc_info=True)
         return func.HttpResponse(
             f"An error occurred while processing the request: {str(e)}",
             status_code=500

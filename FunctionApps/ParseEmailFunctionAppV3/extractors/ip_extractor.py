@@ -1,6 +1,8 @@
 import logging
 import re
 
+logger = logging.getLogger(__name__)
+
 def extract_ip_addresses(text):
     """
     Extract IPv4 and IPv6 addresses from text content.
@@ -14,7 +16,7 @@ def extract_ip_addresses(text):
     if not text:
         return []
     
-    logging.debug("Extracting IP addresses from text content")
+    logger.debug("Extracting IP addresses from text content")
     
     try:
         # Extract IPv4 addresses
@@ -31,11 +33,11 @@ def extract_ip_addresses(text):
         # Combine unique IP addresses
         ip_addresses = list(set(valid_ipv4 + ipv6_matches))
         
-        logging.debug(f"Extracted {len(ip_addresses)} unique IP addresses")
+        logger.debug(f"Extracted {len(ip_addresses)} unique IP addresses")
         return ip_addresses
         
     except Exception as e:
-        logging.error(f"Error extracting IP addresses: {str(e)}")
+        logger.error(f"Error extracting IP addresses: {str(e)}")
         return []
 
 def is_valid_ipv4(ip):

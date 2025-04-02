@@ -1,11 +1,9 @@
 import logging
 import io
-import email
-import os
-import base64
 import olefile  # Required for parsing .msg files
-
 from parsers.email_parser import parse_email
+
+logger = logging.getLogger(__name__)
 
 def parse_msg(msg_content, max_depth=10):
     """
@@ -18,7 +16,7 @@ def parse_msg(msg_content, max_depth=10):
     Returns:
         dict: Parsed email data
     """
-    logging.debug("Parsing .msg file")
+    logger.debug("Parsing .msg file")
     
     try:
         # Write MSG content to a temporary BytesIO object to use with olefile
@@ -39,10 +37,10 @@ def parse_msg(msg_content, max_depth=10):
         return parsed_data
         
     except ImportError:
-        logging.error("olefile module not installed. Required for .msg parsing.")
+        logger.error("olefile module not installed. Required for .msg parsing.")
         return {"error": "olefile module not installed. Required for .msg parsing."}
     except Exception as e:
-        logging.error(f"Error parsing .msg file: {str(e)}")
+        logger.error(f"Error parsing .msg file: {str(e)}")
         return {"error": f"Failed to parse .msg file: {str(e)}"}
 
 def convert_msg_to_eml(ole):
@@ -55,7 +53,7 @@ def convert_msg_to_eml(ole):
     Returns:
         bytes: Email content in EML format
     """
-    logging.debug("Converting MSG to EML format")
+    logger.debug("Converting MSG to EML format")
     
     # Initialize an email message
     eml_parts = []
@@ -104,7 +102,7 @@ def convert_msg_to_eml(ole):
     # Extract attachments (simplified - would need more complex processing for real attachments)
     # This is a basic implementation and would need to be expanded for full attachment support
     if ole.exists('__attach_version1.0_#00000000'):
-        logging.debug("MSG file contains attachments - extracting")
+        logger.debug("MSG file contains attachments - extracting")
         # Implement attachment extraction here
     
     # Combine all parts into an EML string

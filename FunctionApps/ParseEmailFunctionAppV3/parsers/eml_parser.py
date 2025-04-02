@@ -1,9 +1,7 @@
 import logging
-import email
-from email import policy
-from email.parser import BytesParser, Parser
-
 from parsers.email_parser import parse_email
+
+logger = logging.getLogger(__name__)
 
 def parse_eml(eml_content, max_depth=10):
     """
@@ -16,7 +14,7 @@ def parse_eml(eml_content, max_depth=10):
     Returns:
         dict: Parsed email data
     """
-    logging.debug("Parsing .eml file")
+    logger.debug("Parsing .eml file")
     
     try:
         # Convert to bytes if string is provided
@@ -29,5 +27,5 @@ def parse_eml(eml_content, max_depth=10):
         return parsed_data
         
     except Exception as e:
-        logging.error(f"Error parsing .eml file: {str(e)}")
+        logger.error(f"Error parsing .eml file: {str(e)}")
         return {"error": f"Failed to parse .eml file: {str(e)}"}

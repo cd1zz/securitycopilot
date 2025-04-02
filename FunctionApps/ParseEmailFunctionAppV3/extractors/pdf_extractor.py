@@ -1,5 +1,8 @@
 from pdfminer.high_level import extract_text
 import io
+import logging
+
+logger = logging.getLogger(__name__)
 
 def extract_text_from_pdf(pdf_data):
     """

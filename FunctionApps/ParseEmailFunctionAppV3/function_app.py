@@ -26,7 +26,7 @@ def parse_email_functionapp(req: func.HttpRequest) -> func.HttpResponse:
     Returns:
         func.HttpResponse: HTTP response with original email data in JSON format
     """
-    logging.info("Email Parser function processing a request.")
+    logger.info("Email Parser function processing a request.")
     
     try:
         # Get email content from the request
@@ -69,7 +69,7 @@ def parse_email_functionapp(req: func.HttpRequest) -> func.HttpResponse:
         )
         
     except Exception as e:
-        logging.error(f"Error processing request: {str(e)}")
+        logger.error(f"Error processing request: {str(e)}")
         return func.HttpResponse(
             json.dumps({"error": f"Failed to process email: {str(e)}"}),
             mimetype="application/json",
@@ -89,7 +89,7 @@ def clean_json_functionapp(req: func.HttpRequest) -> func.HttpResponse:
     Returns:
         func.HttpResponse: HTTP response with cleaned JSON
     """
-    logging.info("JSON Cleaner function processing a request.")
+    logger.info("JSON Cleaner function processing a request.")
     return clean_json_input(req)
 
 @app.function_name("generate_html_report_functionapp")
@@ -104,7 +104,7 @@ def generate_html_report_functionapp(req: func.HttpRequest) -> func.HttpResponse
     Returns:
         func.HttpResponse: HTTP response with HTML report
     """
-    logging.info("HTML Report Generator function processing a request.")
+    logger.info("HTML Report Generator function processing a request.")
     return generate_html_report(req)
 
 @app.function_name("extract_regex_functionapp")
@@ -119,5 +119,5 @@ def extract_regex_functionapp(req: func.HttpRequest) -> func.HttpResponse:
     Returns:
         func.HttpResponse: HTTP response with regex match results
     """
-    logging.info("Regex Extractor function processing a request.")
+    logger.info("Regex Extractor function processing a request.")
     return extract_regex(req)

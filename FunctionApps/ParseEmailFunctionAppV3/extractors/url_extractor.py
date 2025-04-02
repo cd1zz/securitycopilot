@@ -66,7 +66,7 @@ def extract_urls(text):
         url_info = {
             "original_url": url,
             "is_shortened": is_shortened,
-            "expanded_url": url  # Default to original, would be expanded with url_expander
+            "expanded_url": ""
         }
         
         urls.append(url_info)
@@ -395,82 +395,79 @@ def batch_expand_urls(urls, delay=0.5):
     
     expanded_urls = []
     for url_obj in urls:
-        if isinstance(url_obj, dict) and "original_url" in url_obj and url_obj.get("is_shortened", False):
+        logger.debug(f"Processing URL in batch_expand: {url_obj}")
+        
+        if isinstance(url_obj, dict) and "original_url" in url_obj:
             # Clone the URL object
             expanded_url_obj = url_obj.copy()
             
-            # Expand the URL
-            expanded_url = expand_shortened_url(url_obj["original_url"])
-            expanded_url_obj["expanded_url"] = expanded_url
+            # Only expand if it's a shortened URL
+            if expanded_url_obj.get("is_shortened", False):
+                # Expand the URL
+                expanded_url = expand_shortened_url(expanded_url_obj["original_url"])
+                
+                # Only set expanded_url if it's actually different from the original
+                if expanded_url and expanded_url != expanded_url_obj["original_url"]:
+                    expanded_url_obj["expanded_url"] = expanded_url
+                    logger.debug(f"Expanded shortened URL to: {expanded_url}")
+                else:
+                    # If expansion failed or returned the same URL, set to None
+                    expanded_url_obj["expanded_url"] = "Not Applicable"
+                    logger.debug(f"URL expansion failed or returned same URL, setting expanded_url to None")
+            else:
+                # Explicitly set expanded_url to None for non-shortened URLs
+                expanded_url_obj["expanded_url"] = "Not Applicable"
+                logger.debug(f"URL is not shortened, setting expanded_url to None")
             
             expanded_urls.append(expanded_url_obj)
             
             # Add delay to avoid rate limiting
-            if delay > 0:
+            if delay > 0 and expanded_url_obj.get("is_shortened", False):
                 time.sleep(delay)
         else:
-            # If not a shortened URL or not in expected format, keep as is
+            # If not in expected format, keep as is
             expanded_urls.append(url_obj)
     
     logger.debug(f"Completed batch URL expansion")
     return expanded_urls
 
-def dedupe_to_base_urls(urls):
+def dedupe_to_base_urls(url_list):
     """
-    Deduplicates URLs by extracting and keeping only the unique base parts.
-    
-    Args:
-        urls (list): List of URLs to deduplicate
-        
-    Returns:
-        list: List of deduplicated URLs
+    Deduplicate only non-shortened URLs by their base domain,
+    preserving all fields including expanded_url.
+    Shortened URLs are left intact.
     """
-    if not urls:
-        return []
-        
-    logger.debug(f"Deduplicating {len(urls)} URLs")
-    
-    # Extract base URLs (scheme + netloc)
-    base_urls = {}
-    for url in urls:
-        if isinstance(url, dict) and "original_url" in url:
-            url_str = url["original_url"]
-        else:
-            url_str = str(url)
-            
-        try:
-            parsed = urllib.parse.urlparse(url_str)
-            base_url = f"{parsed.scheme}://{parsed.netloc}"
-            
-            # Keep the first URL for each base
-            if base_url not in base_urls:
-                if isinstance(url, dict):
-                    base_urls[base_url] = url
-                else:
-                    base_urls[base_url] = {"original_url": url_str}
-        except Exception as e:
-            logger.warning(f"Error deduplicating URL {url_str}: {str(e)}")
-    
-    logger.debug(f"Deduplicated to {len(base_urls)} unique base URLs")
-    return list(base_urls.values())
+    logger.debug(f"Deduplicating {len(url_list)} URLs")
 
-def is_image_url(url):
-    """
-    Determines if a URL points to an image based on its extension.
-    
-    Args:
-        url (str): URL to check
-        
-    Returns:
-        bool: True if URL points to an image, False otherwise
-    """
-    image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.webp', '.tiff']
-    try:
-        parsed = urllib.parse.urlparse(url)
-        path = parsed.path.lower()
-        return any(path.endswith(ext) for ext in image_extensions)
-    except Exception:
-        return False
+    seen_bases = set()
+    deduped = []
+
+    for url_obj in url_list:
+        if not isinstance(url_obj, dict) or "original_url" not in url_obj:
+            continue
+
+        if url_obj.get("is_shortened", False):
+            deduped.append(url_obj)
+            continue
+
+        try:
+            parsed = urllib.parse.urlparse(url_obj["original_url"])
+            base_url = f"{parsed.scheme}://{parsed.netloc}"
+
+            if base_url not in seen_bases:
+                seen_bases.add(base_url)
+                deduped.append({
+                    "original_url": base_url,
+                    "is_shortened": False,
+                    "expanded_url": url_obj.get("expanded_url", "Not Applicable")
+                })
+        except Exception as e:
+            logger.warning(f"Error deduplicating URL {url_obj['original_url']}: {str(e)}")
+            deduped.append(url_obj)
+
+    logger.debug(f"Final deduplicated URL count: {len(deduped)}")
+    return deduped
+
 
 def strip_html_tags(text):
     """

@@ -2,6 +2,8 @@ import logging
 from email.utils import parseaddr, parsedate_to_datetime
 import re
 
+logger = logging.getLogger(__name__)
+
 def extract_headers(msg):
     """
     Extract headers from an email message object.
@@ -12,7 +14,7 @@ def extract_headers(msg):
     Returns:
         dict: Dictionary containing parsed header information
     """
-    logging.debug("Extracting headers from email message")
+    logger.debug("Extracting headers from email message")
     
     headers = {
         "message_id": "",
@@ -34,12 +36,12 @@ def extract_headers(msg):
     try:
         # Extract Message-ID
         headers["message_id"] = msg.get("Message-ID", "")
-        logging.debug(f"Extracted Message-ID: {headers['message_id']}")
+        logger.debug(f"Extracted Message-ID: {headers['message_id']}")
         
         # Extract sender information
         from_header = msg.get("From", "")
         headers["sender"] = from_header
-        logging.debug(f"Extracted sender: {headers['sender']}")
+        logger.debug(f"Extracted sender: {headers['sender']}")
         
         # Extract Return-Path
         return_path = msg.get("Return-Path", "")
@@ -47,20 +49,20 @@ def extract_headers(msg):
             # Remove angle brackets if present
             return_path = re.sub(r'[<>]', '', return_path)
         headers["return_path"] = return_path
-        logging.debug(f"Extracted Return-Path: {headers['return_path']}")
+        logger.debug(f"Extracted Return-Path: {headers['return_path']}")
         
         # Extract receiver information
         to_header = msg.get("To", "")
         headers["receiver"] = to_header
-        logging.debug(f"Extracted receiver: {headers['receiver']}")
+        logger.debug(f"Extracted receiver: {headers['receiver']}")
         
         # Extract Reply-To
         headers["reply_to"] = msg.get("Reply-To", "")
-        logging.debug(f"Extracted Reply-To: {headers['reply_to']}")
+        logger.debug(f"Extracted Reply-To: {headers['reply_to']}")
         
         # Extract subject
         headers["subject"] = msg.get("Subject", "")
-        logging.debug(f"Extracted subject: {headers['subject']}")
+        logger.debug(f"Extracted subject: {headers['subject']}")
         
         # Extract date
         date_header = msg.get("Date", "")
@@ -70,9 +72,9 @@ def extract_headers(msg):
                 dt = parsedate_to_datetime(date_header)
                 headers["date"] = dt.isoformat()
             except Exception as e:
-                logging.warning(f"Failed to parse date header: {date_header}, error: {str(e)}")
+                logger.warning(f"Failed to parse date header: {date_header}, error: {str(e)}")
                 headers["date"] = date_header
-        logging.debug(f"Extracted date: {headers['date']}")
+        logger.debug(f"Extracted date: {headers['date']}")
         
         # Extract SMTP headers
         delivered_to = msg.get("Delivered-To", "")
@@ -81,7 +83,7 @@ def extract_headers(msg):
         # Extract all Received headers
         received_headers = msg.get_all("Received", [])
         headers["smtp"]["received"] = received_headers
-        logging.debug(f"Extracted {len(received_headers)} Received headers")
+        logger.debug(f"Extracted {len(received_headers)} Received headers")
         
         # Extract authentication results
         auth_results = msg.get("Authentication-Results", "")
@@ -101,9 +103,9 @@ def extract_headers(msg):
         if dmarc_match:
             headers["dmarc_result"] = dmarc_match.group(1)
         
-        logging.debug(f"Extracted authentication results - DKIM: {headers['dkim_result']}, SPF: {headers['spf_result']}, DMARC: {headers['dmarc_result']}")
+        logger.debug(f"Extracted authentication results - DKIM: {headers['dkim_result']}, SPF: {headers['spf_result']}, DMARC: {headers['dmarc_result']}")
         
     except Exception as e:
-        logging.error(f"Error extracting headers: {str(e)}")
+        logger.error(f"Error extracting headers: {str(e)}")
     
     return headers

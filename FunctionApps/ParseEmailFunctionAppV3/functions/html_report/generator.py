@@ -3,6 +3,8 @@ from jinja2 import Template
 from urllib.parse import unquote
 import azure.functions as func
 
+logger = logging.getLogger(__name__)
+
 CATEGORY_STYLES = {
     "PHISHING": "background-color: #d9534f; color: white; padding: 5px 10px; text-transform: uppercase;",
     "JUNK/SPAM": "background-color: #f0ad4e; color: white; padding: 5px 10px; text-transform: uppercase;",
@@ -146,16 +148,16 @@ def create_html(json_data):
 
 
 def generate_html_report(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Processing request to generate phishing HTML report.')
+    logger.info('Processing request to generate phishing HTML report.')
 
     try:
         # Parse the request body
         req_body = req.get_json()
-        logging.info("Request body successfully parsed.")
+        logger.info("Request body successfully parsed.")
 
         # Validate the input is a dict
         if not isinstance(req_body, dict):
-            logging.warning("Invalid input format. Expected a JSON object.")
+            logger.warning("Invalid input format. Expected a JSON object.")
             return func.HttpResponse(
                 "Invalid input format. Expected a JSON object.",
                 status_code=400
@@ -166,7 +168,7 @@ def generate_html_report(req: func.HttpRequest) -> func.HttpResponse:
         html_report = unquote(html_report)
 
         # Return HTML Report as response
-        logging.info("Returning generated HTML report.")
+        logger.info("Returning generated HTML report.")
         return func.HttpResponse(
             html_report,
             status_code=200,
@@ -177,14 +179,14 @@ def generate_html_report(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     except ValueError as e:
-        logging.error(f"Invalid JSON input: {e}")
+        logger.error(f"Invalid JSON input: {e}")
         return func.HttpResponse(
             "Invalid JSON input.",
             status_code=400
         )
 
     except Exception as e:
-        logging.error(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
         return func.HttpResponse(
             f"An internal error occurred: {e}",
             status_code=500
