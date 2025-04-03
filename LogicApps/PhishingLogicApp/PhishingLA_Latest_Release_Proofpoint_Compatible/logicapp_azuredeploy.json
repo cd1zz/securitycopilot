@@ -1000,7 +1000,7 @@
                                             }
                                         },
                                         "method": "post",
-                                        "body": "<p class=\"editor-paragraph\"></p>",
+                                        "body": "<p class=\"editor-paragraph\">@{body('Generate_HTML_report_from_JSON')}</p>",
                                         "path": "/html2text"
                                     }
                                 },
