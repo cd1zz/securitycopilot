@@ -9,7 +9,7 @@ def strip_urls_and_html(text):
     if not text:
         return text
 
-    logger.debug(f"strip_urls_and_html text before html stripping: {text}")
+    #logger.debug(f"strip_urls_and_html text before html stripping: {text}")
     # Remove HTML tags
     soup = BeautifulSoup(text, "html.parser")
     text = soup.get_text(separator=" ", strip=True)
@@ -31,5 +31,5 @@ def strip_urls_and_html(text):
 
     # Normalize whitespace
     text = re.sub(r"\s+", " ", text).strip()
-    logger.debug(f"strip_urls_and_html text after stripping: {text}")
+    #logger.debug(f"strip_urls_and_html text after stripping: {text}")
     return text

@@ -1,10 +1,11 @@
-# extractors/url_extractor.py
+# utils/url_processor.py
 import logging
 import re
 import urllib.parse
 import requests
 import time
 from bs4 import BeautifulSoup
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,101 @@ URL_SHORTENER_PROVIDERS = [
     "shorte.st"
 ]
 
+def extract_urls_by_content_type(content, content_type, filename=None):
+    """
+    Extract URLs from content based on its content type.
+    
+    Args:
+        content: Content to extract URLs from (string or bytes)
+        content_type: MIME type of the content
+        filename: Optional filename for additional type detection
+        
+    Returns:
+        list: List of extracted URLs
+    """
+    urls = []
+    
+    try:
+        # If content is bytes, try to decode it
+        if isinstance(content, bytes):
+            try:
+                # Try to detect charset from content_type
+                charset = None
+                if content_type and 'charset=' in content_type:
+                    charset_match = re.search(r'charset=([^\s;]+)', content_type)
+                    if charset_match:
+                        charset = charset_match.group(1)
+                
+                # Fallback to utf-8
+                charset = charset or 'utf-8'
+                content = content.decode(charset, errors='replace')
+            except Exception as e:
+                logger.warning(f"Failed to decode content: {str(e)}")
+                content = content.decode('utf-8', errors='replace')
+        
+        # HTML content
+        if content_type and ('html' in content_type.lower() or 
+                            (filename and filename.lower().endswith('.html'))):
+            # Create a structure similar to what extract_all_urls_from_email expects
+            from utils.html_processor import process_html_content
+            processed_result = process_html_content(content)
+            cleaned_text = processed_result.get("text", "")
+            
+            html_body_data = {
+                "html": content,
+                "body": cleaned_text
+            }
+            
+            # Use the same function used by the main email parser
+            urls = extract_all_urls_from_email(html_body_data)
+            logger.debug(f"Extracted {len(urls)} URLs from HTML content")
+            
+        # PDF content
+        elif (content_type and ('pdf' in content_type.lower())) or \
+             (filename and filename.lower().endswith('.pdf')):
+            # First extract text from PDF
+            from extractors.pdf_extractor import extract_text_from_pdf
+            try:
+                if isinstance(content, str):
+                    # Convert string back to bytes for PDF extraction
+                    content = content.encode('utf-8', errors='replace')
+                extracted_text = extract_text_from_pdf(content)
+                
+                # Then extract URLs from the extracted text
+                urls = extract_urls(extracted_text)
+                logger.debug(f"Extracted {len(urls)} URLs from PDF content")
+            except Exception as e:
+                logger.warning(f"Failed to extract URLs from PDF: {str(e)}")
+                
+        # Excel content
+        elif (content_type and any(excel_type in content_type.lower() for excel_type in 
+             ['excel', 'spreadsheet', 'xls'])) or \
+             (filename and filename.lower().endswith(('.xls', '.xlsx'))):
+            # First extract text from Excel
+            from extractors.excel_extractor import extract_text_from_excel
+            try:
+                if isinstance(content, str):
+                    # Convert string back to bytes for Excel extraction
+                    content = content.encode('utf-8', errors='replace')
+                extracted_text = extract_text_from_excel(content)
+                
+                # Then extract URLs from the extracted text
+                urls = extract_urls(extracted_text)
+                logger.debug(f"Extracted {len(urls)} URLs from Excel content")
+            except Exception as e:
+                logger.warning(f"Failed to extract URLs from Excel: {str(e)}")
+                
+        # Plain text and other content types
+        else:
+            urls = extract_urls(content)
+            logger.debug(f"Extracted {len(urls)} URLs from text content")
+            
+        return urls
+        
+    except Exception as e:
+        logger.error(f"Error extracting URLs from content: {str(e)}")
+        return []
+
 def extract_urls(text):
     """
     Extract URLs from text content.
@@ -35,8 +131,6 @@ def extract_urls(text):
     """
     if not text:
         return []
-    
-    logger.debug(f"extract_urls: {text}")
     
     # Decode quoted-printable encoding (common in email content)
     text = decode_quoted_printable(text)
@@ -84,7 +178,6 @@ def decode_quoted_printable(text):
     Returns:
         str: Decoded text
     """
-    #logger.debug(f"decode_quoted_printable: {text}")
     try:
         # Look for patterns like href=3D"http
         if "=3D" in text:
@@ -116,8 +209,6 @@ def extract_urls_from_html(content):
     Returns:
         list: List of URLs found in HTML elements
     """
-    #logger.debug(f"extract_urls_from_html: {content}")
-    
     try:
         soup = BeautifulSoup(content, "html.parser")
         urls = []
@@ -223,7 +314,16 @@ def is_url_shortened(url):
     return False
 
 def decode_safelinks(safelink):
-    logger.debug(f"Attempting to decode SafeLink: {safelink}")
+    """
+    Decode Microsoft SafeLinks URLs.
+    
+    Args:
+        safelink (str): Microsoft SafeLink URL
+        
+    Returns:
+        str: Decoded URL or original if decoding fails
+    """
+    logger.debug(f"Attempting to decode SafeLink")
     
     try:
         if "safelinks.protection.outlook.com" not in safelink:
@@ -232,7 +332,7 @@ def decode_safelinks(safelink):
         # Parse the URL
         parsed_url = urllib.parse.urlparse(safelink)
         
-        # Extract the URL parameter more elegantly
+        # Extract the URL parameter
         query_params = urllib.parse.parse_qs(parsed_url.query)
         original_url = query_params.get('url', [None])[0]
         
@@ -246,7 +346,7 @@ def decode_safelinks(safelink):
     except Exception as e:
         logger.error(f"Error decoding SafeLink: {str(e)}")
         return safelink
-    
+
 def decode_proofpoint_urls(urldefense):
     """
     Decodes a Proofpoint URLDefense URL to extract the original URL.
@@ -257,7 +357,7 @@ def decode_proofpoint_urls(urldefense):
     Returns:
         str: The original URL or the input URL if decoding fails
     """
-    logger.debug(f"Attempting to decode Proofpoint URL: {urldefense}")
+    logger.debug(f"Attempting to decode Proofpoint URL")
     
     try:
         if "urldefense.com" not in urldefense:
@@ -298,7 +398,7 @@ def decode_proofpoint_urls(urldefense):
         logger.error(f"Error decoding Proofpoint URL: {str(e)}")
         return urldefense
 
-def expand_shortened_url(url, timeout=5):
+def expand_url(url, timeout=5, max_redirects=10):
     """
     Expands a shortened URL by following redirects.
     If the final connection cannot be made, returns the last known location.
@@ -306,6 +406,7 @@ def expand_shortened_url(url, timeout=5):
     Args:
         url (str): URL to expand
         timeout (int): Request timeout in seconds
+        max_redirects (int): Maximum number of redirects to follow
         
     Returns:
         str: The expanded URL or the original URL if expansion fails
@@ -404,20 +505,20 @@ def batch_expand_urls(urls, delay=0.5):
             # Only expand if it's a shortened URL
             if expanded_url_obj.get("is_shortened", False):
                 # Expand the URL
-                expanded_url = expand_shortened_url(expanded_url_obj["original_url"])
+                expanded_url = expand_url(expanded_url_obj["original_url"])
                 
                 # Only set expanded_url if it's actually different from the original
                 if expanded_url and expanded_url != expanded_url_obj["original_url"]:
                     expanded_url_obj["expanded_url"] = expanded_url
                     logger.debug(f"Expanded shortened URL to: {expanded_url}")
                 else:
-                    # If expansion failed or returned the same URL, set to None
+                    # If expansion failed or returned the same URL, set to "Not Applicable"
                     expanded_url_obj["expanded_url"] = "Not Applicable"
-                    logger.debug(f"URL expansion failed or returned same URL, setting expanded_url to None")
+                    logger.debug(f"URL expansion failed or returned same URL, setting expanded_url to Not Applicable")
             else:
-                # Explicitly set expanded_url to None for non-shortened URLs
+                # Explicitly set expanded_url to "Not Applicable" for non-shortened URLs
                 expanded_url_obj["expanded_url"] = "Not Applicable"
-                logger.debug(f"URL is not shortened, setting expanded_url to None")
+                logger.debug(f"URL is not shortened, setting expanded_url to Not Applicable")
             
             expanded_urls.append(expanded_url_obj)
             
@@ -430,6 +531,82 @@ def batch_expand_urls(urls, delay=0.5):
     
     logger.debug(f"Completed batch URL expansion")
     return expanded_urls
+
+def process_urls(urls):
+    """
+    Process a list of URLs consistently to deduplicate, decode SafeLinks/Proofpoint,
+    and identify shortened URLs.
+    
+    Args:
+        urls (list): List of URL strings or dictionaries
+        
+    Returns:
+        list: Processed URL dictionaries
+    """
+    if not urls:
+        return []
+        
+    logger.debug(f"Processing {len(urls)} URLs")
+    processed_urls = []
+    seen_urls = set()
+    
+    for url in urls:
+        url_str = url if isinstance(url, str) else url.get("original_url", "")
+        
+        if not url_str:
+            continue
+            
+        # Skip if we've seen this URL already
+        if url_str in seen_urls:
+            continue
+
+        # Skip image URLs
+        if is_image_url(url_str):
+            logger.debug(f"Skipping image URL: {url_str}")
+            continue
+        
+        # Handle Microsoft SafeLinks
+        if "safelinks.protection.outlook.com" in url_str:
+            decoded_url = decode_safelinks(url_str)
+            logger.debug(f"Decoded SafeLink: {url_str} -> {decoded_url}")
+            # Skip if we've already seen this decoded URL
+            if decoded_url in seen_urls:
+                continue
+            url_str = decoded_url
+        
+        # Handle Proofpoint URL Defense
+        elif "urldefense.com" in url_str:
+            decoded_url = decode_proofpoint_urls(url_str)
+            logger.debug(f"Decoded Proofpoint URL: {url_str} -> {decoded_url}")
+            # Skip if we've already seen this decoded URL
+            if decoded_url in seen_urls:
+                continue
+            url_str = decoded_url
+        
+        seen_urls.add(url_str)
+        
+        # Standardize URL format
+        url_obj = {"original_url": url_str}
+        if isinstance(url, dict):
+            # Only update with relevant fields to avoid carrying over inconsistent data
+            if "is_shortened" in url:
+                url_obj["is_shortened"] = url["is_shortened"]
+            if "expanded_url" in url and url["expanded_url"] != url_str:
+                url_obj["expanded_url"] = url["expanded_url"]
+        
+        # Check if it's a shortened URL if not already determined
+        if "is_shortened" not in url_obj:
+            url_obj["is_shortened"] = is_url_shortened(url_str)
+        
+        # Set expanded_url based on shortened status
+        if not url_obj["is_shortened"]:
+            url_obj["expanded_url"] = "Not Applicable"
+        elif "expanded_url" not in url_obj:
+            url_obj["expanded_url"] = url_str
+        
+        processed_urls.append(url_obj)
+    
+    return processed_urls
 
 def dedupe_to_base_urls(url_list):
     """
@@ -468,19 +645,114 @@ def dedupe_to_base_urls(url_list):
     logger.debug(f"Final deduplicated URL count: {len(deduped)}")
     return deduped
 
-
-def strip_html_tags(text):
+def fix_url_expansions(urls):
     """
-    Removes HTML tags from text.
+    Fix URL expansion fields to ensure expanded_url is only set for shortened URLs.
     
     Args:
-        text (str): HTML text
+        urls (list): List of URL dictionaries
         
     Returns:
-        str: Plain text without HTML tags
+        list: List of fixed URL dictionaries
     """
+    fixed_urls = []
+    for url in urls:
+        if isinstance(url, dict):
+            # Make a copy to avoid modifying the original
+            fixed_url = url.copy()
+            
+            # If not a shortened URL, set expanded_url to "Not Applicable"
+            if not fixed_url.get("is_shortened", False):
+                # Only update if it was previously set to a placeholder or the same as original
+                if fixed_url.get("expanded_url") in [None, "", "Not Applicable", fixed_url.get("original_url")]:
+                    fixed_url["expanded_url"] = "Not Applicable"
+            # If it is shortened but expanded_url is the same as original_url, set to "Not Applicable"
+            elif fixed_url.get("expanded_url") == fixed_url.get("original_url"):
+                fixed_url["expanded_url"] = "Not Applicable"
+                
+            fixed_urls.append(fixed_url)
+        else:
+            fixed_urls.append(url)
+    
+    return fixed_urls
+
+def extract_all_urls_from_email(body_data, body_text=""):
+    """
+    Extract all URLs from different parts of an email.
+    
+    Args:
+        body_data (dict): The body data dictionary from extract_body()
+        body_text (str, optional): Plain text body if already extracted
+        
+    Returns:
+        list: List of all extracted URLs
+    """
+    all_urls = []
+    
+    # Extract URLs from HTML content if available
+    if "html" in body_data and body_data["html"]:
+        html_content = body_data["html"]
+        # First decode any quoted-printable encoding in HTML
+        decoded_html = decode_quoted_printable(html_content)
+        
+        # Extract URLs directly from HTML elements
+        html_urls_extracted = extract_urls_from_html(decoded_html)
+        logger.debug(f"Extracted {len(html_urls_extracted)} URLs directly from HTML")
+        all_urls.extend(html_urls_extracted)
+        
+        # Also use the regular URL extractor on HTML content
+        html_urls = extract_urls(decoded_html)
+        logger.debug(f"Extracted {len(html_urls)} URLs from HTML with regex")
+        all_urls.extend(html_urls)
+    
+    # Extract from plain text body
+    if not body_text and "body" in body_data:
+        body_text = body_data.get("body", "")
+    
+    if body_text:
+        decoded_body = decode_quoted_printable(body_text)
+        body_urls = extract_urls(decoded_body)
+        logger.debug(f"Extracted {len(body_urls)} URLs from plain text body")
+        all_urls.extend(body_urls)
+    
+    return all_urls
+
+def extract_urls_from_attachments(attachments):
+    """
+    Extract URLs from email attachments.
+    
+    Args:
+        attachments (list): List of attachment dictionaries
+        
+    Returns:
+        list: List of URLs found in attachments
+    """
+    attachment_urls = []
+    
+    for attachment in attachments:
+        if "urls" in attachment:
+            attachment_urls.extend(attachment["urls"])
+            # Remove the URLs from the attachment to prevent duplication
+            del attachment["urls"]
+    
+    logger.debug(f"Extracted {len(attachment_urls)} URLs from attachments")
+    return attachment_urls
+
+def is_image_url(url):
+    """
+    Determines if a URL points to an image based on its extension.
+
+    Args:
+        url (str): URL to check
+        
+    Returns:
+        bool: True if URL points to an image, False otherwise
+    """
+    image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.webp', '.tiff']
     try:
-        return BeautifulSoup(text, "html.parser").get_text()
-    except Exception as e:
-        logger.error(f"Error stripping HTML tags: {str(e)}")
-        return text
+        parsed = urllib.parse.urlparse(url)
+        path = parsed.path.lower()
+        logger.debug("Checking and removing urls for images")
+        return any(path.endswith(ext) for ext in image_extensions)
+    except Exception:
+        return False

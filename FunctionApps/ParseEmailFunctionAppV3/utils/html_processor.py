@@ -37,14 +37,14 @@ def process_html_content(html_content):
         result["text"] = text
         
         # Extract URLs from various HTML elements
-        from extractors.url_extractor import extract_urls_from_html, decode_quoted_printable
+        from utils.url_processor import extract_urls_from_html, decode_quoted_printable
         
         # First decode any quoted-printable encoding in HTML
         decoded_html = decode_quoted_printable(html_content)
         urls = extract_urls_from_html(decoded_html)
         
         # Filter out image URLs
-        from utils.url_utils import is_image_url
+        from utils.url_processor import is_image_url
         filtered_urls = []
         for url in urls:
             url_str = url if isinstance(url, str) else url.get("original_url", "")
@@ -64,7 +64,7 @@ def process_html_content(html_content):
         result["text"] = text
         
         # Basic URL extraction fallback
-        from extractors.url_extractor import extract_urls
+        from utils.url_processor import extract_urls
         result["urls"] = extract_urls(text)
     
     return result

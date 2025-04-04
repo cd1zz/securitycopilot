@@ -1,6 +1,5 @@
 import logging
 import base64
-from email.utils import parseaddr
 import re
 
 logger = logging.getLogger(__name__)

@@ -1,10 +1,6 @@
 # parsers/proofpoint_parser.py
 import logging
 import re
-from extractors.url_extractor import extract_urls
-from extractors.ip_extractor import extract_ip_addresses
-from extractors.domain_extractor import extract_domains
-from utils.text_cleaner import strip_urls_and_html
 
 logger = logging.getLogger(__name__)
 

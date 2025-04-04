@@ -3,7 +3,6 @@ import logging
 import hashlib
 import re
 import traceback
-from utils.url_utils import is_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -305,7 +304,6 @@ def process_attachment(part, depth, max_depth, container_path):
         
         # Extract text from attachment for indexing
         attachment_text = ""
-        attachment_urls = []
         
         # PDF handling with extended content type recognition
         if content_type in {"application/pdf", "application/x-pdf", "application/octet-stream"} and (
@@ -337,17 +335,11 @@ def process_attachment(part, depth, max_depth, container_path):
                 from extractors.excel_extractor import extract_text_from_excel
                 attachment_text = extract_text_from_excel(content)
                 logger.debug(f"Extracted {len(attachment_text)} characters of text from Excel")
-                
-                # Extract URLs from the Excel content if any
-                if attachment_text:
-                    from extractors.url_extractor import extract_urls
-                    attachment_urls = extract_urls(attachment_text)
-                
             except Exception as e:
                 logger.warning(f"Failed to extract Excel text: {str(e)}")
                 attachment_text = f"[Excel Text Extraction Failed: {str(e)}]"
         
-        # Plain text and HTML handling - UPDATED TO USE SHARED APPROACH
+        # Plain text and HTML handling
         elif content_type.startswith("text/"):
             try:
                 charset = part.get_content_charset() or 'utf-8'
@@ -358,24 +350,21 @@ def process_attachment(part, depth, max_depth, container_path):
                     from utils.html_processor import process_html_content
                     processed_result = process_html_content(decoded_content)
                     attachment_text = processed_result["text"]  # Clean, stripped HTML
-                    attachment_urls = processed_result["urls"]  # URLs extracted from HTML
-                    logger.debug(f"Processed HTML attachment: {len(attachment_text)} chars, {len(attachment_urls)} URLs")
                 else:
                     # For plain text, just use the content directly
                     attachment_text = decoded_content
-                    
-                    # Extract URLs from plain text
-                    from extractors.url_extractor import extract_urls
-                    attachment_urls = extract_urls(attachment_text)
-                    logger.debug(f"Extracted {len(attachment_urls)} URLs from text attachment")
                 
             except Exception as e:
                 logger.warning(f"Failed to decode attachment text: {str(e)}")
                 attachment_text = content.decode('utf-8', errors='replace')
-                
-                # Still try to extract URLs with fallback decoding
-                from extractors.url_extractor import extract_urls
-                attachment_urls = extract_urls(attachment_text)
+        
+        # Extract URLs using the centralized function from url_processor
+        from utils.url_processor import extract_urls_by_content_type
+        attachment_urls = extract_urls_by_content_type(
+            content=content,
+            content_type=content_type,
+            filename=filename
+        )
         
         attachment = {
             "attachment_name": filename,
@@ -387,18 +376,12 @@ def process_attachment(part, depth, max_depth, container_path):
             "attachment_text": attachment_text
         }
         
-        # Add URLs found in the attachment
+        # Add raw URLs to attachment - they will be processed by the main parser
         if attachment_urls:
             attachment["urls"] = attachment_urls
         
         if parsed_email:
             attachment["parsed_email"] = parsed_email
-            
-            # If the parsed email has URLs, add them to attachment URLs
-            if "email_content" in parsed_email and "urls" in parsed_email["email_content"]:
-                if "urls" not in attachment:
-                    attachment["urls"] = []
-                attachment["urls"].extend(parsed_email["email_content"]["urls"])
         
         return attachment
         

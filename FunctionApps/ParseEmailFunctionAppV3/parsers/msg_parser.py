@@ -1,6 +1,6 @@
 import logging
 import io
-import olefile  # Required for parsing .msg files
+import olefile  
 from parsers.email_parser import parse_email
 
 logger = logging.getLogger(__name__)
