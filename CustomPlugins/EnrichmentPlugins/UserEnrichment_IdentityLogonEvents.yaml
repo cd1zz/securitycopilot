@@ -5,7 +5,35 @@ Descriptor:
   Description: A set of tools for analyzing user activity and enhancing security investigations, including login behavior, password changes, MFA modifications, and location verification.
   SupportedAuthTypes:
     - None
-    
+  Settings:
+
+      - Name: TenantId
+        Label: TenantId
+        Description: Azure TenantId.
+        HintText: TenantId
+        SettingType: String
+        Required: true
+
+      - Name: SubscriptionId
+        Label: SubscriptionId
+        Description: This is the subscription ID that security copilot will use for sentinel.
+        HintText: SubscriptionId
+        SettingType: String
+        Required: true
+        
+      - Name: WorkspaceName
+        Label: WorkspaceName
+        Description: This is the  workspace name that security copilot will use for sentinel.
+        HintText: yourworkspace
+        SettingType: String
+        Required: true
+
+      - Name: ResourceGroupName
+        Label: ResourceGroupName
+        Description: This is the resource group name that security copilot will use for sentinel.
+        HintText: yourresourcegroup
+        SettingType: String
+        Required: true    
 SkillGroups:
   - Format: KQL
     Skills:
@@ -633,7 +661,11 @@ SkillGroups:
           Provides normalized user agent tokens, source IPs, and accounts for review.
         Description: Detects new user agents from Office, IIS, and AWS logs by comparing the past day's activity to a two-week historical baseline. Used to identify unknown tools or clients indicative of suspicious behavior.
         Settings:
-          Target: Defender
+          Target: Sentinel
+          TenantId: "{{TenantId}}"
+          SubscriptionId: "{{SubscriptionId}}"
+          ResourceGroupName: "{{ResourceGroupName}}"
+          WorkspaceName: "{{WorkspaceName}}"
           Template: |-
             let query_now = now(); // Current time reference, unused in logic
             let starttime = 14d; // Total lookback window
