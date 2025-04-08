@@ -267,6 +267,7 @@ SkillGroups:
                 SigninLogs
                 | where TimeGenerated > TimeFrame
                 | where UserPrincipalName =~ UPN
+                | where IPAddress != "{{exclude_ip}}" // exclude_ip from query
                 | summarize LocationCount = count() by Location
                 | top 1 by LocationCount desc
                 | project Location
@@ -276,6 +277,7 @@ SkillGroups:
                 SigninLogs
                 | where TimeGenerated > TimeFrame
                 | where UserPrincipalName =~ UPN
+                | where IPAddress != "{{exclude_ip}}" // exclude_ip from query
                 | summarize DeviceCount = count() by tostring(DeviceDetail.deviceId)
                 | top 1 by DeviceCount desc
                 | project tostring(DeviceDetail_deviceId)
@@ -284,6 +286,7 @@ SkillGroups:
             let MostCommonApp = toscalar(
                 SigninLogs
                 | where TimeGenerated > TimeFrame
+                | where IPAddress != "{{exclude_ip}}" // exclude_ip from query
                 | where UserPrincipalName =~ UPN
                 | summarize AppCount = count() by AppDisplayName
                 | top 1 by AppCount desc
@@ -293,6 +296,7 @@ SkillGroups:
             let MostCommonClientApp = toscalar(
                 SigninLogs
                 | where TimeGenerated > TimeFrame
+                | where IPAddress != "{{exclude_ip}}" // exclude_ip from query
                 | where UserPrincipalName =~ UPN
                 | summarize ClientAppCount = count() by ClientAppUsed
                 | top 1 by ClientAppCount desc

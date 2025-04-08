@@ -603,3 +603,66 @@ SkillGroups:
                 RiskLevel == "medium" and TotalDetections < 5, "Medium",
                 "Low")
             | order by RiskPriority asc, TotalDetections asc
+      - Name: UnusualSigninActivity
+        DisplayName: Unusual Sign-in Activity
+        DescriptionForModel: |
+          Performs a KQL query on the `IdentityLogonEvents` table to analyze the last 30 days of sign-in activity for a specified user...
+        Description: Identify unusual sign-in patterns for a specific user...
+        Inputs:
+          - Name: upn
+            Description: User principal name, e.g., mscott@woodgrove.ms
+            Required: true
+          - Name: exclude_ip
+            Description: Any IP address that should be excluded from the results.
+            Default: ""
+            Required: false
+          - Name: unusualsignin_context
+            Description: Additional context to tune the output appropriately
+            Default: ""
+            Required: false
+        Settings:
+          Target: Defender
+          Template: |-
+            // Existing UnusualSigninActivity KQL here
+
+      - Name: NewUserAgentDetected
+        DisplayName: New User Agent Detected
+        DescriptionForModel: |
+          Identifies new user agents seen in the past day that have not been previously observed in the past two weeks across OfficeActivity, W3CIISLog, and AWSCloudTrail logs. 
+          Highlights potential threats such as unexpected automation tools, malicious scripts, or new client software indicating possible reconnaissance or lateral movement.
+          Provides normalized user agent tokens, source IPs, and accounts for review.
+        Description: Detects new user agents from Office, IIS, and AWS logs by comparing the past day's activity to a two-week historical baseline. Used to identify unknown tools or clients indicative of suspicious behavior.
+        Settings:
+          Target: Defender
+          Template: |-
+            let query_now = now(); // Current time reference, unused in logic
+            let starttime = 14d; // Total lookback window
+            let endtime = 1d; // Defines recent window for new activity detection
+            let UserAgentAll = 
+                (union isfuzzy=true
+                    (OfficeActivity
+                    | where TimeGenerated >= ago(starttime)
+                    | where isnotempty(UserAgent)
+                    | summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated) by UserAgent, SourceIP = ClientIP, Account = UserId, Type, RecordType, Operation),
+                    (W3CIISLog
+                    | where TimeGenerated >= ago(starttime)
+                    | where isnotempty(csUserAgent)
+                    | summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated) by UserAgent = csUserAgent, SourceIP = cIP, Account = csUserName, Type, sSiteName, csMethod, csUriStem),
+                    (AWSCloudTrail
+                    | where TimeGenerated >= ago(starttime)
+                    | where isnotempty(UserAgent)
+                    | summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated) by UserAgent, SourceIP = SourceIpAddress, Account = UserIdentityUserName, Type, EventSource, EventName))
+                | extend UserAgentNoHexAlphas = replace("([A-Fa-f]{4,})", "x", UserAgent) // Replace long hex strings to reduce noise
+                | extend Tokens = extract_all("([A-Za-z]{4,})", UserAgentNoHexAlphas) // Extract alphabetic word tokens
+                | extend NormalizedUserAgent = strcat_array(Tokens, "|") // Create a normalized user-agent signature
+                | project-away UserAgentNoHexAlphas, Tokens;
+            UserAgentAll
+            | where StartTime >= ago(endtime) // Focus on new (recent) user-agent activity
+            | summarize StartTime = min(StartTime), EndTime = max(EndTime), count() by UserAgent, NormalizedUserAgent, SourceIP, Account, Type, RecordType, Operation, EventSource, EventName, sSiteName, csMethod, csUriStem
+            | join kind=leftanti
+                (UserAgentAll
+                | where StartTime < ago(endtime) // Look at historic baseline
+                | summarize by NormalizedUserAgent, SourceIP, Account, Type, RecordType, Operation, EventSource, EventName, sSiteName, csMethod, csUriStem)
+                on NormalizedUserAgent // Identify user-agent signatures not seen before
+            | where Type != "W3CIISLog" // Filter out IIS logs (likely too noisy or untrusted)
+            | extend timestamp = StartTime, IPCustomEntity = SourceIP, AccountCustomEntity = Account // Entity mapping for enrichment
