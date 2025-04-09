@@ -1,0 +1,130 @@
+openapi: 3.0.3
+info:
+  title: KEVin API
+  version: 1.0.0
+  description: API for accessing CISA KEV and CVE vulnerability data via kevin.gtfkd.com
+
+servers:
+  - url: https://kevin.gtfkd.com
+
+paths:
+  /kev:
+    get:
+      summary: Get KEV entries (optionally with search and pagination)
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of KEV entries
+
+  /kev/{cve_id}:
+    get:
+      summary: Get KEV entry by CVE ID
+      parameters:
+        - name: cve_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: KEV entry detail
+
+  /kev/recent:
+    get:
+      summary: Get recent KEVs added within the last N days
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of recent KEV entries
+
+  /get_metrics:
+    get:
+      summary: Get counts of CVEs and KEVs
+      responses:
+        '200':
+          description: Metrics
+
+  /vuln/{cve_id}:
+    get:
+      summary: Get cveLand data for CVE ID
+      parameters:
+        - name: cve_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: cveLand vulnerability data
+
+  /vuln/{cve_id}/nvd:
+    get:
+      summary: Get NVD data for a CVE ID
+      parameters:
+        - name: cve_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: NVD vulnerability data
+
+  /vuln/{cve_id}/mitre:
+    get:
+      summary: Get MITRE data for a CVE ID
+      parameters:
+        - name: cve_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: MITRE CVE data
+
+  /recent/published:
+    get:
+      summary: Get vulnerabilities published in the last N days
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of recently published vulnerabilities
+
+  /recent/modified:
+    get:
+      summary: Get vulnerabilities modified in the last N days
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of recently modified vulnerabilities
