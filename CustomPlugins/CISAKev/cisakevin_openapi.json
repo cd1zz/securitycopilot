@@ -1,0 +1,75 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "CISA KEV Lookup API",
+    "description": "Query the CISA Known Exploited Vulnerabilities catalog with optional filters.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/kev": {
+      "get": {
+        "summary": "Retrieve Known Exploited Vulnerabilities",
+        "parameters": [
+          {
+            "name": "cveID",
+            "in": "query",
+            "description": "Filter by CVE ID (e.g. CVE-2025-29824)",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "vendor",
+            "in": "query",
+            "description": "Filter by vendor name (e.g. Microsoft)",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "product",
+            "in": "query",
+            "description": "Filter by product name (e.g. Windows)",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Full-text search keyword across all fields",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A filtered list of vulnerabilities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "cveID": { "type": "string" },
+                      "vendorProject": { "type": "string" },
+                      "product": { "type": "string" },
+                      "vulnerabilityName": { "type": "string" },
+                      "dateAdded": { "type": "string", "format": "date" },
+                      "shortDescription": { "type": "string" },
+                      "requiredAction": { "type": "string" },
+                      "dueDate": { "type": "string", "format": "date" },
+                      "knownRansomwareCampaignUse": { "type": "string" },
+                      "notes": { "type": "string" },
+                      "cwes": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error fetching or processing data"
+          }
+        }
+      }
+    }
+  }
+}
