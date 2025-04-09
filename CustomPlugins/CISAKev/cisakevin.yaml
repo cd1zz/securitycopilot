@@ -1,10 +1,10 @@
 Descriptor:  
   Name: CISA Known and Exploited Vulnerabilities (KEV)
   DisplayName: CISA Known and Exploited Vulnerabilities (KEV)
-  Description: Uses the kevin.gtfkd.com API that interfaces with the CISA Known and Eploited Vulnerability database.
+  Description: Uses craigs CISA API implementation
 
 
 SkillGroups:  
   - Format: API  
     Settings:  
-      OpenApiSpecUrl: https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/CustomPlugins/CISAKev/cisakevin_openapi.yaml
+      OpenApiSpecUrl: https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/CustomPlugins/CISAKev/cisakevin_openapi.json
