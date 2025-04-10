@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://cisakev-apimgmt.azure-api.net/a[o"
+      "url": "https://cisakev-apimgmt.azure-api.net/api"
     }
   ],
   "paths": {
