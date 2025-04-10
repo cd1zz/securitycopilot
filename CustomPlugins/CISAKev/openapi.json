@@ -5,33 +5,43 @@
     "description": "Query the CISA Known Exploited Vulnerabilities catalog with optional filters.",
     "version": "1.0.0"
   },
+  "servers": [
+    {
+      "url": "https://cisakev-apimgmt.azure-api.net/a[o"
+    }
+  ],
   "paths": {
-    "/api/kev": {
+    "/kev": {
       "get": {
         "summary": "Retrieve Known Exploited Vulnerabilities",
+        "operationId": "getKevVulnerabilities",
         "parameters": [
           {
             "name": "cveID",
             "in": "query",
             "description": "Filter by CVE ID (e.g. CVE-2025-29824)",
+            "required": false,
             "schema": { "type": "string" }
           },
           {
             "name": "vendor",
             "in": "query",
             "description": "Filter by vendor name (e.g. Microsoft)",
+            "required": false,
             "schema": { "type": "string" }
           },
           {
             "name": "product",
             "in": "query",
             "description": "Filter by product name (e.g. Windows)",
+            "required": false,
             "schema": { "type": "string" }
           },
           {
             "name": "q",
             "in": "query",
             "description": "Full-text search keyword across all fields",
+            "required": false,
             "schema": { "type": "string" }
           }
         ],
@@ -66,7 +76,7 @@
             }
           },
           "500": {
-            "description": "Error fetching or processing data"
+            "description": "Internal error retrieving KEV data"
           }
         }
       }
