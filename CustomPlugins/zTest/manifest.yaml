@@ -1,0 +1,28 @@
+# Author Rick Kotlarz ~ https://github.com/RickKotlarz/
+# https://cortex-panw.stoplight.io/docs/cortex-xsoar-8/
+# Updated 2025-March-25
+
+Descriptor:
+  Name: Palo Alto XSOAR plugin - v3.0.6
+  DisplayName: Palo Alto XSOAR - v3.0.6
+  Description: Plugin example leveraging the Palo Alto XSOAR API - v3.0.6
+  DescriptionForModel: Plugin example leveraging the Palo Alto XSOAR API
+  Icon: https://avatars.githubusercontent.com/u/70215919
+
+  SupportedAuthTypes:
+    - ApiKey
+
+  Authorization:
+    Type: APIKey
+    Key: Authorization
+      # Name of the header or query parm (default is 'Authorization') this is the string that's sent to the endpoint along with the value set in the 'parameters' field of the plugin.
+#   Value:                # Used to hardcode the API key - Avoid using this as much as possible. If used, DO NOT upload this file to a public resource
+    Location: Header
+      # Location of key, can be 'Header' or 'QueryParams' (default is 'Header')
+    AuthScheme: ''
+      # The name of the authentication scheme which will be prepended to the 'Value' when passed in the header. This can be left blank (e.g. ''), 'Bearer' or 'Basic')
+
+SkillGroups:
+  - Format: API
+    Settings:
+      OpenApiSpecUrl: https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/CustomPlugins/zTest/openapi.yaml
