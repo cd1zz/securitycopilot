@@ -374,7 +374,7 @@ paths:
           
 #####################################################################################################
 #  Incidents
-#     Get a specefic incident
+#     Get a specific incident
 #####################################################################################################
 
   /public/v1/incident/load/{id}:
@@ -586,5 +586,83 @@ paths:
                   retained:
                     type: boolean
                     description: 'Whether the incident is retained.'
+        '400':
+          description: Bad request
+
+#####################################################################################################
+#  Incident Investigation
+#     Retrieve the details of an incident investigation.
+#####################################################################################################
+
+  /public/v1/incident/investigation/{id}:
+    get:
+      operationId: X-GetIncidentInvestigation
+      displayName: X-GetIncidentInvestigation
+      description: Retrieve the investigation details for a specific incident.
+      descriptionForModel: |
+        Palo Alto XSOAR - Retrieve the investigation details for a specific incident.
+      examplePrompts:
+        - 'Get investigation details for incident 1234'
+        - 'Retrieve incident investigation information'
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          placeholderValue: Incident ID to retrieve investigation for (e.g. 1234)
+          description: Incident ID to retrieve investigation for
+        - $ref: '#/components/parameters/x-xdr-auth-id'
+      responses:
+        '200':
+          description: Successfully retrieved investigation details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: Unique identifier for the investigation.
+                  incidentId:
+                    type: string
+                    description: Unique identifier for the associated incident.
+                  status:
+                    type: string
+                    description: Status of the investigation.
+                  tasks:
+                    type: array
+                    description: List of tasks associated with the investigation.
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: Unique identifier for the task.
+                        name:
+                          type: string
+                          description: Name of the task.
+                        status:
+                          type: string
+                          description: Status of the task.
+                        assignedTo:
+                          type: string
+                          description: User assigned to the task.
+                        startTime:
+                          type: string
+                          format: date-time
+                          description: Start time of the task.
+                        endTime:
+                          type: string
+                          format: date-time
+                          description: End time of the task.
+                  created:
+                    type: string
+                    format: date-time
+                    description: Timestamp when the investigation was created.
+                  modified:
+                    type: string
+                    format: date-time
+                    description: Timestamp of the last modification to the investigation.
         '400':
           description: Bad request
