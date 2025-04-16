@@ -16,7 +16,7 @@ This solution is ideal for automating enrichment triage pipelines. It integrates
 
 Click below to deploy the Logic App and required API connection to your Azure environment:
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2F<USERNAME_OR_ORG>%2F<REPO>%2Fmain%2Fazure_deploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/LogicApps/PaloAltoXSoar/azure_deploy.json)
 
 ### Required Parameters
 
