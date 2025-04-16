@@ -3,7 +3,21 @@
 **Author:** Craig Freyman  
 **Inspired by:** [Rick Kotlarz](https://github.com/RickKotlarz/Security-Copilot-Plugins-dev/tree/main/Palo_Alto_XSOAR)
 
-This Logic App provides automated enrichment and threat analysis using Palo Alto XSOAR and Microsoft Security Copilot. It accepts an `incident_id` and `query`, which is then passed to the /public/v1/investigation/{incident_id} XSOAR endpoint. This API call acquires the raw enrichment data which is then passed to Security Copilot.
+This Logic App provides automated enrichment and threat analysis using Palo Alto XSOAR and Microsoft Security Copilot. It accepts an `incident_id` and `query`, which is then passed to the /public/v1/investigation/{incident_id} XSOAR endpoint. This API call acquires the raw enrichment data which is then passed to Security Copilot.  
+
+Example output:
+```text
+### Security Copilot Analysis ###
+**Assessment Summary:**  
+No threat indicators detected — likely a false positive.
+
+**Supporting Evidence:**  
+- **ipinfo_v2**: The IP address 8.8.8.8 is associated with Google LLC, located in Mountain View, CA. It has a reputation score of 1, indicating it is a known and trusted IP. The IP is used for hosting and has no VPN, proxy, or TOR flags.
+- **MISP V3**: No attributes found for the IP address 8.8.8.8, suggesting no known correlation or reports of malicious activity.
+- **MISP V3**: No attributes found for the domain tvitter.com, and an error indicating the URL is not valid. This suggests a weak signal with no known correlation or reports.
+
+The data from both tools indicate that the IP address 8.8.8.8 is benign, and the domain tvitter.com does not have any supporting evidence of being malicious. Therefore, this is likely a false positive.
+```
 
 ## Overview
 
