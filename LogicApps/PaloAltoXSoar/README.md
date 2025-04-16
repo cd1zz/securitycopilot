@@ -19,7 +19,9 @@ Click below to deploy the Logic App and required API connection to your Azure en
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPaloAltoXSoar%2Fazure_deploy.json)  
 
-Ensure you activate your Security Copilot connection by opening it up and making sure there are no errors on the connection. You may have to reauthenticate.  
+## Post Deployment
+
+Ensure you activate your Security Copilot connection by opening that block up and making sure there are no errors on the connection. You may have to reauthenticate that API connection.
 
 ### Required Parameters
 
