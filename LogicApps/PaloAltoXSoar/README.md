@@ -1,6 +1,7 @@
 # XSOAR + Security Copilot Integration
 
 **Author:** Craig Freyman
+**Inspired by:** Rick Kotlarz [GitHub URL](https://github.com/RickKotlarz/Security-Copilot-Plugins-dev/tree/main/Palo_Alto_XSOAR)
 
 This Logic App provides automated enrichment and threat analysis using Palo Alto XSOAR and Microsoft Security Copilot. It accepts an `incident_id` and `query`, which is then passed to the /public/v1/investigation/{incident_id} XSOAR endpoint. This API call acquires the raw enrichment data which is then passed to Security Copilot.
 
