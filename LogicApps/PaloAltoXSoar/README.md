@@ -17,7 +17,9 @@ This solution is ideal for automating enrichment triage pipelines. It integrates
 
 Click below to deploy the Logic App and required API connection to your Azure environment:
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPaloAltoXSoar%2Fazure_deploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FPaloAltoXSoar%2Fazure_deploy.json)  
+
+Ensure you activate your Security Copilot connection by opening it up and making sure there are no errors on the connection. You may have to reauthenticate.  
 
 ### Required Parameters
 
@@ -40,17 +42,11 @@ Click below to deploy the Logic App and required API connection to your Azure en
 
 ## Example Trigger Payload
 
-- Retrieve your HTTP endpoint by opening the HTTP action. Use a test curl command like:
+- Retrieve your HTTP endpoint by opening the HTTP action.  
+- Use a test curl command like:
 
 ```bash
 curl -X POST   -H 'Accept: application/json'   -H 'Content-Type: application/json'   -d '{"incident_id": 123456, "query": "${.}"}'   'https://prod-07.australiaeast.logic.azur......'
-```
-
-```json
-{
-  "incident_id": 123456,
-  "query": "{\"key\":\"value\"}"
-}
 ```
 
 ## Notes
