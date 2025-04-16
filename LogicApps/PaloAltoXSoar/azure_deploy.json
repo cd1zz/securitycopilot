@@ -5,7 +5,7 @@
         "SubscriptionId": {
             "type": "String",
             "metadata": {
-                "description": "The subscription ID where resources will be deployed."
+                "description": "The subscription ID where Security Copilot is deployed."
             }
         },
         "LogicAppName": {
@@ -262,7 +262,7 @@
                 "parameters": {
                     "$connections": {
                         "value": {
-                            "securitycopilot-1": {
+                            "securitycopilot": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/securitycopilot')]",
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('Securitycopilot-ConnectionName'))]",
                                 "connectionName": "[variables('Securitycopilot-ConnectionName')]"
