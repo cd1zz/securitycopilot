@@ -1,0 +1,60 @@
+# XSOAR + Security Copilot Integration
+
+**Author:** Craig Freyman
+
+This Logic App provides automated enrichment and threat analysis using Palo Alto XSOAR and Microsoft Security Copilot. It accepts an `incident_id` and `query`, which is then passed to the /public/v1/investigation/{incident_id} XSOAR endpoint. This API call acquires the raw enrichment data which is then passed to Security Copilot.
+
+## Overview
+
+This solution is ideal for automating enrichment triage pipelines. It integrates:
+- Palo Alto Cortex XSOAR API calls for retrieving investigation context
+- Filtering and transformation of indicator data
+- Submission of results to Security Copilot for AI-powered threat assessment
+- Output formatting suitable for downstream reporting or analyst consumption
+
+## Deployment
+
+Click below to deploy the Logic App and required API connection to your Azure environment:
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2F<USERNAME_OR_ORG>%2F<REPO>%2Fmain%2Fazure_deploy.json)
+
+### Required Parameters
+
+| Parameter             | Description                                                |
+|-----------------------|------------------------------------------------------------|
+| `SubscriptionId`      | Azure Subscription ID where the resources will be deployed |
+| `LogicAppName`        | Name for the deployed Logic App                            |
+| `PaloAltoInstance`    | XSOAR instance base URL (e.g., `https://api-xyz.crtx.us...`) |
+| `ApiKey`              | API key for XSOAR authorization header                     |
+| `x-xdr-auth-id_value` | XSOAR Auth ID header value (default: `19`)                 |
+
+## Workflow Summary
+
+1. **Trigger:** HTTP POST with JSON payload containing `incident_id` and `query`
+2. **Action:** Posts request to XSOAR using composed URI
+3. **Parse:** Extracts and filters the JSON response
+4. **Select:** Captures `brand` and `contents` fields for Security Copilot
+5. **Evaluate:** Sends prompt to Security Copilot via Logic App connector
+6. **Compose:** Assembles final analyst-ready output
+
+## Example Trigger Payload
+
+```json
+{
+  "incident_id": 123456,
+  "query": "{\"key\":\"value\"}"
+}
+```
+
+## Notes
+
+- The deployed Logic App uses the `Securitycopilot` managed API connector. Ensure this connector is authorized post-deployment.
+- Results are returned in plain-text analyst summaries from Security Copilot. Consider additional automation steps to email or store output.
+
+## Security Considerations
+
+- Ensure the API key for XSOAR is stored securely in Azure Key Vault or via ARM parameterization.
+- Use managed identities and least-privilege principles for Logic App access.
+- Regularly rotate secrets and monitor XSOAR API usage.
+
+---

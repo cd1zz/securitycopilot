@@ -1,0 +1,276 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "SubscriptionId": {
+            "type": "String",
+            "metadata": {
+                "description": "The subscription ID where resources will be deployed."
+            }
+        },
+        "LogicAppName": {
+            "type": "String",
+            "metadata": {
+                "description": "The name of the Logic App to be deployed."
+            }
+        },
+        "PaloAltoInstance": {
+            "type": "String",
+            "metadata": {
+                "description": "For example: https://api-123123123123.crtx.us.paloaltonetworks.com "
+            }
+        },
+        "ApiKey": {
+            "type": "String",
+            "metadata": {
+                "description": "API key for XSoar instance"
+            }
+        },
+        "x-xdr-auth-id_value": {
+            "type": "String",
+            "defaultValue": "19",
+            "metadata": {
+                "description": "API key for XSoar instance"
+            }
+        }
+    },
+    "variables": {
+        "PaloAltoInstanceFullUrl": "[concat(parameters('PaloAltoInstance'), '/xsoar/public/v1/investigation/@{triggerBody()?[''incident_id'']}')]",
+        "Securitycopilot-ConnectionName": "[concat('Securitycopilot-1-', parameters('LogicAppName'))]"
+
+    },
+
+
+    "resources": [
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('Securitycopilot-ConnectionName')]",
+            "location": "[resourceGroup().location]",
+            "kind": "V1",
+            "properties": {
+                "displayName": "[variables('Securitycopilot-ConnectionName')]",
+                "api": {
+                    "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Securitycopilot')]"
+                }
+            }
+        },
+        {
+
+
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('LogicAppName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', variables('Securitycopilot-ConnectionName'))]"
+
+            ],
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_a_HTTP_request_is_received": {
+                            "type": "Request",
+                            "kind": "Http",
+                            "inputs": {
+                                "method": "POST",
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "incident_id": {
+                                            "type": "integer"
+                                        },
+                                        "query": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "HTTP_POST_to_XSoar": {
+                            "runAfter": {},
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "[variables('PaloAltoInstanceFullUrl')]",
+                                "method": "POST",
+                                "headers": {
+                                    "x-xdr-auth-id": "[parameters('x-xdr-auth-id_value')]",
+                                    "Authorization": "[parameters('ApiKey')]",
+                                    "Content-Type": "application/json"
+                                },
+                                "body": {
+                                    "query": "@triggerBody()?['query']"
+                                }
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                }
+                            }
+                        },
+                        "Parse_JSON": {
+                            "runAfter": {
+                                "HTTP_POST_to_XSoar": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@body('HTTP_POST_to_XSoar')",
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "cacheVersn": {
+                                            "type": "integer"
+                                        },
+                                        "category": {
+                                            "type": "string"
+                                        },
+                                        "childs": {},
+                                        "closed": {
+                                            "type": "string"
+                                        },
+                                        "created": {
+                                            "type": "string"
+                                        },
+                                        "details": {
+                                            "type": "string"
+                                        },
+                                        "entries": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "brand": {
+                                                        "type": "string"
+                                                    },
+                                                    "category": {
+                                                        "type": "string"
+                                                    },
+                                                    "contents": {
+                                                        "type": "string"
+                                                    },
+                                                    "file": {
+                                                        "type": "string"
+                                                    },
+                                                    "fileID": {
+                                                        "type": "string"
+                                                    },
+                                                    "fileMetadata": {},
+                                                    "format": {
+                                                        "type": "string"
+                                                    },
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "investigationId": {
+                                                        "type": "string"
+                                                    },
+                                                    "reputations": {}
+                                                }
+                                            }
+                                        },
+                                        "entryUsers": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "highPriority": {
+                                            "type": "boolean"
+                                        },
+                                        "id": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "Filter_array": {
+                            "runAfter": {
+                                "Parse_JSON": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Query",
+                            "inputs": {
+                                "from": "@body('Parse_JSON')?['entries']",
+                                "where": "@not(or(\r\n  contains(item()?['brand'], 'none'),\r\n  contains(item()?['brand'], 'RedCanary'),\r\n  contains(item()?['brand'], 'MaxMind GeoIP2')\r\n))"
+                            }
+                        },
+                        "Select_JSON_Keys_We_Need": {
+                            "runAfter": {
+                                "Filter_array": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Select",
+                            "inputs": {
+                                "from": "@body('Filter_array')",
+                                "select": {
+                                    "brand": "@{item()?['brand']}",
+                                    "contents": "@{item()?['contents']}"
+                                }
+                            }
+                        },
+                        "Submit_a_Security_Copilot_prompt": {
+                            "runAfter": {
+                                "Select_JSON_Keys_We_Need": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['securitycopilot']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "body": {
+                                    "PromptContent": "/AskGpt\n### Threat Intel JSON Analyst\n\n**ROLE:**  \nYou are a cybersecurity threat analyst AI. Your job is to review enrichment JSON results from various threat intelligence tools and generate clear, concise threat assessments for human analysts.\n\n**OBJECTIVE:**  \nInterpret the provided JSON data and determine whether any indicators (IPs, domains, URLs) are suspicious or malicious. If not, assess whether the results suggest a likely false positive. Use the `brand` field to infer the context and trust level of the data source, and explain your conclusions using supporting evidence from the input.\n\n**TOOL CONTEXT:**  \nUse the `brand` field in each JSON entry to interpret reputation scores and metadata correctly:\n\n- **MISP V3**: A community-driven threat sharing platform.  \n  - `reputation: 1` \u2192 benign  \n  - `reputation: 0` \u2192 potentially suspicious or untrusted  \n  - `\"No attributes found\"` \u2192 weak signal; no known correlation or reports\n\n- **ipinfo_v2**: IP and domain enrichment tool.  \n  - `reputation: 1` \u2192 known and trusted (e.g., `google.com`, `dns.google`)  \n  - `reputation: 0` \u2192 unknown or flagged (e.g., typosquat domains, abuse-linked domains)  \n  - Additional context such as `\"hosting\": true`, `\"tor\": false`, `\"vpn\": false` helps infer infrastructure type and potential misuse\n\n- **Other brands**: Use general reasoning \u2014 low reputation scores or lack of correlation across multiple tools may indicate suspicion or false positives depending on the context\n\n**INSTRUCTIONS:**\n1. Use the `brand` field to understand which tool produced each result.  \n2. Identify any indicators that are clearly:\n   - **Suspicious or malicious** (e.g., low reputation, typosquatting, TOR/VPN flags)\n   - **Benign** (e.g., known trusted infrastructure with clean scores)\n   - **Inconclusive** (e.g., no attributes found, ambiguous score)\n3. If no threat is present, evaluate whether this may be a **false positive** based on the absence of meaningful or corroborated risk indicators.\n4. **Do not output structured JSON.** Produce a professional, plain-text summary that includes:\n   - A brief verdict  \n   - Followed by evidence and reasoning based on the data provided\n\n**OUTPUT FORMAT:**\n```\n**Assessment Summary:**  \n<One-line conclusion such as: \"No threat indicators detected \u2014 likely a false positive.\" OR \"Suspicious domain detected \u2014 further investigation recommended.\">\n\n**Supporting Evidence:**  \n- <Tool>: <Interpretation of data, e.g., \"MISP V3 returned a reputation score of 0 for 'tvitter.com', with no supporting attributes \u2014 likely a typosquatting attempt.\">\n- <Tool>: <e.g., \"ipinfo_v2 shows 8.8.8.8 is a Google-owned DNS IP with a reputation of 1 \u2014 considered benign.\">\n- <Tool>: <Any anomalies, such as 'No attributes found', error messages, or mixed indicators>\n```\n\n**ANALYSIS GUIDANCE:**\n- Use your background knowledge of tools like MISP and IPinfo to contextualize the data (e.g., a MISP reputation without attributes is weak evidence)\n- Prioritize clarity over completeness \u2014 this summary is for analysts triaging alerts\n- Highlight any domains or IPs that stand out and explain why\n\n---\n\n**INPUT JSON:**  \n```json\n@{string(body('Select_JSON_Keys_We_Need'))}\n```"
+                                },
+                                "path": "/process-prompt"
+                            }
+                        },
+                        "Compose": {
+                            "runAfter": {
+                                "Submit_a_Security_Copilot_prompt": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Compose",
+                            "inputs": "@concat('### Security Copilot Analysis ###\n', body('Submit_a_Security_Copilot_prompt')?['EvaluationResultContent'])"
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "securitycopilot-1": {
+                                "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/securitycopilot')]",
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Securitycopilot-ConnectionName'))]",
+                                "connectionName": "[variables('Securitycopilot-ConnectionName')]"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}
