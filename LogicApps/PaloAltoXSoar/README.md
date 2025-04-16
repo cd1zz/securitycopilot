@@ -40,6 +40,12 @@ Click below to deploy the Logic App and required API connection to your Azure en
 
 ## Example Trigger Payload
 
+- Retrieve your HTTP endpoint by opening the HTTP action. Use a test curl command like:
+
+```bash
+curl -X POST   -H 'Accept: application/json'   -H 'Content-Type: application/json'   -d '{"incident_id": 123456, "query": "${.}"}'   'https://prod-07.australiaeast.logic.azur......'
+```
+
 ```json
 {
   "incident_id": 123456,
