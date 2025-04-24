@@ -6,9 +6,9 @@ This solution enables automated **Software Risk Reviews** by orchestrating an Az
 
 ## Solution Overview
 
-1. **Trigger**: Monitors a shared mailbox for new messages containing the keyword `SoftwareRiskReview:` in the subject line.
-2. **Extraction**: Extracts the software name using regex.
-3. **Web Research**: Uses Azure OpenAI to summarize web-sourced software intelligence.
+1. **Trigger**: Monitors a shared mailbox for new messages containing the keyword `SoftwareRiskReview:` in the subject line.  
+2. **Extraction**: Extracts the software name using regex.  
+3. **Web Research**: Uses Azure OpenAI to summarize web-sourced software intelligence.  
 4. **Security Analysis**: Submits findings to a Security Copilot Promptbook for expert risk evaluation.
 
 ---
@@ -21,8 +21,8 @@ This solution enables automated **Software Risk Reviews** by orchestrating an Az
 - Posts collected insights to Security Copilot.
 
 ### Azure Function Apps
-- **`extract_regex`**: Regex-extracts software name.
-- **`research_agent`**: Leverages DuckDuckGo and Azure OpenAI for summarization.
+- `extract_regex`: Regex-extracts software name.
+- `research_agent`: Leverages DuckDuckGo and Azure OpenAI for summarization.
 
 ### Microsoft Security Copilot
 - Runs a Promptbook using software details for risk review.
@@ -46,8 +46,6 @@ az cognitiveservices account create \
 ```
 
 ### 2. Deploy a Model (e.g., `gpt-4o`)
-Use Azure Portal or CLI:
-
 ```bash
 az cognitiveservices account deployment create \
   --name your-openai-name \
@@ -59,42 +57,47 @@ az cognitiveservices account deployment create \
   --scale-type Standard
 ```
 
-> The Function App expects the following model environment variables:
-> - `AZURE_OPENAI_API_VERSION` (default: `2023-12-01-preview`)
-> - `AZURE_OPENAI_DEPLOYMENT_NAME` (default: `gpt-4o`)
-> - `AZURE_OPENAI_ENDPOINT` (e.g., `https://your-openai-name.openai.azure.com/`)
-> - `AZURE_OPENAI_KEY` (from the resource's Keys blade)
-> - `AZURE_OPENAI_MODEL` (default: `gpt-4o`)
+Environment variables expected by the Function App:
+- `AZURE_OPENAI_API_VERSION` (default: `2023-12-01-preview`)
+- `AZURE_OPENAI_DEPLOYMENT_NAME` (default: `gpt-4o`)
+- `AZURE_OPENAI_ENDPOINT` (e.g., `https://your-openai-name.openai.azure.com/`)
+- `AZURE_OPENAI_KEY` (from Azure OpenAI resource Keys)
+- `AZURE_OPENAI_MODEL` (default: `gpt-4o`)
 
 ---
 
 ## Email Input Format
 
-Subject Example:
+Subject line should follow the format:
+
 ```
 SoftwareRiskReview: Dovetail
 ```
 
+Only subject content is parsed. The mailbox should be monitored by the Logic App.
+
 ---
 
-## Deployment Instructions
+## Deployment Options
 
 ### Deploy the Function App
-```bash
-az functionapp deployment source config-zip \
-  --resource-group WebResearchAgentV3 \
-  --name webaiagent123abc \
-  --src ./WebResearchAgent.zip
-```
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FSoftwareRiskReview%2Ffunctionapp_azuredeploy.json)
 
 ### Deploy the Logic App
-Import the JSON definition from this repo into the Azure Portal or deploy via Bicep/ARM.
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FSoftwareRiskReview%2Ffunctionapp_azuredeploy.json)
 
 ---
 
 ## Prerequisites
 
-- Azure OpenAI resource with deployed model
-- Security Copilot Promptbook published
-- Logic App connectors for Office365 and Security Copilot configured
-- Azure Function App with `AZURE_OPENAI_*` variables set
+- Azure OpenAI resource with a deployed model as outlined above.
+- **Security Copilot Promptbook must be created in advance**. You will need the `PromptbookId` GUID at deployment time.
+- Prompt definitions are located here:  
+  [PromptBookPrompts.md](https://github.com/cd1zz/securitycopilot/blob/main/LogicApps/SoftwareRiskReview/PromptBookPrompts.md)
+- Logic App connectors must be authorized for:
+  - Office365
+  - Security Copilot
+- The Function App must be configured with all required `AZURE_OPENAI_*` environment variables.
+
