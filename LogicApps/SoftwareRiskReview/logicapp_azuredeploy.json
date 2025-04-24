@@ -42,8 +42,8 @@
         }
     },
     "variables": {
-        "Office365-ConnectionName": "[concat('Office365-1-', parameters('LogicAppName'))]",
-        "Securitycopilot-ConnectionName": "[concat('Securitycopilot-1-', parameters('LogicAppName'))]"
+        "Office365-ConnectionName": "[concat('office365-1-', parameters('LogicAppName'))]",
+        "Securitycopilot-ConnectionName": "[concat('securitycopilot-1-', parameters('LogicAppName'))]"
     },
     "resources": [
         {
