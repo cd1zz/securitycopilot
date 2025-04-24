@@ -47,27 +47,30 @@
     },
     "resources": [
         {
+
             "type": "Microsoft.Web/connections",
             "apiVersion": "2016-06-01",
+            "name": "[variables('Office365-ConnectionName')]",
             "location": "[resourceGroup().location]",
-            "name": "[variables('Securitycopilot-ConnectionName')]",
+            "kind": "V1",
             "properties": {
+                "displayName": "[variables('Office365-ConnectionName')]",
                 "api": {
-                    "id": "[concat('/subscriptions/',subscription().subscriptionId,'/providers/Microsoft.Web/locations/',resourceGroup().location,'/managedApis/securitycopilot')]"
-                },
-                "displayName": "[variables('Securitycopilot-ConnectionName')]"
+                    "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+                }
             }
         },
         {
             "type": "Microsoft.Web/connections",
             "apiVersion": "2016-06-01",
+            "name": "[variables('Securitycopilot-ConnectionName')]",
             "location": "[resourceGroup().location]",
-            "name": "[variables('Office365-ConnectionName')]",
+            "kind": "V1",
             "properties": {
+                "displayName": "[variables('Securitycopilot-ConnectionName')]",
                 "api": {
-                    "id": "[concat('/subscriptions/',subscription().subscriptionId,'/providers/Microsoft.Web/locations/',resourceGroup().location,'/managedApis/office365')]"
-                },
-                "displayName": "[variables('Office365-ConnectionName')]"
+                    "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/Securitycopilot')]"
+                }
             }
         },
         {
@@ -269,7 +272,6 @@
                 },
                 "parameters": {
                     "$connections": {
-                                    "type": "Object",
                         "value": {
                             "office365-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]",
