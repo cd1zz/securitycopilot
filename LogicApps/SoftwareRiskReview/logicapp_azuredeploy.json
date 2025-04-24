@@ -269,6 +269,7 @@
                 },
                 "parameters": {
                     "$connections": {
+                                    "type": "Object",
                         "value": {
                             "office365-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]",
