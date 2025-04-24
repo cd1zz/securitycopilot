@@ -1,42 +1,55 @@
 # Software Risk Review Automation
 
-This solution enables automated **Software Risk Reviews** by orchestrating an Azure Logic App, a Function App, and a Security Copilot Promptbook. It is designed to trigger from emails sent to a shared mailbox with a subject line that includes a software name, conduct automated web research, and produce an enterprise security assessment.
+## Author: Craig Freyman
+
+This solution automates Software Risk Reviews by integrating an Azure Logic App, Azure Function Apps, and a Microsoft Security Copilot Promptbook. It triggers on incoming emails that request a review, performs real-time web research using Azure OpenAI, and generates a security-oriented assessment of the software.
 
 ---
 
-## Solution Overview
+## Overview
 
-1. **Trigger**: Monitors a shared mailbox for new messages containing the keyword `SoftwareRiskReview:` in the subject line.  
-2. **Extraction**: Extracts the software name using regex.  
-3. **Web Research**: Uses Azure OpenAI to summarize web-sourced software intelligence.  
-4. **Security Analysis**: Submits findings to a Security Copilot Promptbook for expert risk evaluation.
-
----
-
-## Components
-
-### Azure Logic App
-
-- Triggers on email arrival in a shared mailbox.
-- Extracts software name and initiates Function App calls.
-- Posts collected insights to Security Copilot.
-
-### Azure Function Apps
-
-- `extract_regex`: Regex-extracts software name.
-- `research_agent`: Leverages DuckDuckGo and Azure OpenAI for summarization.
-
-### Microsoft Security Copilot
-
-- Runs a Promptbook using software details for risk review.
+1. **Trigger** on new emails to a shared mailbox with subject line: `SoftwareRiskReview: <SoftwareName>`
+2. **Extract** the software name using regex in a Function App
+3. **Enrich** with AI-powered web research (DuckDuckGo + Azure OpenAI)
+4. **Submit** to Security Copilot for a risk evaluation using a Promptbook
 
 ---
 
-## Azure OpenAI Model Setup
+## Email Format
 
-This solution requires an Azure OpenAI resource with a deployed model. Follow these steps:
+To activate the workflow, send an email with the following subject format:
 
-### 1. Create Azure OpenAI Resource
+```
+SoftwareRiskReview: Dovetail
+```
+
+No email attachments are required. The Logic App monitors a shared mailbox and uses only the subject line for input parsing.
+
+---
+
+## Deployment Instructions
+
+Follow these steps in order to fully deploy the solution:
+
+### 1. Deploy the Security Copilot Promptbook
+
+Create a Promptbook following this guide:  
+[Creating Promptbooks in Copilot for Security](https://rodtrent.substack.com/p/creating-promptbooks-in-copilot-for)
+
+### 2. Retrieve the Promptbook ID
+
+After creating the Promptbook:
+
+- Open **Promptbook Library** in the Security Copilot interface
+- Click your Promptbook to open it
+- Copy the **GUID** from the browser’s address bar — this is required during Logic App deployment
+
+Prompt definitions:  
+[PromptBookPrompts.md](https://github.com/cd1zz/securitycopilot/blob/main/LogicApps/SoftwareRiskReview/PromptBookPrompts.md)
+
+---
+
+### 3. Create Azure OpenAI Resource
 
 ```powershell
 az cognitiveservices account create `
@@ -49,9 +62,11 @@ az cognitiveservices account create `
   --yes
 ```
 
-Reference URL: [https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account?view=azure-cli-latest#az-cognitiveservices-account-create}]
+Reference: [az cognitiveservices account create](https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account?view=azure-cli-latest#az-cognitiveservices-account-create)
 
-### 2. Deploy a Model (e.g., `gpt-4o`)
+---
+
+### 4. Deploy a Model (e.g., `gpt-4o`)
 
 ```powershell
 az cognitiveservices account deployment create `
@@ -65,50 +80,37 @@ az cognitiveservices account deployment create `
   --scale-type Standard
 ```
 
-Reference URL: [https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account/deployment?view=azure-cli-latest#az-cognitiveservices-account-deployment-create]
-
-Environment variables expected by the Function App:
-
-- `AZURE_OPENAI_API_VERSION` (default: `2023-12-01-preview`)
-- `AZURE_OPENAI_DEPLOYMENT_NAME` (default: `gpt-4o`)
-- `AZURE_OPENAI_ENDPOINT` (e.g., `https://your-openai-name.openai.azure.com/`)
-- `AZURE_OPENAI_KEY` (from Azure OpenAI resource Keys)
-- `AZURE_OPENAI_MODEL` (default: `gpt-4o`)
+Reference: [az cognitiveservices account deployment create](https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account/deployment?view=azure-cli-latest#az-cognitiveservices-account-deployment-create)
 
 ---
 
-## Email Input Format
+### 5. Deploy the Function App
 
-Subject line should follow the format:
+This handles AI summarization and software name extraction.
 
-```
-SoftwareRiskReview: Dovetail
-```
-
-Only subject content is parsed. The mailbox should be monitored by the Logic App.
+[![Deploy Function App to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FSoftwareRiskReview%2Ffunctionapp_azuredeploy.json)
 
 ---
 
-## Deployment Options
+### 6. Deploy the Logic App
 
-### Deploy the Function App
+This orchestrates the workflow: email trigger → function calls → Security Copilot.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FSoftwareRiskReview%2Ffunctionapp_azuredeploy.json)
-
-### Deploy the Logic App
-
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FSoftwareRiskReview%2Ffunctionapp_azuredeploy.json)
+[![Deploy Logic App to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FSoftwareRiskReview%2Flogicapp_azuredeploy.json)
 
 ---
 
 ## Prerequisites
 
-- Azure OpenAI resource with a deployed model as outlined above.
-- **Security Copilot Promptbook must be created in advance**. You will need the `PromptbookId` GUID at deployment time.
-- Prompt definitions are located here:  
-  [PromptBookPrompts.md](https://github.com/cd1zz/securitycopilot/blob/main/LogicApps/SoftwareRiskReview/PromptBookPrompts.md)
-- Logic App connectors must be authorized for:
-  - Office365
-  - Security Copilot
-- The Function App must be configured with all required `AZURE_OPENAI_*` environment variables.
+- Azure OpenAI resource with deployed `gpt-4o` model
+- Function App environment variables configured:
+  - `AZURE_OPENAI_API_VERSION`
+  - `AZURE_OPENAI_DEPLOYMENT_NAME`
+  - `AZURE_OPENAI_ENDPOINT`
+  - `AZURE_OPENAI_KEY`
+  - `AZURE_OPENAI_MODEL`
+- Authorized Logic App connectors:
+  - Office365 for shared mailbox access
+  - Security Copilot for Promptbook invocation
+- Promptbook deployed and Promptbook ID obtained
 
