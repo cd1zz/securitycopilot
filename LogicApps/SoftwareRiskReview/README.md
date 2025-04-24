@@ -36,6 +36,9 @@ Follow these steps in order to fully deploy the solution:
 Create a Promptbook following this guide:  
 [Creating Promptbooks in Copilot for Security](https://rodtrent.substack.com/p/creating-promptbooks-in-copilot-for)
 
+Prompt book prompts can be found here:
+
+
 ### 2. Retrieve the Promptbook ID
 
 After creating the Promptbook:
