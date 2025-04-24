@@ -16,15 +16,18 @@ This solution enables automated **Software Risk Reviews** by orchestrating an Az
 ## Components
 
 ### Azure Logic App
+
 - Triggers on email arrival in a shared mailbox.
 - Extracts software name and initiates Function App calls.
 - Posts collected insights to Security Copilot.
 
 ### Azure Function Apps
+
 - `extract_regex`: Regex-extracts software name.
 - `research_agent`: Leverages DuckDuckGo and Azure OpenAI for summarization.
 
 ### Microsoft Security Copilot
+
 - Runs a Promptbook using software details for risk review.
 
 ---
@@ -34,30 +37,38 @@ This solution enables automated **Software Risk Reviews** by orchestrating an Az
 This solution requires an Azure OpenAI resource with a deployed model. Follow these steps:
 
 ### 1. Create Azure OpenAI Resource
-```bash
-az cognitiveservices account create \
-  --name your-openai-name \
-  --resource-group your-rg \
-  --kind OpenAI \
-  --sku Standard \
-  --location your-region \
-  --custom-domain your-openai-name.openai.azure.com \
+
+```powershell
+az cognitiveservices account create `
+  --name thenameofyourinstance `
+  --resource-group yourresourcegroup `
+  --kind OpenAI `
+  --sku S0 `
+  --location yourresourcegrouplocation `
+  --custom-domain youruniquecustomsubdomain `
   --yes
 ```
 
+Reference URL: [https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account?view=azure-cli-latest#az-cognitiveservices-account-create}]
+
 ### 2. Deploy a Model (e.g., `gpt-4o`)
-```bash
-az cognitiveservices account deployment create \
-  --name your-openai-name \
-  --resource-group your-rg \
-  --deployment-name gpt-4o \
-  --model-name gpt-4o \
-  --model-version 2024-04-01 \
-  --model-format OpenAI \
+
+```powershell
+az cognitiveservices account deployment create `
+  --name thenameofyourinstance `
+  --resource-group yourresourcegroup `
+  --deployment-name gpt-4o `
+  --model-name gpt-4o `
+  --model-version "2024-11-20" `
+  --model-format OpenAI `
+  --sku-name "standard" `
   --scale-type Standard
 ```
 
+Reference URL: [https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account/deployment?view=azure-cli-latest#az-cognitiveservices-account-deployment-create]
+
 Environment variables expected by the Function App:
+
 - `AZURE_OPENAI_API_VERSION` (default: `2023-12-01-preview`)
 - `AZURE_OPENAI_DEPLOYMENT_NAME` (default: `gpt-4o`)
 - `AZURE_OPENAI_ENDPOINT` (e.g., `https://your-openai-name.openai.azure.com/`)
