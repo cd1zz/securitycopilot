@@ -103,7 +103,7 @@
                             "inputs": {
                                 "host": {
                                     "connection": {
-                                        "name": "@parameters('$connections')['office365']['connectionId']"
+                                        "name": "@parameters('$connections')['office365-1']['connectionId']"
                                     }
                                 },
                                 "method": "get",
@@ -196,7 +196,7 @@
                                     "inputs": {
                                         "host": {
                                             "connection": {
-                                                "name": "@parameters('$connections')['securitycopilot']['connectionId']"
+                                                "name": "@parameters('$connections')['securitycopilot-1']['connectionId']"
                                             }
                                         },
                                         "method": "post",
@@ -270,13 +270,13 @@
                 "parameters": {
                     "$connections": {
                         "value": {
-                            "office365": {
+                            "office365-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]",
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office365-ConnectionName'))]",
                                 "connectionName": "[variables('Office365-ConnectionName')]"
                             },
 
-                            "securitycopilot": {
+                            "securitycopilot-1": {
                                 "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/securitycopilot')]",
                                 "connectionId": "[resourceId('Microsoft.Web/connections', variables('Securitycopilot-ConnectionName'))]",
                                 "connectionName": "[variables('Securitycopilot-ConnectionName')]"
