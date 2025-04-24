@@ -96,7 +96,8 @@ def analyze_information(topic, sources, detailed=False):
         )
 
         prompt = (
-            f"You are helping security teams understand the topic: '{topic}'.\n"
+            f"You are helping security teams understand the software or vendor: '{topic}'.\n"
+            "If the results are ambiguious, or too broad, clearly highlight in your response that a `a more descriptive search term` is necessary."
             "Based on the following scraped content from several sources, "
             f"{style_instruction} Include numbered references to the sources in your summary.\n\n"
         )
