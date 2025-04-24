@@ -58,193 +58,198 @@
             "properties": {
                 "definition": {
                     "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-                    "contentVersion": "1.0.0.0"
-                },
-                "triggers": {
-                    "When_a_new_email_arrives_in_a_shared_mailbox_(V2)": {
-                        "recurrence": {
-                            "interval": 1,
-                            "frequency": "minute"
-                        },
-                        "type": "ApiConnection",
-                        "inputs": {
-                            "host": {
-                                "connection": {
-                                    "name": "@parameters('$connections')['office365']['connectionId']"
-                                }
-                            },
-                            "method": "get",
-                            "path": "/v2/SharedMailbox/Mail/OnNewEmail",
-                            "queries": {
-                                "mailboxAddress": "[parameters('SharedMailbox')]",
-                                "importance": "Any",
-                                "hasAttachments": false,
-                                "includeAttachments": true
-                            }
-                        }
-                    },
-                    "actions": {
-                        "Initialize_variable_email_subject": {
-                            "runAfter": {},
-                            "type": "InitializeVariable",
-                            "inputs": {
-                                "variables": [
-                                    {
-                                        "name": "email_subject",
-                                        "type": "string",
-                                        "value": "@{triggerBody()?['subject']}"
-                                    }
-                                ]
-                            }
-                        },
-                        "Condition_if_SoftwareRiskReview": {
-                            "actions": {
-                                "WebResearchAgent": {
-                                    "runAfter": {
-                                        "Set_variable_software_name": [
-                                            "Succeeded"
-                                        ]
-                                    },
-                                    "type": "Function",
-                                    "inputs": {
-                                        "body": {
-                                            "research_topic": "Summarize what this software or vendor does: @{variables('software_name')}. Highlight information on its ability to do Single Sign On (SSO), Splunk integration, and SCIM.",
-                                            "detailed": false
-                                        },
-                                        "function": {
-                                            "id": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('FunctionAppResourceGroup'),'/providers/Microsoft.Web/sites/',parameters('FunctionAppName'),'/functions/research_agent')]"
-                                        }
-                                    }
-                                },
-                                "Set_variable_software_name": {
-                                    "runAfter": {
-                                        "Extract_Search_Entity_Name": [
-                                            "Succeeded"
-                                        ]
-                                    },
-                                    "type": "SetVariable",
-                                    "inputs": {
-                                        "name": "software_name",
-                                        "value": "@body('Extract_Search_Entity_Name')?['matched_value']"
-                                    }
-                                },
-                                "Extract_Search_Entity_Name": {
-                                    "type": "Function",
-                                    "inputs": {
-                                        "body": {
-                                            "pattern": "SoftwareRiskReview:\\s*(.+)",
-                                            "subject": "@{triggerBody()?['subject']}"
-                                        },
-                                        "function": {
-                                            "id": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('FunctionAppResourceGroup'),'/providers/Microsoft.Web/sites/',parameters('FunctionAppName'),'/functions/extract_regex')]"
-                                        }
-                                    }
-                                },
-                                "Set_variable_internet_summary": {
-                                    "runAfter": {
-                                        "WebResearchAgent": [
-                                            "Succeeded"
-                                        ]
-                                    },
-                                    "type": "SetVariable",
-                                    "inputs": {
-                                        "name": "internet_summary",
-                                        "value": "@body('WebResearchAgent')?['summary']"
-                                    }
-                                },
-                                "Run_a_Security_Copilot_promptbook": {
-                                    "runAfter": {
-                                        "Set_variable_internet_summary": [
-                                            "Succeeded"
-                                        ]
-                                    },
-                                    "type": "ApiConnection",
-                                    "inputs": {
-                                        "host": {
-                                            "connection": {
-                                                "name": "@parameters('$connections')['securitycopilot']['connectionId']"
-                                            }
-                                        },
-                                        "method": "post",
-                                        "body": {
-                                            "PromptbookId": "[parameters('PromptBookId')]",
-                                            "PromptbookInputs": {
-                                                "software_name": "@variables('software_name')",
-                                                "software_description_from_web": "@variables('internet_summary')"
-                                            }
-                                        },
-                                        "path": "/run-promptbook"
-                                    }
-                                }
-                            },
-                            "runAfter": {
-                                "Initialize_variable_internet_summary": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "else": {
-                                "actions": {}
-                            },
-                            "expression": {
-                                "and": [
-                                    {
-                                        "contains": [
-                                            "@variables('email_subject')",
-                                            "SoftwareRiskReview:"
-                                        ]
-                                    }
-                                ]
-                            },
-                            "type": "If"
-                        },
-                        "Initialize_variable_sofware_name": {
-                            "runAfter": {
-                                "Initialize_variable_email_subject": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "InitializeVariable",
-                            "inputs": {
-                                "variables": [
-                                    {
-                                        "name": "software_name",
-                                        "type": "string"
-                                    }
-                                ]
-                            }
-                        },
-                        "Initialize_variable_internet_summary": {
-                            "runAfter": {
-                                "Initialize_variable_sofware_name": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "InitializeVariable",
-                            "inputs": {
-                                "variables": [
-                                    {
-                                        "name": "internet_summary",
-                                        "type": "string"
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                    "outputs": {}
-                },
-                "parameters": {
-                    "$connections": {
-                        "value": {
-                            "office365-1": {
-                                "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]",
-                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office365-ConnectionName'))]",
-                                "connectionName": "[variables('Office365-ConnectionName')]"
-                            },
+                    "contentVersion": "1.0.0.0",
 
-                            "securitycopilot-1": {
-                                "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/securitycopilot')]",
-                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('Securitycopilot-ConnectionName'))]",
-                                "connectionName": "[variables('Securitycopilot-ConnectionName')]"
+                    "triggers": {
+                        "When_a_new_email_arrives_in_a_shared_mailbox_(V2)": {
+                            "recurrence": {
+                                "interval": 1,
+                                "frequency": "Minute"
+                            },
+                            "evaluatedRecurrence": {
+                                "interval": 1,
+                                "frequency": "Minute"
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['office365']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/v2/SharedMailbox/Mail/OnNewEmail",
+                                "queries": {
+                                    "mailboxAddress": "[parameters('SharedMailbox')]",
+                                    "importance": "Any",
+                                    "hasAttachments": false,
+                                    "includeAttachments": true
+                                }
+                            }
+                        },
+                        "actions": {
+                            "Initialize_variable_email_subject": {
+                                "runAfter": {},
+                                "type": "InitializeVariable",
+                                "inputs": {
+                                    "variables": [
+                                        {
+                                            "name": "email_subject",
+                                            "type": "string",
+                                            "value": "@{triggerBody()?['subject']}"
+                                        }
+                                    ]
+                                }
+                            },
+                            "Condition_if_SoftwareRiskReview": {
+                                "actions": {
+                                    "WebResearchAgent": {
+                                        "runAfter": {
+                                            "Set_variable_software_name": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "Function",
+                                        "inputs": {
+                                            "body": {
+                                                "research_topic": "Summarize what this software or vendor does: @{variables('software_name')}. Highlight information on its ability to do Single Sign On (SSO), Splunk integration, and SCIM.",
+                                                "detailed": false
+                                            },
+                                            "function": {
+                                                "id": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('FunctionAppResourceGroup'),'/providers/Microsoft.Web/sites/',parameters('FunctionAppName'),'/functions/research_agent')]"
+                                            }
+                                        }
+                                    },
+                                    "Set_variable_software_name": {
+                                        "runAfter": {
+                                            "Extract_Search_Entity_Name": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "SetVariable",
+                                        "inputs": {
+                                            "name": "software_name",
+                                            "value": "@body('Extract_Search_Entity_Name')?['matched_value']"
+                                        }
+                                    },
+                                    "Extract_Search_Entity_Name": {
+                                        "type": "Function",
+                                        "inputs": {
+                                            "body": {
+                                                "pattern": "SoftwareRiskReview:\\s*(.+)",
+                                                "subject": "@{triggerBody()?['subject']}"
+                                            },
+                                            "function": {
+                                                "id": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('FunctionAppResourceGroup'),'/providers/Microsoft.Web/sites/',parameters('FunctionAppName'),'/functions/extract_regex')]"
+                                            }
+                                        }
+                                    },
+                                    "Set_variable_internet_summary": {
+                                        "runAfter": {
+                                            "WebResearchAgent": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "SetVariable",
+                                        "inputs": {
+                                            "name": "internet_summary",
+                                            "value": "@body('WebResearchAgent')?['summary']"
+                                        }
+                                    },
+                                    "Run_a_Security_Copilot_promptbook": {
+                                        "runAfter": {
+                                            "Set_variable_internet_summary": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "ApiConnection",
+                                        "inputs": {
+                                            "host": {
+                                                "connection": {
+                                                    "name": "@parameters('$connections')['securitycopilot']['connectionId']"
+                                                }
+                                            },
+                                            "method": "post",
+                                            "body": {
+                                                "PromptbookId": "[parameters('PromptBookId')]",
+                                                "PromptbookInputs": {
+                                                    "software_name": "@variables('software_name')",
+                                                    "software_description_from_web": "@variables('internet_summary')"
+                                                }
+                                            },
+                                            "path": "/run-promptbook"
+                                        }
+                                    }
+                                },
+                                "runAfter": {
+                                    "Initialize_variable_internet_summary": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                "else": {
+                                    "actions": {}
+                                },
+                                "expression": {
+                                    "and": [
+                                        {
+                                            "contains": [
+                                                "@variables('email_subject')",
+                                                "SoftwareRiskReview:"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "type": "If"
+                            },
+                            "Initialize_variable_sofware_name": {
+                                "runAfter": {
+                                    "Initialize_variable_email_subject": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                "type": "InitializeVariable",
+                                "inputs": {
+                                    "variables": [
+                                        {
+                                            "name": "software_name",
+                                            "type": "string"
+                                        }
+                                    ]
+                                }
+                            },
+                            "Initialize_variable_internet_summary": {
+                                "runAfter": {
+                                    "Initialize_variable_sofware_name": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                "type": "InitializeVariable",
+                                "inputs": {
+                                    "variables": [
+                                        {
+                                            "name": "internet_summary",
+                                            "type": "string"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "outputs": {}
+                    },
+                    "parameters": {
+                        "$connections": {
+                            "value": {
+                                "office365-1": {
+                                    "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]",
+                                    "connectionId": "[resourceId('Microsoft.Web/connections', variables('Office365-ConnectionName'))]",
+                                    "connectionName": "[variables('Office365-ConnectionName')]"
+                                },
+
+                                "securitycopilot-1": {
+                                    "id": "[concat('/subscriptions/', parameters('SubscriptionId'), '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/securitycopilot')]",
+                                    "connectionId": "[resourceId('Microsoft.Web/connections', variables('Securitycopilot-ConnectionName'))]",
+                                    "connectionName": "[variables('Securitycopilot-ConnectionName')]"
+                                }
                             }
                         }
                     }
@@ -276,5 +281,6 @@
             }
         }
     ],
+
     "outputs": {}
 }
