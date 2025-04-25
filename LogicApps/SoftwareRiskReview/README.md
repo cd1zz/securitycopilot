@@ -127,15 +127,51 @@ Handles AI summarization and software name extraction.
 
 ### 6. Deploy the Logic App
 
-Orchestrates the full workflow: email trigger → function calls → Security Copilot interaction.
+Orchestrates the full workflow: email trigger → function calls → Security Copilot interaction. You will need several values from the OpenAI deployment, which you can get through the AI Foundry Portal or with this powershell:
+
+```powershell
+$resourceName = "OpenAIInstanceNamedAbove"
+$resourceGroup = "ResourceGroup"
+
+$deployment = az cognitiveservices account deployment list `
+  --name $resourceName `
+  --resource-group $resourceGroup `
+  --query "[0]" | ConvertFrom-Json
+
+$endpoint = az cognitiveservices account show `
+  --name $resourceName `
+  --resource-group $resourceGroup `
+  --query "properties.endpoint" `
+  -o tsv
+
+$key = az cognitiveservices account keys list `
+  --name $resourceName `
+  --resource-group $resourceGroup `
+  --query "key1" `
+  -o tsv
+
+Write-Output @"
+AZURE_OPENAI_API_VERSION=$($deployment.properties.model.version)
+AZURE_OPENAI_DEPLOYMENT_NAME=$($deployment.name)
+AZURE_OPENAI_ENDPOINT=$endpoint
+AZURE_OPENAI_KEY=$key
+AZURE_OPENAI_MODEL=$($deployment.properties.model.name)
+"@
+```
 
 [![Deploy Logic App to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FSoftwareRiskReview%2Flogicapp_azuredeploy.json)
+
+### 6. Post Deployment - API Connections
+
+Open the Office 365 and the Security Copilot API connections and make sure the connections are properly authorized:
+
+![alt text](image-2.png)
 
 ---
 
 ## Prerequisites
 
-- Azure OpenAI resource with a deployed `gpt-4o` model
+- Azure OpenAI resource with a deployed model
 - Function App environment variables configured:
   - `AZURE_OPENAI_API_VERSION`
   - `AZURE_OPENAI_DEPLOYMENT_NAME`
