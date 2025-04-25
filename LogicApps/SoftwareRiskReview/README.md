@@ -38,7 +38,6 @@ Create a Promptbook following this guide:
 
 Prompt book prompts can be found here:
 
-
 ### 2. Retrieve the Promptbook ID
 
 After creating the Promptbook:
@@ -54,6 +53,8 @@ Prompt definitions:
 
 ### 3. Create Azure OpenAI Resource
 
+You can only deploy specific OpenAI models if the region you choose supports them (e.g., GPT-4.1 requires East US 2 or Sweden Central as of now).
+
 ```powershell
 az cognitiveservices account create `
   --name thenameofyourinstance `
@@ -65,11 +66,24 @@ az cognitiveservices account create `
   --yes
 ```
 
+Creates a new Azure OpenAI resource, which is required before you can deploy and use models like gpt-4, gpt-4.1, or gpt-4o.
+
+Parameter details:
+  --name: Unique name of your Azure OpenAI resource.
+  --resource-group: Azure Resource Group to contain this resource.
+  --kind OpenAI: Specifies this is an Azure OpenAI resource (not a generic Cognitive Service).
+  --sku S0: Standard pricing tier (S0 is the only available tier for OpenAI).
+  --location: Region where this resource will be deployed (must be one that supports the model you want later).
+  --custom-domain: Friendly DNS name prefix for the endpoint.
+  --yes: Automatically confirms creation (bypasses interactive confirmation).
+
 Reference: [az cognitiveservices account create](https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account?view=azure-cli-latest#az-cognitiveservices-account-create)
 
 ---
 
 ### 4. Deploy a Model (e.g., `gpt-4o`)
+
+Creates a model deployment inside the previously created Azure OpenAI resource. This is what lets you call the model via API using a specific deployment-name.
 
 ```powershell
 az cognitiveservices account deployment create `
@@ -82,6 +96,17 @@ az cognitiveservices account deployment create `
   --sku-name "standard" `
   --scale-type Standard
 ```
+
+What it does:
+Creates a model deployment inside the previously created Azure OpenAI resource. This is what lets you call the model via API using a specific deployment-name.
+
+Parameter details:
+  --name: The same OpenAI resource name created above.
+  --resource-group: The same resource group.
+  --deployment-name: The name you assign to this deployment (used later in API calls, e.g., "gpt-4o").
+  --model-name: The base model you're deploying (e.g., "gpt-4o", "gpt-4.1").
+  --model-version: The specific version of the model (e.g., "2024-11-20").
+  --model-format OpenAI: Specifies this is an OpenAI format model (standard for GPT family).
 
 Reference: [az cognitiveservices account deployment create](https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account/deployment?view=azure-cli-latest#az-cognitiveservices-account-deployment-create)
 
