@@ -2,7 +2,7 @@
 
 ## Author: Craig Freyman
 
-This solution automates Software Risk Reviews by integrating an Azure Logic App, Azure Function Apps, and a Microsoft Security Copilot Promptbook. It triggers on incoming emails that request a review, performs real-time web research using Azure OpenAI, and generates a security-oriented assessment of the software.
+This solution automates Software Risk Reviews by integrating an Azure Logic App, Azure Function Apps, and a Microsoft Security Copilot Promptbook. It triggers on incoming emails requesting a review, performs real-time web research using Azure OpenAI, and generates an assessment of the software.
 
 ---
 
@@ -17,73 +17,78 @@ This solution automates Software Risk Reviews by integrating an Azure Logic App,
 
 ## Email Format
 
-To activate the workflow, send an email with the following subject format:
+Send an email with the following subject line format:
 
 ```
 SoftwareRiskReview: Dovetail
 ```
 
-No email attachments are required. The Logic App monitors a shared mailbox and uses only the subject line for input parsing.
+No attachments are required. The Logic App uses the subject line for input parsing.
 
 ---
 
 ## Deployment Instructions
 
-Follow these steps in order to fully deploy the solution:
+Follow these steps to fully deploy the solution:
 
 ### 1. Deploy the Security Copilot Promptbook
+
+Refer to the following prompts to create your promptbook:  
+[PromptBookPrompts.md](https://github.com/cd1zz/securitycopilot/blob/main/LogicApps/SoftwareRiskReview/PromptBookPrompts.md)
 
 Create a Promptbook following this guide:  
 [Creating Promptbooks in Copilot for Security](https://rodtrent.substack.com/p/creating-promptbooks-in-copilot-for)
 
-Prompt book prompts can be found here:
+---
 
 ### 2. Retrieve the Promptbook ID
 
 After creating the Promptbook:
 
 - Open **Promptbook Library** in the Security Copilot interface
-- Click your Promptbook to open it
-- Copy the **GUID** from the browser’s address bar — this is required during Logic App deployment
+- Open your Promptbook
+- Copy the **GUID** from the browser’s address bar — this will be needed during Logic App deployment
 
-Prompt definitions:  
-[PromptBookPrompts.md](https://github.com/cd1zz/securitycopilot/blob/main/LogicApps/SoftwareRiskReview/PromptBookPrompts.md)
+![alt text](image.png)
 
 ---
 
-### 3. Create Azure OpenAI Resource
+### 3. Create an Azure OpenAI Resource
 
-You can only deploy specific OpenAI models if the region you choose supports them (e.g., GPT-4.1 requires East US 2 or Sweden Central as of now).
+You can only deploy specific OpenAI models if the selected region supports them (e.g., GPT-4.1 requires East US 2 or Sweden Central as of 04/25/2025).
 
 ```powershell
 az cognitiveservices account create `
-  --name thenameofyourinstance `
+  --name TheNameOfYourInstance `
   --resource-group yourresourcegroup `
   --kind OpenAI `
   --sku S0 `
-  --location yourresourcegrouplocation `
-  --custom-domain youruniquecustomsubdomain `
+  --location ResourceGroupLocation `
+  --custom-domain TheNameOfYourInstance `
   --yes
 ```
 
-Creates a new Azure OpenAI resource, which is required before you can deploy and use models like gpt-4, gpt-4.1, or gpt-4o.
+**Purpose:**  
+Creates an Azure OpenAI resource, required before deploying models like GPT-4, GPT-4.1, or GPT-4o.
 
-Parameter details:
-  --name: Unique name of your Azure OpenAI resource.
-  --resource-group: Azure Resource Group to contain this resource.
-  --kind OpenAI: Specifies this is an Azure OpenAI resource (not a generic Cognitive Service).
-  --sku S0: Standard pricing tier (S0 is the only available tier for OpenAI).
-  --location: Region where this resource will be deployed (must be one that supports the model you want later).
-  --custom-domain: Friendly DNS name prefix for the endpoint.
-  --yes: Automatically confirms creation (bypasses interactive confirmation).
+**Parameter details:**
 
-Reference: [az cognitiveservices account create](https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account?view=azure-cli-latest#az-cognitiveservices-account-create)
+- `--name`: The Azure OpenAI resource name
+- `--resource-group`: Target Azure Resource Group.
+- `--kind`: Must be `OpenAI`.
+- `--sku`: Pricing tier (only `S0` is available).
+- `--location`: Deployment region (must support the desired model).
+- `--custom-domain`: Friendly DNS prefix for the endpoint.
+- `--yes`: Auto-confirms creation.
+
+**Reference:**  
+[az cognitiveservices account create](https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account?view=azure-cli-latest#az-cognitiveservices-account-create)
 
 ---
 
-### 4. Deploy a Model (e.g., `gpt-4o`)
+### 4. Deploy the Model (e.g., `gpt-4o`)
 
-Creates a model deployment inside the previously created Azure OpenAI resource. This is what lets you call the model via API using a specific deployment-name.
+After the resource is created, deploy the model into it.
 
 ```powershell
 az cognitiveservices account deployment create `
@@ -92,29 +97,29 @@ az cognitiveservices account deployment create `
   --deployment-name gpt-4o `
   --model-name gpt-4o `
   --model-version "2024-11-20" `
-  --model-format OpenAI `
-  --sku-name "standard" `
-  --scale-type Standard
+  --model-format OpenAI 
 ```
 
-What it does:
-Creates a model deployment inside the previously created Azure OpenAI resource. This is what lets you call the model via API using a specific deployment-name.
+**Purpose:**  
+Installs a model deployment inside the OpenAI resource, enabling API access via the assigned deployment name.
 
-Parameter details:
-  --name: The same OpenAI resource name created above.
-  --resource-group: The same resource group.
-  --deployment-name: The name you assign to this deployment (used later in API calls, e.g., "gpt-4o").
-  --model-name: The base model you're deploying (e.g., "gpt-4o", "gpt-4.1").
-  --model-version: The specific version of the model (e.g., "2024-11-20").
-  --model-format OpenAI: Specifies this is an OpenAI format model (standard for GPT family).
+**Parameter details:**
 
-Reference: [az cognitiveservices account deployment create](https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account/deployment?view=azure-cli-latest#az-cognitiveservices-account-deployment-create)
+- `--name`: The Azure OpenAI resource name.
+- `--resource-group`: The same resource group.
+- `--deployment-name`: Logical deployment name (used in API calls, e.g., `"gpt-4o"`).
+- `--model-name`: Base model being deployed.
+- `--model-version`: Specific version of the model.
+- `--model-format`: Must be `OpenAI`.
+
+**Reference:**  
+[az cognitiveservices account deployment create](https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/account/deployment?view=azure-cli-latest#az-cognitiveservices-account-deployment-create)
 
 ---
 
 ### 5. Deploy the Function App
 
-This handles AI summarization and software name extraction.
+Handles AI summarization and software name extraction.
 
 [![Deploy Function App to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FSoftwareRiskReview%2Ffunctionapp_azuredeploy.json)
 
@@ -122,7 +127,7 @@ This handles AI summarization and software name extraction.
 
 ### 6. Deploy the Logic App
 
-This orchestrates the workflow: email trigger → function calls → Security Copilot.
+Orchestrates the full workflow: email trigger → function calls → Security Copilot interaction.
 
 [![Deploy Logic App to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcd1zz%2Fsecuritycopilot%2Frefs%2Fheads%2Fmain%2FLogicApps%2FSoftwareRiskReview%2Flogicapp_azuredeploy.json)
 
@@ -130,7 +135,7 @@ This orchestrates the workflow: email trigger → function calls → Security Co
 
 ## Prerequisites
 
-- Azure OpenAI resource with deployed `gpt-4o` model
+- Azure OpenAI resource with a deployed `gpt-4o` model
 - Function App environment variables configured:
   - `AZURE_OPENAI_API_VERSION`
   - `AZURE_OPENAI_DEPLOYMENT_NAME`
@@ -138,7 +143,7 @@ This orchestrates the workflow: email trigger → function calls → Security Co
   - `AZURE_OPENAI_KEY`
   - `AZURE_OPENAI_MODEL`
 - Authorized Logic App connectors:
-  - Office365 for shared mailbox access
-  - Security Copilot for Promptbook invocation
-- Promptbook deployed and Promptbook ID obtained
+  - Office365 (shared mailbox access)
+  - Security Copilot (Promptbook invocation)
+- Deployed Promptbook and Promptbook ID available
 
