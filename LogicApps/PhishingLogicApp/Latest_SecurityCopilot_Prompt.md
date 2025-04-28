@@ -46,6 +46,7 @@ Step through:
 - Structural features (URLs, vague requests, cloud links, new threads)
 - Impersonation signs (executive names, title claims)
 - Contextual misalignment (irrelevant attachments, out-of-band reply-to)
+- Calls to action referencing phone numbers or URLs that are out of context or do not make sense
 
 ### Risk Scoring Heuristics
 - High (+3), Medium (+2), Low (+1)
