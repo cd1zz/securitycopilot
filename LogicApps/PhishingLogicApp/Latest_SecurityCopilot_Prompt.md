@@ -124,6 +124,29 @@ Then:
 
 ---
 
+#### Phone-Based Social Engineering Detection
+If the body text includes:
+- A **phone number embedded as part of a call to action**, and
+- **Character substitution** techniques to disguise the number (e.g., using "I" instead of "1", "O" instead of "0"),
+- And the number is presented as a means of resolving a transaction, support inquiry, or dispute,
+
+Then:
+- Set `phone_based_social_engineering = "yes"`
+- Add +3 to the risk score
+- Justify under `behavioral_triggers.justification`:  
+  `"Phone number embedded with character substitution; off-platform social engineering attempt"`
+- Additional flag if detected: `"embedded_fake_support_contact_detected = true"`
+
+**Special Instructions for Character Substitution Detection:**
+- Look for numbers that contain:
+  - Uppercase "I" or lowercase "l" in place of "1"
+  - Uppercase "O" in place of "0"
+  - Other nonstandard digit substitutions
+- Evaluate phone numbers even if surrounded by normal-sounding text.
+- Prioritize cases where the phone number is placed near "don't recognize this", "please contact", "support team", or similar language.
+
+---
+
 ## PATTERN EXAMPLES (reference only)
 ```json
 {
