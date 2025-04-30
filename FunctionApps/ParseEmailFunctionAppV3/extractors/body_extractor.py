@@ -1,6 +1,8 @@
 # extractors/body_extractor.py
 import logging
 from utils.html_processor import process_html_content
+from utils.url_processing import UrlExtractor
+
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +95,10 @@ def extract_body(msg):
     
     # Always include the original HTML content if available
     if html_content:
-        result["html"] = html_content
+        logger.debug("Processing HTML content")
+        # Use the UrlExtractor to extract URLs from the HTML content
+        urls = UrlExtractor.extract_urls_from_html(html_content)
+        result["extracted_urls"] = urls
     
     return result
 

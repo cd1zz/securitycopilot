@@ -5,9 +5,10 @@ import azure.functions as func
 
 logger = logging.getLogger(__name__)
 
+# Generic category styles that can be used for any classification value
 CATEGORY_STYLES = {
     "PHISHING": "background-color: #d9534f; color: white; padding: 5px 10px; text-transform: uppercase;",
-    "JUNK/SPAM": "background-color: #f0ad4e; color: white; padding: 5px 10px; text-transform: uppercase;",
+    "SPAM": "background-color: #f0ad4e; color: white; padding: 5px 10px; text-transform: uppercase;",
     "LEGITIMATE": "background-color: #5cb85c; color: white; padding: 5px 10px; text-transform: uppercase;",
     "SUSPICIOUS": "background-color: #f0ad4e; color: white; padding: 5px 10px; text-transform: uppercase;",
     "DEFAULT": "background-color: #cccccc; color: white; padding: 5px 10px; text-transform: uppercase;"
@@ -29,115 +30,92 @@ def create_html(json_data):
                 color: #4CAF50;
                 border-bottom: 2px solid #4CAF50;
                 padding-bottom: 5px;
+                margin-top: 25px;
+            }
+            ul {
+                list-style-type: none;
+                padding-left: 20px;
+            }
+            li {
+                margin-bottom: 5px;
+            }
+            .category-tag {
+                padding: 5px 10px;
+                text-transform: uppercase;
+                font-weight: bold;
+            }
+            .json-key {
+                font-weight: bold;
+            }
+            .json-value {
+                font-weight: normal;
             }
         </style>
     </head>
     <body>
-        {% set section_order = [
-            'final_assessment',
-            'email_summary',
-            'pretense_vs_intent_mapping',
-            'intent_verification',
-            'logical_coherence',
-            'behavioral_triggers',
-            'url_analysis',
-            'attachment_analysis',
-            'contextual_integrity',
-            'subtle_clue_detection',
-            'domain_reputation_analysis',
-            'financial_pretext_detection',
-            'bec_reconnaissance_detection'
-        ] %}
-        {% for section in section_order %}
-            {% if section in json_data %}
-                <div class="section">
-                    <h2>{{ section.replace('_', ' ').title() }}</h2>
-                    
-                    {% if 'description' in json_data[section] %}
-                        <p><em>{{ json_data[section]['description'] }}</em></p>
-                    {% endif %}
-                    
-                    {% if section == 'final_assessment' %}
-                        <p>
-                            <strong>Category:</strong>
-                            <span style="{{ category_styles.get(json_data[section]['category']|upper, category_styles['DEFAULT']) }}">
-                                {{ json_data[section]['category']|upper if json_data[section]['category'] else 'N/A' }}
+        {% macro render_json(data, level=1, indent=0) %}
+            {% if data is mapping %}
+                {% for key, value in data.items() %}
+                    <div style="margin-left: {{ indent * 20 }}px;">
+                        <span class="json-key">{{ key | replace('_', ' ') | title }}:</span>
+                        
+                        {% if key|lower == 'category' and value is string %}
+                            <span class="category-tag" style="{{ category_styles.get(value|upper, category_styles['DEFAULT']) }}">
+                                {{ value|upper if value else 'N/A' }}
                             </span>
-                        </p>
-                        <p><strong>Rationale:</strong> {{ json_data[section]['rationale'] if json_data[section]['rationale'] else 'N/A' }}</p>
-                    
-                    {% elif section == 'attachment_analysis' %} 
-                        {% for key, value in json_data[section].items() %}
-                            {% if key == "attachment_metadata" %}
-                                <h3>Attachment Metadata</h3>
-                                <ul>
-                                    {% for meta_key, meta_value in value.items() %}
-                                        {% if meta_value is mapping %}
-                                            <li><strong>{{ meta_key.replace('_', ' ').title() }}:</strong></li>
-                                            <ul>
-                                                {% for sub_meta_key, sub_meta_value in meta_value.items() %}
-                                                    <li><strong>{{ sub_meta_key.replace('_', ' ').title() }}:</strong> {{ sub_meta_value if sub_meta_value else 'N/A' }}</li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% else %}
-                                            <li><strong>{{ meta_key.replace('_', ' ').title() }}:</strong> {{ meta_value if meta_value else 'N/A' }}</li>
-                                        {% endif %}
-                                    {% endfor %}
-                                </ul>
-                            {% elif key == "risks" %}
-                                <h3>Attachment Risks</h3>
-                                <p>{{ value if value else 'N/A' }}</p>
-                            {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        {% for subkey, subvalue in json_data[section].items() %}
-                            {% if subkey != 'description' %}
-                                {% if subvalue is mapping %}
-                                    <h3>{{ subkey.replace('_', ' ').title() }}</h3>
-                                    <ul>
-                                        {% for key, value in subvalue.items() %}
-                                            {% if value is iterable and not value is string %}
-                                                <li>
-                                                    <strong>{{ key.replace('_', ' ').title() }}:</strong>
-                                                    <ul>
-                                                        {% if value|length > 0 %}
-                                                            {% for item in value %}
-                                                                <li class="styled-list-item">{{ item }}</li>
-                                                            {% endfor %}
-                                                        {% else %}
-                                                            <li class="styled-list-item">N/A</li>
-                                                        {% endif %}
-                                                    </ul>
-                                                </li>
+                        {% elif value is mapping %}
+                            {{ render_json(value, level + 1, indent + 1) }}
+                        {% elif value is iterable and not value is string %}
+                            <ul>
+                                {% if value|length > 0 %}
+                                    {% for item in value %}
+                                        <li>
+                                            {% if item is mapping or (item is iterable and not item is string) %}
+                                                {{ render_json(item, level + 1, indent + 1) }}
                                             {% else %}
-                                                <li>
-                                                    <strong>{{ key.replace('_', ' ').title() }}:</strong> 
-                                                    {{ value if value else 'N/A' }}
-                                                </li>
+                                                <span class="json-value">{{ item if item else 'N/A' }}</span>
                                             {% endif %}
-                                        {% endfor %}
-                                    </ul>
-                                {% elif subvalue is iterable and not subvalue is string %}
-                                    <h3><strong>{{ subkey.replace('_', ' ').title() }}:</strong></h3>
-                                    <ul>
-                                        {% if subvalue|length > 0 %}
-                                            {% for item in subvalue %}
-                                            <li class="styled-list-item">{{ item }}</li>
-                                            {% endfor %}
-                                        {% else %}
-                                            <li class="styled-list-item">N/A</li>
-                                        {% endif %}
-                                    </ul>
+                                        </li>
+                                    {% endfor %}
                                 {% else %}
-                                    <p><strong>{{ subkey.replace('_', ' ').title() }}:</strong> {{ subvalue if subvalue else 'N/A' }}</p>
+                                    <li><span class="json-value">N/A</span></li>
                                 {% endif %}
+                            </ul>
+                        {% else %}
+                            <span class="json-value">{{ value if value else 'N/A' }}</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% elif data is iterable and not data is string %}
+                <ul>
+                    {% for item in data %}
+                        <li>
+                            {% if item is mapping or (item is iterable and not item is string) %}
+                                {{ render_json(item, level + 1, indent + 1) }}
+                            {% else %}
+                                <span class="json-value">{{ item if item else 'N/A' }}</span>
                             {% endif %}
-                        {% endfor %}
-                    {% endif %}
-                </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <span class="json-value">{{ data if data else 'N/A' }}</span>
+            {% endif %}
+        {% endmacro %}
+        
+        {# Process final_assessment first if it exists #}
+        {% if "final_assessment" in json_data %}
+            <h2>Final Assessment</h2>
+            {{ render_json(json_data["final_assessment"], level=1, indent=0) }}
+        {% endif %}
+
+        {# Process all other top-level keys #}
+        {% for key, value in json_data.items() %}
+            {% if key != "final_assessment" %}
+                <h2>{{ key | replace('_', ' ') | title }}</h2>
+                {{ render_json(value, level=1, indent=0) }}
             {% endif %}
         {% endfor %}
-
     </body>
     </html>
     '''
@@ -148,7 +126,7 @@ def create_html(json_data):
 
 
 def generate_html_report(req: func.HttpRequest) -> func.HttpResponse:
-    logger.info('Processing request to generate phishing HTML report.')
+    logger.info('Processing request to generate HTML report from JSON data.')
 
     try:
         # Parse the request body

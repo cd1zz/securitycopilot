@@ -3,7 +3,7 @@ import traceback
 import re
 from extractors.body_extractor import extract_body
 from extractors.ip_extractor import extract_ip_addresses
-from utils.url_processor import extract_all_urls_from_email, process_urls
+from utils.url_processing import UrlExtractor, UrlProcessor
 
 
 logger = logging.getLogger(__name__)
@@ -76,8 +76,8 @@ def parse_forwarded_email(msg, depth, max_depth, container_path):
     if forwarded_data["original_body"]:
         # Create a simple body_data dictionary
         body_data = {"body": forwarded_data["original_body"]}
-        extracted_urls = extract_all_urls_from_email(body_data)
-        forwarded_data["urls"] = process_urls(extracted_urls)
+        extracted_urls = UrlExtractor.extract_all_urls_from_email(body_data)
+        forwarded_data["urls"] = UrlProcessor.process_urls(extracted_urls)
         forwarded_data["ip_addresses"] = extract_ip_addresses(forwarded_data["original_body"])
         
         # Add domain extraction

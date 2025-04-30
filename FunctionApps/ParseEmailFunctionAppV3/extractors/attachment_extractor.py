@@ -3,6 +3,7 @@ import logging
 import hashlib
 import re
 import traceback
+from utils.url_processing import UrlExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -338,7 +339,24 @@ def process_attachment(part, depth, max_depth, container_path):
             except Exception as e:
                 logger.warning(f"Failed to extract Excel text: {str(e)}")
                 attachment_text = f"[Excel Text Extraction Failed: {str(e)}]"
-        
+
+        # Word document handling
+        elif content_type in {
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-word",
+            "application/vnd.ms-word.document.macroEnabled.12",
+            "application/vnd.ms-word.template.macroEnabled.12"
+        } or (filename and filename.lower().endswith(('.doc', '.docx', '.docm'))):
+            try:
+                # Import Word extractor
+                from extractors.word_extractor import extract_text_from_word
+                attachment_text = extract_text_from_word(content)
+                logger.debug(f"Extracted {len(attachment_text)} characters of text from Word document")
+            except Exception as e:
+                logger.warning(f"Failed to extract Word document text: {str(e)}")
+                attachment_text = f"[Word Document Text Extraction Failed: {str(e)}]"
+
         # Plain text and HTML handling
         elif content_type.startswith("text/"):
             try:
@@ -359,12 +377,25 @@ def process_attachment(part, depth, max_depth, container_path):
                 attachment_text = content.decode('utf-8', errors='replace')
         
         # Extract URLs using the centralized function from url_processor
-        from utils.url_processor import extract_urls_by_content_type
-        attachment_urls = extract_urls_by_content_type(
+        attachment_urls = UrlExtractor.extract_urls_by_content_type(
             content=content,
             content_type=content_type,
             filename=filename
         )
+        
+        # Extract IP addresses if we have attachment text
+        ip_addresses = []
+        if attachment_text:
+            from extractors.ip_extractor import extract_ip_addresses
+            ip_addresses = extract_ip_addresses(attachment_text)
+            logger.debug(f"Extracted {len(ip_addresses)} IP addresses from attachment text")
+        
+        # Extract domains if we have URLs
+        domains = []
+        if attachment_urls:
+            from extractors.domain_extractor import extract_domains
+            domains = extract_domains(attachment_urls)
+            logger.debug(f"Extracted {len(domains)} domains from attachment URLs")
         
         attachment = {
             "attachment_name": filename,
@@ -376,9 +407,15 @@ def process_attachment(part, depth, max_depth, container_path):
             "attachment_text": attachment_text
         }
         
-        # Add raw URLs to attachment - they will be processed by the main parser
+        # Add extracted data to attachment
         if attachment_urls:
             attachment["urls"] = attachment_urls
+        
+        if ip_addresses:
+            attachment["ip_addresses"] = ip_addresses
+            
+        if domains:
+            attachment["domains"] = domains
         
         if parsed_email:
             attachment["parsed_email"] = parsed_email

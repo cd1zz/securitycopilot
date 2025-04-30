@@ -11,17 +11,11 @@ from extractors.attachment_extractor import extract_attachments
 from extractors.ip_extractor import extract_ip_addresses
 from extractors.domain_extractor import extract_domains
 
-from utils.url_processor import (
-    extract_all_urls_from_email,
-    extract_urls_from_attachments,
-    process_urls,
-    batch_expand_urls,
-    dedupe_to_base_urls,
-    fix_url_expansions
-)
+# New imports for URL processing
+from utils.url_processing import UrlExtractor, UrlProcessor
 
 from utils.email_policy import CustomEmailPolicy
-from utils.text_cleaner import strip_urls_and_html
+from utils.text_cleaner import truncate_urls_in_text, clean_excessive_newlines, strip_urls_and_html
 
 from parsers.proofpoint_parser import is_proofpoint_email, parse_proofpoint_email
 from parsers.forwarded_parser import parse_forwarded_email
@@ -205,7 +199,7 @@ def parse_email(
                 
                 # If we successfully parsed the forwarded email, use it
                 if forwarded_data and not is_empty_email_data(forwarded_data):
-                    original_email = {
+                    forwarded_email = {
                         "message_id": "",
                         "sender": forwarded_data.get("original_sender", ""),
                         "return_path": "",
@@ -213,7 +207,7 @@ def parse_email(
                         "reply_to": "",
                         "subject": forwarded_data.get("original_subject", ""),
                         "date": forwarded_data.get("original_date", ""),
-                        "body": forwarded_data.get("original_body", ""),
+                        "body": strip_urls_and_html(truncate_urls_in_text(clean_excessive_newlines(forwarded_data.get("original_body", "")))),
                         "attachments": [],
                         "container_path": container_path + ["forwarded"],
                         "reconstruction_method": "forwarded",
@@ -223,7 +217,7 @@ def parse_email(
                     }
                     
                     extracted_email_found = True
-                    extracted_email_data = {"email_content": original_email}
+                    extracted_email_data = {"email_content": forwarded_email}
         
         # If we found an extracted email through any method, return it
         if extracted_email_found and extracted_email_data:
@@ -238,33 +232,51 @@ def parse_email(
         if 'attachments' not in locals():
             attachments = extract_attachments(msg, depth, max_depth, container_path)
             attachments = [attachment for attachment in attachments if attachment is not None]
-            
+
         # ----- COLLECT ALL URLS FROM ALL SOURCES -----
         all_urls = []
-        
+
         # Extract URLs from email content (HTML and plain text)
         body_text = body_data.get("body", "")
-        content_urls = extract_all_urls_from_email(body_data, body_text)
+        content_urls = UrlExtractor.extract_all_urls_from_email(body_data, body_text)
         all_urls.extend(content_urls)
-        
+
         # Extract URLs from attachments
-        attachment_urls = extract_urls_from_attachments(attachments)
+        attachment_urls = UrlProcessor.extract_urls_from_attachments(attachments)
         all_urls.extend(attachment_urls)
-        
+
         logger.debug(f"Total URLs before processing: {len(all_urls)}")
-        
+
         # ----- UNIFIED URL PROCESSING -----
-        processed_urls = process_urls(all_urls)
+        processed_urls = UrlProcessor.process_urls(all_urls)
         logger.debug(f"Total unique URLs after processing: {len(processed_urls)}")
-        
+
         # Extract IP addresses and domains
         headers_text = " ".join([f"{k}: {v}" for k, v in msg.items()])
         ip_addresses = extract_ip_addresses(body_text + " " + headers_text)
+
+        # Add IP addresses from attachments
+        for attachment in attachments:
+            if "ip_addresses" in attachment:
+                ip_addresses.extend(attachment.get("ip_addresses", []))
+
+        # Remove duplicates
+        ip_addresses = list(set(ip_addresses))
+
+        # Extract domains from processed URLs
         domains = extract_domains(processed_urls)
-        logger.debug(f"Extracted {len(domains)} domains")
+
+        # Add domains from attachments
+        for attachment in attachments:
+            if "domains" in attachment:
+                domains.extend(attachment.get("domains", []))
+        # Remove duplicates
+        domains = list(set(domains))
+
+        logger.debug(f"Extracted {len(domains)} domains and {len(ip_addresses)} IP addresses")
         
         # Create original email from our parsed data
-        original_email = {
+        parsed_email = {
             "message_id": headers["message_id"],
             "sender": headers["sender"],
             "return_path": headers["return_path"],
@@ -272,7 +284,12 @@ def parse_email(
             "reply_to": headers["reply_to"],
             "subject": headers["subject"],
             "date": headers["date"],
-            "body": strip_urls_and_html(clean_excessive_newlines(body_data.get("body", ""))),
+            "authentication": {
+                "dkim": headers["authentication"]["dkim"],
+                "spf": headers["authentication"]["spf"],
+                "dmarc": headers["authentication"]["dmarc"]
+            },
+            "body": strip_urls_and_html(truncate_urls_in_text(clean_excessive_newlines(body_data.get("body", "")))),
             "attachments": attachments,
             "container_path": container_path,
             "reconstruction_method": "direct",
@@ -281,26 +298,12 @@ def parse_email(
             "domains": domains
         }
         
-        return {"email_content": original_email}
+        return {"email_content": parsed_email}
         
     except Exception as e:
         logger.error(f"Error parsing email: {str(e)}")
         logger.debug(traceback.format_exc())
         return {"error": f"Failed to parse email: {str(e)}"}
-
-def clean_excessive_newlines(text: str) -> str:
-    """
-    Replace multiple consecutive newlines (2 or more) with a single newline.
-    
-    Args:
-        text: Text to clean
-        
-    Returns:
-        str: Cleaned text
-    """
-    # Replace multiple consecutive newlines (2 or more) with a single newline
-    cleaned_text = re.sub(r'\n{2,}', '\n', text)
-    return cleaned_text
 
 def is_forwarded_email(msg, body_data=None) -> bool:
     """
