@@ -350,7 +350,7 @@ SkillGroups:
             | where TimeGenerated >= ago(1d) // Specify the lookback_period, default 1d
             | where IPAddress != "{{exclude_ip}}" // exclude_ip from query
             | where ResultType != 0  // Filtering for failed sign-ins; 0 indicates success
-            | where UserPrincipalName == "{{upn}}"
+            | where UserPrincipalName =~ "{{upn}}"
             | summarize FailedAttempts = count(), UniqueIPs = dcount(IPAddress), Locations = dcount(Location), ResultDescriptions = makeset(ResultDescription) by bin(TimeGenerated, 1d)
             | project TimeGenerated, FailedAttempts, UniqueIPs, Locations, ResultDescriptions
             | order by TimeGenerated desc

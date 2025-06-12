@@ -23,8 +23,8 @@ def parse_msg(msg_content, max_depth=10):
         msg_file = io.BytesIO(msg_content)
         
         # Open the MSG file using olefile
-        ole = olefile.OleFile(msg_file)
-        
+        ole = olefile.OleFileIO(msg_file)     
+           
         # Convert MSG to EML format
         eml_content = convert_msg_to_eml(ole)
         
