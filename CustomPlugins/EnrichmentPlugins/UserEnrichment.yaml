@@ -88,7 +88,7 @@ SkillGroups:
             | extend TargetResourcesJson = parse_json(tostring(TargetResources))
             | mv-expand TargetResource = TargetResourcesJson
             | extend userPrincipalName = tostring(TargetResource.userPrincipalName)
-            | where userPrincipalName == upn
+            | where userPrincipalName =~ upn
             | summarize PasswordChangeCount = count() by bin(TimeGenerated, 1d), userPrincipalName
             | project TimeGenerated, PasswordChangeCount, userPrincipalName
             | order by TimeGenerated desc
@@ -373,7 +373,7 @@ SkillGroups:
             let TimeFrame = ago(7d);
             let upn = "{{upn}}";
             let UserRiskEvents = AADUserRiskEvents
-            | where TimeGenerated > TimeFrame and RiskLevel != "none" and RiskState != "remediated" and UserPrincipalName == upn
+            | where TimeGenerated > TimeFrame and RiskLevel != "none" and RiskState != "remediated" and UserPrincipalName =~ upn
             | project 
                 UserPrincipalName,
                 RiskLevel,
@@ -527,7 +527,7 @@ SkillGroups:
             | extend TimeDifferenceHours = datetime_diff('second', TimeGenerated, PreviousTime) / 3600.0
             | extend VelocityMph = DistanceMiles / TimeDifferenceHours
             | where VelocityMph > MaxVelocityMph
-            | where UserPrincipalName == "{{upn}}"
+            | where UserPrincipalName =~ "{{upn}}"
             | project UserPrincipalName, TimeGenerated, PreviousTime, IPAddress, PreviousIPAddress, DistanceMiles, TimeDifferenceHours, VelocityMph, Country, PreviousCountry
 
       - Name: SuspiciousMailboxActivities
