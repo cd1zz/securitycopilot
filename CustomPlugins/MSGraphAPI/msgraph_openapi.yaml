@@ -1,8 +1,3 @@
-# The following plugin is a modified copy of the MSGraph API plugin from Chaitanya Belwal and Rick Kotlarz
-# https://github.com/RickKotlarz/Security-Copilot-Plugins-dev/blob/main/Example_MSGraph_AAD_auth_plugin_template/Example_MSGraph_AAD_auth_plugin_OAPI.yaml
-# It includes additional clarity for DLP alert triage and evidence queries.
-# See also: https://techcommunity.microsoft.com/t5/microsoft-security-copilot-blog/using-microsoft-graph-as-a-microsoft-copilot-for-security-plugin/ba-p/4198148
-
 openapi: 3.0.0
 
 info:
@@ -10,6 +5,7 @@ info:
   description: >
     Plugin to query Microsoft Graph Security API for Data Loss Prevention (DLP) alerts.
     Supports listing DLP alerts using OData filters and retrieving full evidence details.
+    Use the user_context parameter to provide natural language intent, which will be dynamically translated to an OData filter or selection criteria.
   version: "v1"
 
 servers:
@@ -24,37 +20,48 @@ paths:
       description: >
         Get all Data Loss Prevention (DLP) alerts from Microsoft Graph Security API within a specified time range.
         Use OData filters for serviceSource and createdDateTime, e.g.,
-        serviceSource eq 'dataLossPrevention' and createdDateTime ge 2024-06-10T00:00:00Z
+        serviceSource eq 'dataLossPrevention' and createdDateTime ge 2024-06-10T00:00:00Z.
+        The user_context parameter allows you to describe your requirements or questions in natural language (e.g., "Show high severity DLP alerts in the last 7 days").
+        The model will translate user_context into a $filter, $orderby, $top, or $select query as appropriate.
       parameters:
         - in: query
           name: $filter
           schema:
             type: string
-          required: true
+          required: false
           description: >
-            OData filter string.
-            For DLP alerts: "serviceSource eq 'dataLossPrevention' and createdDateTime ge 2024-06-10T00:00:00Z"
+            OData filter string. Example: "serviceSource eq 'dataLossPrevention' and createdDateTime ge 2024-06-10T00:00:00Z".
         - in: query
           name: $orderby
           schema:
             type: string
           required: false
           description: >
-            Order by clause (e.g., "createdDateTime desc")
+            Order by clause (e.g., "createdDateTime desc").
         - in: query
           name: $top
           schema:
             type: integer
           required: false
           description: >
-            Max number of records to return (pagination)
+            Max number of records to return (pagination).
         - in: query
           name: $select
           schema:
             type: string
           required: false
           description: >
-            Comma-separated list of properties to return (e.g., "id,title,severity,category,evidence")
+            Comma-separated list of properties to return (e.g., "id,title,severity,category,evidence").
+        - in: query
+          name: user_context
+          schema:
+            type: string
+          required: false
+          description: >
+            Natural language description of what you want to see or analyze.
+            // The model should translate user_context into OData query parameters, e.g.,
+            // user_context: "Show only high severity DLP alerts from the last week"
+            // Translates to: $filter=serviceSource eq 'dataLossPrevention' and severity eq 'high' and createdDateTime ge [date]
       responses:
         "200":
           description: OK
@@ -70,6 +77,7 @@ paths:
       description: >
         Get the full details and evidence for a specific DLP alert by alert ID.
         Use $select to return only the properties your app needs (e.g., "evidence,description,additionalData").
+        The user_context parameter can describe what additional details or fields to include.
       parameters:
         - in: path
           name: alertid
@@ -83,7 +91,15 @@ paths:
             type: string
           required: false
           description: >
-            Comma-separated list of properties to return (e.g., "evidence,description,additionalData")
+            Comma-separated list of properties to return (e.g., "evidence,description,additionalData").
+        - in: query
+          name: user_context
+          schema:
+            type: string
+          required: false
+          description: >
+            Natural language description of what details or evidence you want to see.
+            // The model should use user_context to select the most relevant alert details and evidence fields.
       responses:
         "200":
           description: OK
