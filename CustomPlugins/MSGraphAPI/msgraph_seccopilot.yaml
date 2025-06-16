@@ -22,4 +22,4 @@ Descriptor:
 SkillGroups:
   - Format: API
     Settings:
-      OpenApiSpecUrl: 
+      OpenApiSpecUrl: https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/CustomPlugins/MSGraphAPI/msgraph_openapi.yaml
