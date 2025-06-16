@@ -1,0 +1,25 @@
+# Author Craig Freyman
+# Plugin updated 2025-Jun-16
+
+Descriptor:
+  Name: MS Graph DLP Alert Plugin
+  DisplayName: Microsoft Graph Data Loss Prevention (DLP) Alert Plugin
+  Description: >
+    Plugin to query Microsoft Graph Security API for Data Loss Prevention (DLP) alerts.
+    Supports listing DLP alerts using OData filters and retrieving full evidence details for investigation.
+  DescriptionForModel: |
+    Enables Security Copilot to query and investigate Data Loss Prevention (DLP) alerts from Microsoft Graph.
+    Supports OData filtering, paging, and fetching detailed alert evidence to help with incident triage and root cause analysis.
+
+  SupportedAuthTypes:
+    - AADDelegated
+
+  Authorization:
+    Type: AADDelegated
+    EntraScopes: https://graph.microsoft.com/.default
+
+
+SkillGroups:
+  - Format: API
+    Settings:
+      OpenApiSpecUrl: 

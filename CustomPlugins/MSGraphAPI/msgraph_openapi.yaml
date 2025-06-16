@@ -1,0 +1,106 @@
+# The following plugin is a modified copy of the MSGraph API plugin from Chaitanya Belwal and Rick Kotlarz
+# https://github.com/RickKotlarz/Security-Copilot-Plugins-dev/blob/main/Example_MSGraph_AAD_auth_plugin_template/Example_MSGraph_AAD_auth_plugin_OAPI.yaml
+# It includes additional clarity for DLP alert triage and evidence queries.
+# See also: https://techcommunity.microsoft.com/t5/microsoft-security-copilot-blog/using-microsoft-graph-as-a-microsoft-copilot-for-security-plugin/ba-p/4198148
+
+openapi: 3.0.0
+
+info:
+  title: MS Graph DLP Alerts Plugin
+  description: >
+    Plugin to query Microsoft Graph Security API for Data Loss Prevention (DLP) alerts.
+    Supports listing DLP alerts using OData filters and retrieving full evidence details.
+  version: "v1"
+
+servers:
+  - url: https://graph.microsoft.com/v1.0
+
+paths:
+
+  # List DLP alerts with OData filter support
+  /security/alerts_v2:
+    get:
+      operationId: GetDlpAlerts
+      description: >
+        Get all Data Loss Prevention (DLP) alerts from Microsoft Graph Security API within a specified time range.
+        Use OData filters for serviceSource and createdDateTime, e.g.,
+        serviceSource eq 'dataLossPrevention' and createdDateTime ge 2024-06-10T00:00:00Z
+      parameters:
+        - in: query
+          name: $filter
+          schema:
+            type: string
+          required: true
+          description: >
+            OData filter string.
+            For DLP alerts: "serviceSource eq 'dataLossPrevention' and createdDateTime ge 2024-06-10T00:00:00Z"
+        - in: query
+          name: $orderby
+          schema:
+            type: string
+          required: false
+          description: >
+            Order by clause (e.g., "createdDateTime desc")
+        - in: query
+          name: $top
+          schema:
+            type: integer
+          required: false
+          description: >
+            Max number of records to return (pagination)
+        - in: query
+          name: $select
+          schema:
+            type: string
+          required: false
+          description: >
+            Comma-separated list of properties to return (e.g., "id,title,severity,category,evidence")
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+        "400":
+          description: Bad request, invalid parameters
+
+  # Get all evidence for a specific DLP alert
+  /security/alerts_v2/{alertid}:
+    get:
+      operationId: GetDlpAlertDetails
+      description: >
+        Get the full details and evidence for a specific DLP alert by alert ID.
+        Use $select to return only the properties your app needs (e.g., "evidence,description,additionalData").
+      parameters:
+        - in: path
+          name: alertid
+          schema:
+            type: string
+          required: true
+          description: Alert ID (e.g., dladddbeae-ecee-ad76-5400-08dda9c7aba8)
+        - in: query
+          name: $select
+          schema:
+            type: string
+          required: false
+          description: >
+            Comma-separated list of properties to return (e.g., "evidence,description,additionalData")
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+        "400":
+          description: Bad request, invalid parameters
+
+  # Example: Get Entra user profile (generic, not DLP specific, optional)
+  /me:
+    get:
+      operationId: GetEntraProfile
+      description: Gets Entra profile information from the MS Graph
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+        "400":
+          description: Bad request, invalid parameters
