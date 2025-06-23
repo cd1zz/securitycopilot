@@ -1,0 +1,146 @@
+Descriptor:
+  Name: Purview Risky Action Enrichment
+  DisplayName: Purview Risky Action Enrichment
+  Description: A set of KQL-based enrichment skills that provide snapshots of risky user activity based on Microsoft Purview Insider Risk telemetry.
+  DescriptionForModel: |
+    These skills enrich insider risk or DLP alerts by summarizing high-risk user actions within a specified timeframe. 
+    Each skill is focused on a specific category of behavior, including email exfiltration, file uploads, print activity, 
+    and insider behavior counts. Data is sourced from DataSecurityEvents and DataSecurityBehaviors.
+  SupportedAuthTypes:
+    - None
+
+SkillGroups:
+  - Format: KQL
+    Skills:
+      - Name: RiskyEmailSummary
+        DisplayName: Risky Email Summary
+        Description: Summarize emails sent to external, self, or free domains for a given user in a given timeframe.
+        DescriptionForModel: |
+          Retrieves a summary of outbound emails sent by a user to external recipients, self, or free public domains within the last N days.
+        Inputs:
+          - Name: upn
+            Description: The UPN of the user to investigate.
+            Required: true
+            Default: ""
+          - Name: lookback_days
+            Description: Number of days to look back.
+            Required: true
+            Default: "30"
+        Settings:
+          Target: Defender
+          Template: |-
+            let TimeRange = ago(toint("{{lookback_days}}") * 1d);
+            let targetUpn = "{{upn}}";
+            DataSecurityEvents
+            | where TimeGenerated > TimeRange
+            | where ActionType in~ ("Email sent to external recipient", "Email sent to self", "Email sent to free public domains")
+            | where AccountUpn =~ targetUpn
+            | summarize 
+                Files = make_list(ObjectName), 
+                Total = count() 
+              by ActionType, TargetUrlDomain, AccountUpn
+
+      - Name: CloudFileUploadSummary
+        DisplayName: Cloud File Upload Summary
+        Description: Summarize file uploads to cloud services for a user in a given timeframe.
+        DescriptionForModel: |
+          Retrieves file upload events to cloud destinations from a specific user over the past N days.
+        Inputs:
+          - Name: upn
+            Description: The UPN of the user to investigate.
+            Required: true
+            Default: ""
+          - Name: lookback_days
+            Description: Number of days to look back.
+            Required: true
+            Default: "30"
+        Settings:
+          Target: Defender
+          Template: |-
+            let TimeRange = ago(toint("{{lookback_days}}") * 1d);
+            let targetUpn = "{{upn}}";
+            DataSecurityEvents
+            | where TimeGenerated > TimeRange
+            | where ActionType == "File upload to cloud"
+            | where AccountUpn =~ targetUpn
+            | summarize 
+                Files = make_list(ObjectName), 
+                Total = count() 
+              by ActionType, TargetUrlDomain, AccountUpn
+
+      - Name: PrintActivitySummary
+        DisplayName: File Print Activity Summary
+        Description: Summarize file print activity for a given user in a given timeframe.
+        DescriptionForModel: |
+          Retrieves print events from DataSecurityEvents, showing what files were printed and which printers were used by a specific user over N days.
+        Inputs:
+          - Name: upn
+            Description: The UPN of the user to investigate.
+            Required: true
+            Default: ""
+          - Name: lookback_days
+            Description: Number of days to look back.
+            Required: true
+            Default: "30"
+        Settings:
+          Target: Defender
+          Template: |-
+            let TimeRange = ago(toint("{{lookback_days}}") * 1d);
+            let targetUpn = "{{upn}}";
+            DataSecurityEvents
+            | where TimeGenerated > TimeRange
+            | where ActionType == "File print"
+            | where AccountUpn =~ targetUpn
+            | summarize 
+                Files = make_list(ObjectName), 
+                Total = count() 
+              by ActionType, AccountUpn, PrinterName
+
+      - Name: BehaviorActionCounts
+        DisplayName: Behavior Action Type Counts
+        Description: Count user actions in DataSecurityBehaviors for a given timeframe.
+        DescriptionForModel: |
+          Summarizes the frequency of behavior action types for a specific user within the last N days using DataSecurityBehaviors.
+        Inputs:
+          - Name: upn
+            Description: The user's email or UPN to investigate.
+            Required: true
+            Default: ""
+          - Name: lookback_days
+            Description: Number of days to look back.
+            Required: true
+            Default: "30"
+        Settings:
+          Target: Defender
+          Template: |-
+            let TimeRange = ago(toint("{{lookback_days}}") * 1d);
+            let targetEmail = "{{upn}}";
+            DataSecurityBehaviors
+            | where TimeGenerated > TimeRange
+            | where AccountEmail =~ targetEmail
+            | summarize Total = count() by ActionType
+
+      - Name: ExfiltrationEventCounts
+        DisplayName: Insider Risk Exfiltration Summary
+        Description: Summarize exfiltration-related events for a given user over a specified timeframe.
+        DescriptionForModel: |
+          Retrieves counts of insider risk events categorized under Exfiltration from DataSecurityEvents for a specified user.
+        Inputs:
+          - Name: upn
+            Description: The UPN of the user to investigate.
+            Required: true
+            Default: ""
+          - Name: lookback_days
+            Description: Number of days to look back.
+            Required: true
+            Default: "30"
+        Settings:
+          Target: Defender
+          Template: |-
+            let TimeRange = ago(toint("{{lookback_days}}") * 1d);
+            let targetUpn = "{{upn}}";
+            DataSecurityEvents
+            | where TimeGenerated > TimeRange
+            | where IrmActionCategory == "Exfiltration"
+            | where AccountUpn =~ targetUpn
+            | summarize Total = count() by ActionType
