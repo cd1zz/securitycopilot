@@ -1,0 +1,17 @@
+Descriptor:  
+  Name: ServiceNOW CVE & Software Inventory Search
+  DisplayName: ServiceNOW CVE & Software Inventory Search
+  Description: ServiceNOW CVE & Software Inventory Search
+
+  SupportedAuthTypes:
+    - ApiKey
+  Authorization:  
+    Type: APIKey  
+    Location: Header  
+    Key: X-API-Key
+    AuthScheme: ''
+
+SkillGroups:  
+  - Format: API  
+    Settings:  
+      OpenApiSpecUrl: https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/CustomPlugins/ServiceNow-Custom/service_now_openapi.yaml
