@@ -11,7 +11,15 @@ Descriptor:
     Key: X-API-Key
     AuthScheme: ''
 
+  Settings:
+    - Name: FunctionAppName
+      Label: FunctionAppName
+      Description: FunctionAppName.azurewebsites.net
+      HintText: FunctionAppName
+      SettingType: String
+      Required: true
+      
 SkillGroups:  
   - Format: API  
     Settings:  
-      OpenApiSpecUrl: https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/CustomPlugins/ServiceNow-Custom/service_now_openapi.yaml
+      OpenApiSpecUrl: https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/CustomPlugins/ServiceNow-custom/service_now_openapi.yaml

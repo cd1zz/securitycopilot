@@ -20,14 +20,8 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:7071/api
-    description: Local development server
   - url: https://{functionAppName}.azurewebsites.net/api
     description: Azure Functions production server
-    variables:
-      functionAppName:
-        default: servicenow-analyzer
-        description: Your Azure Function App name
 
 security:
   - ApiKeyAuth: []
