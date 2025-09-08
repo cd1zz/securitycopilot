@@ -23,3 +23,4 @@ SkillGroups:
   - Format: API  
     Settings:  
       OpenApiSpecUrl: https://raw.githubusercontent.com/cd1zz/securitycopilot/refs/heads/main/CustomPlugins/ServiceNow-custom/service_now_openapi.yaml
+      FunctionAppName: FunctionAppName
