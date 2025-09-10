@@ -1,7 +1,36 @@
 Descriptor:  
   Name: ServiceNOW CVE & Software Inventory Search
   DisplayName: ServiceNOW CVE & Software Inventory Search
-  Description: ServiceNOW CVE & Software Inventory Search
+  Description: |
+    Azure Functions API for analyzing vulnerabilities and software inventory in ServiceNow.
+    
+    This API provides endpoints to:
+    - Analyze individual CVEs and QIDs for vulnerable systems
+    - Batch analyze multiple vulnerabilities
+    - Search vulnerabilities by confirmation status
+    - Query software inventory by manufacturer or product name
+    
+    All endpoints require authentication via API key in the X-API-Key header.
+    
+    ## LLM Usage Guidance
+    
+    When using this API through an LLM, focus on these primary metrics:
+    
+    **For Vulnerability Analysis:**
+    - `statistics.total_vulnerable_systems` - The count of affected systems (primary impact metric)
+    - `cvss_score` - Severity rating (9.0+ critical, 7.0+ high priority)
+    - `systems[].assignment_group` - Teams responsible for remediation
+    
+    **For Software Inventory:**
+    - `total_installations` - Deployment scale across environment
+    - Version distribution - Identify outdated software requiring updates
+    - `manufacturer` verification - Ensure correct vendor association
+    
+    **Best Practices:**
+    - Use `confirmation_state: "confirmed"` for actionable vulnerabilities
+    - Set `fetch_all_details: false` for faster initial assessments
+    - Leverage wildcards (*) in software searches for broader discovery
+    - Focus on high CVSS scores AND high system counts for prioritization
 
 
   SupportedAuthTypes:
