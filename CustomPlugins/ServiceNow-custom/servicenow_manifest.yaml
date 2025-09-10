@@ -3,6 +3,7 @@ Descriptor:
   DisplayName: ServiceNOW CVE & Software Inventory Search
   Description: ServiceNOW CVE & Software Inventory Search
 
+
   SupportedAuthTypes:
     - ApiKey
   Authorization:  
@@ -10,7 +11,7 @@ Descriptor:
     Location: Header  
     Key: X-API-Key
     AuthScheme: ''
-    
+
 SkillGroups:  
   - Format: API  
     Settings:  
