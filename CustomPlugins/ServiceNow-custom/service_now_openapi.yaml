@@ -20,7 +20,7 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://{functionAppName}.azurewebsites.net/api
+  - url: https://svcnow-scp-cve.azurewebsites.net/api
     description: Azure Functions production server
 
 security:
