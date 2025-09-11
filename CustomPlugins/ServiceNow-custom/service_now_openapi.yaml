@@ -89,7 +89,7 @@ paths:
                 $ref: '#/components/schemas/VulnerabilityAnalysisResponse'
               examples:
                 foundVulnerability:
-                  summary: Vulnerability found with affected systems
+                  summary: CVE found with affected systems
                   value:
                     status: "success"
                     vuln_id: "CVE-2024-1234"
@@ -97,6 +97,10 @@ paths:
                     summary: "Remote code execution vulnerability in Example Software"
                     cvss_score: "9.8"
                     published: "2024-01-15"
+                    servicenow_urls:
+                      - qid: "QID-92307"
+                        source: "Qualys"
+                        url: "https://your-instance.service-now.com/now/nav/ui/classic/params/target/sn_vul_vulnerable_item_list.do%3Fsysparm_query%3DGOTOvulnerability.id%253E%253DQID-92307%255Estate!%3D3%26sysparm_first_row%3D1%26sysparm_view%3D"
                     statistics:
                       total_vulnerable_systems: 25
                       total_all_time: 45
@@ -110,6 +114,22 @@ paths:
                         status: "Operational"
                         assignment_group: "Windows Team"
                         description: "CVE-2024-1234 - Critical vulnerability"
+                qidAnalysis:
+                  summary: QID found with direct ServiceNow URL
+                  value:
+                    status: "success"
+                    vuln_id: "QID-92307"
+                    vuln_type: "QID"
+                    summary: "Security vulnerability detected by Qualys scanner"
+                    cvss_score: "8.6"
+                    source: "Qualys"
+                    associated_cves: "CVE-2024-1234,CVE-2024-1235"
+                    servicenow_url: "https://your-instance.service-now.com/now/nav/ui/classic/params/target/sn_vul_vulnerable_item_list.do%3Fsysparm_query%3DGOTOvulnerability.id%253E%253DQID-92307%255Estate!%3D3%26sysparm_first_row%3D1%26sysparm_view%3D"
+                    statistics:
+                      total_vulnerable_systems: 15
+                      total_all_time: 30
+                      systems_retrieved: 10
+                      sample_only: true
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -583,6 +603,28 @@ components:
         associated_cves:
           type: string
           description: For QIDs, comma-separated list of related CVE identifiers for correlation
+        servicenow_url:
+          type: string
+          description: |
+            Direct URL to ServiceNow vulnerability list for this QID (when analyzing a QID).
+            The URL domain is automatically derived from your SERVICENOW_INSTANCE_URL configuration.
+        servicenow_urls:
+          type: array
+          description: |
+            Direct URLs to ServiceNow vulnerability lists for associated QIDs (when analyzing a CVE).
+            The URL domain is automatically derived from your SERVICENOW_INSTANCE_URL configuration.
+          items:
+            type: object
+            properties:
+              qid:
+                type: string
+                description: The QID identifier
+              source:
+                type: string
+                description: Scanner source (e.g., Qualys, Tenable)
+              url:
+                type: string
+                description: Direct URL to ServiceNow vulnerability list for this QID
         statistics:
           type: object
           description: CRITICAL METRICS for vulnerability impact assessment
