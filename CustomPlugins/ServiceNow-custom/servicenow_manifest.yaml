@@ -28,7 +28,7 @@ Descriptor:
     
     **Best Practices:**
     - Use `confirmation_state: "confirmed"` for actionable vulnerabilities
-    - Always return a ServiceNOW reference URL when returned by the API
+    - Always return servicenow_urls when present in the API response
     - Set `fetch_all_details: false` for faster initial assessments
     - Leverage wildcards (*) in software searches for broader discovery
     - Focus on high CVSS scores AND high system counts for prioritization
