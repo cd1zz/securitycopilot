@@ -208,13 +208,13 @@ paths:
                 summary: Search for confirmed vulnerabilities
                 value:
                   confirmation_state: "confirmed"
-                  limit: 100
+                  limit: 10
                   include_systems: true
               potentialSearch:
                 summary: Search for potential vulnerabilities
                 value:
                   confirmation_state: "potential"
-                  limit: 50
+                  limit: 10
                   include_systems: false
       responses:
         '200':
@@ -276,14 +276,14 @@ paths:
                   search_type: "manufacturer"
                   manufacturer: "Palo Alto Networks"
                   fetch_details: true
-                  limit: 100
+                  limit: 10
               softwareSearch:
                 summary: Search by software name
                 value:
                   search_type: "software"
                   software_name: "Cortex XDR"
                   fetch_details: true
-                  limit: 50
+                  limit: 10
                   performance_mode: "balanced"
       responses:
         '200':
