@@ -31,7 +31,7 @@ This plugin enables **Microsoft Security Copilot** to query **ServiceNow Vulnera
 
 ## 👥 Audience
 
-* **SOC Analysts / Security Copilot Users**
+* **Security Copilot Users**
 
   * Use natural language prompts in Copilot (e.g., *“Use the ServiceNOW vulnerability analyzer to check CVE-2024-1234”*).
   * Get system counts, affected host samples, and direct ServiceNow links.
@@ -70,7 +70,7 @@ Security Copilot ── Plugin Manifest ──► OpenAPI Spec ──► Azure F
 
 ### 2. Deploy Function App
 
-1. Clone the repo or obtain the Function App source package
+1. Clone the repo or obtain the Function App source package from [https://github.com/cd1zz/servicenow-security-copilot](https://github.com/cd1zz/servicenow-security-copilot)
 2. Create a new Function App in Azure (Python 3.8–3.11)
 3. Configure environment settings (`local.settings.json` for local dev, or App Settings in Azure)
 4. Deploy to Azure:
