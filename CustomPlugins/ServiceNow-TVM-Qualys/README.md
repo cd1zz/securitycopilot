@@ -136,7 +136,9 @@ The Function App requires specific environment variables to connect securely to 
   * Example generation in PowerShell:
 
     ```powershell
-    -join ((48..122) | Get-Random -Count 64 | % {[char]$_})
+    $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_'
+    -join ((1..64) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
+
     ```
 
 ⚠️ **Security Tip**: Store all secrets (`CLIENT_SECRET`, `PASSWORD`, `API_KEY`) in **Azure Key Vault** or equivalent secure storage.
