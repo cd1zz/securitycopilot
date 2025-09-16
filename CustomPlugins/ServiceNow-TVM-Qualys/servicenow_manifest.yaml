@@ -10,11 +10,30 @@ Descriptor:
     - Search vulnerabilities by confirmation status
     - Query software inventory by manufacturer or product name
     
-    All endpoints require authentication via API key in the X-API-Key header.
+    API endpoint descriptions & usage guidelines:
+    /analyze-vulnerability
+     - Use when the user asks about a single CVE or Qualys QID.
+     - Returns the total number of vulnerable systems, sample affected systems, and ServiceNOW deep links.
+     - Best for: "Is my environment vulnerable to CVE-2025-55225?"
+
+    /batch-analyze
+     - Use when the user provides multiple CVEs or QIDs in a single query.
+     - Returns results for each identifier with counts and ServiceNOW deep links.
+     - Best for "Check both CVE-2023-44487 and CVE-2025-55225."
+
+    /software-inventory
+     - Use when the user asks about installed software by product name or manufacturer.
+     - Supports wildcards (`*`) for broader searches.
+     - Returns total installations, version distribution, sample systems, and ServiceNOW links.
+     - Best for "How many hosts have Microsoft Office installed?"
+
+    /status-search
+     - Use when the user wants vulnerabilities filtered by confirmation state.
+     - Returns vulnerabilities grouped by status ("confirmed", "unconfirmed", or "all").
+     - Best for "Show me all confirmed vulnerabilities in ServiceNOW."
     
-    ## LLM Usage Guidance
-    
-    When using this API through an LLM, focus on these primary metrics:
+  
+    Focus on these primary metrics:
     
     **For Vulnerability Analysis:**
     - `statistics.total_vulnerable_systems` - The count of affected systems (primary impact metric)
