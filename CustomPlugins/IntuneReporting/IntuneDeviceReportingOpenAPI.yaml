@@ -3,9 +3,6 @@ info:
   title: Intune Device Reporting API for Security Copilot
   description: API plugin for Microsoft Security Copilot to query and report on Intune-managed devices
   version: 1.0.0
-  contact:
-    name: Security Team
-    email: security@organization.com
 
 servers:
   - url: https://graph.microsoft.com/v1.0
@@ -15,16 +12,16 @@ paths:
   /deviceManagement/managedDevices:
     get:
       summary: List all managed devices
-      description: Retrieves all devices managed by Intune with their compliance and configuration status
+      description: |
+        Retrieves all devices managed by Intune with their compliance and configuration status
+        #ExamplePrompts Show me all Intune managed devices
+        #ExamplePrompts List all devices managed by Intune
+        #ExamplePrompts Get all non-compliant devices
+        #ExamplePrompts Show me Windows devices in Intune
+        #ExamplePrompts List devices that are not encrypted
       operationId: ListManagedDevices
       tags:
         - Device Inventory
-      ExamplePrompt:
-        - "Show me all Intune managed devices"
-        - "List all devices managed by Intune"
-        - "Get all non-compliant devices"
-        - "Show me Windows devices in Intune"
-        - "List devices that are not encrypted"
       parameters:
         - name: $filter
           in: query
@@ -73,14 +70,14 @@ paths:
   /deviceManagement/managedDevices/{deviceId}:
     get:
       summary: Get specific device details
-      description: Retrieves comprehensive information about a specific managed device
+      description: |
+        Retrieves comprehensive information about a specific managed device
+        #ExamplePrompts Get details for device with ID {deviceId}
+        #ExamplePrompts Show me information about a specific Intune device
+        #ExamplePrompts Get device details for device ID {deviceId}
       operationId: GetManagedDevice
       tags:
         - Device Details
-      ExamplePrompt:
-        - "Get details for device with ID {deviceId}"
-        - "Show me information about a specific Intune device"
-        - "Get device details for device ID {deviceId}"
       parameters:
         - name: deviceId
           in: path
@@ -104,15 +101,15 @@ paths:
   /deviceManagement/managedDevices/{deviceId}/windowsProtectionState:
     get:
       summary: Get Windows protection state
-      description: Retrieves Windows Defender and security status for a Windows device
+      description: |
+        Retrieves Windows Defender and security status for a Windows device
+        #ExamplePrompts Get Windows Defender status for device {deviceId}
+        #ExamplePrompts Show me security protection state for a Windows device
+        #ExamplePrompts Check antivirus status for device {deviceId}
+        #ExamplePrompts Get Windows security status for device
       operationId: GetWindowsProtectionState
       tags:
         - Security Status
-      ExamplePrompt:
-        - "Get Windows Defender status for device {deviceId}"
-        - "Show me security protection state for a Windows device"
-        - "Check antivirus status for device {deviceId}"
-        - "Get Windows security status for device"
       parameters:
         - name: deviceId
           in: path
@@ -131,15 +128,15 @@ paths:
   /deviceManagement/reports/getDeviceNonComplianceReport:
     post:
       summary: Generate device non-compliance report
-      description: Creates a detailed report of non-compliant devices with policy violations
+      description: |
+        Creates a detailed report of non-compliant devices with policy violations
+        #ExamplePrompts Generate a device non-compliance report
+        #ExamplePrompts Show me a report of devices that are not compliant
+        #ExamplePrompts Create a compliance report for all devices
+        #ExamplePrompts Get device policy violation report
       operationId: GetNonComplianceReport
       tags:
         - Compliance Reports
-      ExamplePrompt:
-        - "Generate a device non-compliance report"
-        - "Show me a report of devices that are not compliant"
-        - "Create a compliance report for all devices"
-        - "Get device policy violation report"
       requestBody:
         required: true
         content:
@@ -174,7 +171,12 @@ paths:
   /deviceManagement/managedDevices/{deviceId}/detectedApps:
     get:
       summary: Get detected applications
-      description: Lists all applications discovered on a managed device
+      description: |
+        Lists all applications discovered on a managed device
+        #ExamplePrompts Show me apps installed on device {deviceId}
+        #ExamplePrompts Get all applications on a specific device
+        #ExamplePrompts List software installed on device {deviceId}
+        #ExamplePrompts Show detected applications for device
       operationId: GetDetectedApps
       tags:
         - Application Management
@@ -402,15 +404,15 @@ paths:
   /deviceManagement/auditEvents:
     get:
       summary: Get audit events
-      description: Retrieves audit log entries for device management operations
+      description: |
+        Retrieves audit log entries for device management operations
+        #ExamplePrompts Show me recent Intune audit events
+        #ExamplePrompts Get audit logs for device management operations
+        #ExamplePrompts Show me audit events from last week
+        #ExamplePrompts List device management audit activities
       operationId: GetAuditEvents
       tags:
         - Audit Logs
-      ExamplePrompt:
-        - "Show me recent Intune audit events"
-        - "Get audit logs for device management operations"
-        - "Show me audit events from last week"
-        - "List device management audit activities"
       parameters:
         - name: $filter
           in: query
