@@ -1,0 +1,1059 @@
+openapi: 3.0.0
+info:
+  title: Intune Device Reporting API for Security Copilot
+  description: API plugin for Microsoft Security Copilot to query and report on Intune-managed devices
+  version: 1.0.0
+  contact:
+    name: Security Team
+    email: security@organization.com
+
+servers:
+  - url: https://graph.microsoft.com/v1.0
+    description: Microsoft Graph API v1.0
+
+paths:
+  /deviceManagement/managedDevices:
+    get:
+      summary: List all managed devices
+      description: Retrieves all devices managed by Intune with their compliance and configuration status
+      operationId: ListManagedDevices
+      tags:
+        - Device Inventory
+      ExamplePrompt:
+        - "Show me all Intune managed devices"
+        - "List all devices managed by Intune"
+        - "Get all non-compliant devices"
+        - "Show me Windows devices in Intune"
+        - "List devices that are not encrypted"
+      parameters:
+        - name: $filter
+          in: query
+          description: OData filter (e.g., "complianceState eq 'noncompliant'" or "operatingSystem eq 'Windows'")
+          schema:
+            type: string
+          examples:
+            noncompliant:
+              value: "complianceState eq 'noncompliant'"
+            windows:
+              value: "operatingSystem eq 'Windows'"
+            encrypted:
+              value: "isEncrypted eq false"
+        - name: $select
+          in: query
+          description: Select specific properties to return
+          schema:
+            type: string
+            example: "id,deviceName,userPrincipalName,complianceState,lastSyncDateTime"
+        - name: $top
+          in: query
+          description: Number of items to return (max 999)
+          schema:
+            type: integer
+            default: 100
+            maximum: 999
+        - name: $orderby
+          in: query
+          description: Sort order for results
+          schema:
+            type: string
+            example: "lastSyncDateTime desc"
+      responses:
+        '200':
+          description: List of managed devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ManagedDevice'
+
+  /deviceManagement/managedDevices/{deviceId}:
+    get:
+      summary: Get specific device details
+      description: Retrieves comprehensive information about a specific managed device
+      operationId: GetManagedDevice
+      tags:
+        - Device Details
+      ExamplePrompt:
+        - "Get details for device with ID {deviceId}"
+        - "Show me information about a specific Intune device"
+        - "Get device details for device ID {deviceId}"
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: Unique identifier of the device
+          schema:
+            type: string
+        - name: $select
+          in: query
+          description: Select specific properties
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Device details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedDevice'
+
+  /deviceManagement/managedDevices/{deviceId}/windowsProtectionState:
+    get:
+      summary: Get Windows protection state
+      description: Retrieves Windows Defender and security status for a Windows device
+      operationId: GetWindowsProtectionState
+      tags:
+        - Security Status
+      ExamplePrompt:
+        - "Get Windows Defender status for device {deviceId}"
+        - "Show me security protection state for a Windows device"
+        - "Check antivirus status for device {deviceId}"
+        - "Get Windows security status for device"
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: Device identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Windows protection state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WindowsProtectionState'
+
+  /deviceManagement/reports/getDeviceNonComplianceReport:
+    post:
+      summary: Generate device non-compliance report
+      description: Creates a detailed report of non-compliant devices with policy violations
+      operationId: GetNonComplianceReport
+      tags:
+        - Compliance Reports
+      ExamplePrompt:
+        - "Generate a device non-compliance report"
+        - "Show me a report of devices that are not compliant"
+        - "Create a compliance report for all devices"
+        - "Get device policy violation report"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filter:
+                  type: string
+                  description: Filter for specific devices or timeframes
+                select:
+                  type: array
+                  items:
+                    type: string
+                  description: Properties to include in report
+                skip:
+                  type: integer
+                  description: Number of records to skip
+                top:
+                  type: integer
+                  description: Maximum records to return
+                  default: 50
+                  maximum: 999
+      responses:
+        '200':
+          description: Non-compliance report data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceReport'
+
+  /deviceManagement/managedDevices/{deviceId}/detectedApps:
+    get:
+      summary: Get detected applications
+      description: Lists all applications discovered on a managed device
+      operationId: GetDetectedApps
+      tags:
+        - Application Management
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: Device identifier
+          schema:
+            type: string
+        - name: $filter
+          in: query
+          description: Filter applications (e.g., "displayName eq 'TeamViewer'")
+          schema:
+            type: string
+        - name: $top
+          in: query
+          description: Maximum number of apps to return
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: List of detected applications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DetectedApp'
+
+  /deviceManagement/managedDevices/{deviceId}/deviceCompliancePolicyStates:
+    get:
+      summary: Get device compliance policy states
+      description: Shows compliance status for each policy applied to the device
+      operationId: GetDeviceCompliancePolicyStates
+      tags:
+        - Compliance Status
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: Device identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Compliance policy states
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeviceCompliancePolicyState'
+
+  /deviceManagement/managedDevices/{deviceId}/deviceConfigurationStates:
+    get:
+      summary: Get device configuration states
+      description: Shows configuration profile status for the device
+      operationId: GetDeviceConfigurationStates
+      tags:
+        - Configuration Status
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: Device identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Configuration states
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeviceConfigurationState'
+
+  /deviceManagement/reports/getConfigurationPolicyNonComplianceSummaryReport:
+    post:
+      summary: Get configuration policy non-compliance summary
+      description: Generates summary of configuration policy violations across all devices
+      operationId: GetConfigurationNonComplianceSummary
+      tags:
+        - Compliance Reports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filter:
+                  type: string
+                  description: Optional filter criteria
+                orderBy:
+                  type: array
+                  items:
+                    type: string
+                  description: Sort order for results
+                select:
+                  type: array
+                  items:
+                    type: string
+                  description: Properties to include
+                top:
+                  type: integer
+                  description: Maximum records
+                  default: 50
+      responses:
+        '200':
+          description: Configuration non-compliance summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NonComplianceSummary'
+
+  /deviceManagement/deviceHealthScripts/{scriptId}/deviceRunStates:
+    get:
+      summary: Get device health script results
+      description: Retrieves execution results of health scripts across devices
+      operationId: GetDeviceHealthScriptRunStates
+      tags:
+        - Health Scripts
+      parameters:
+        - name: scriptId
+          in: path
+          required: true
+          description: Health script identifier
+          schema:
+            type: string
+        - name: $filter
+          in: query
+          description: Filter results (e.g., "detectionState eq 'fail'")
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Script execution states
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeviceHealthScriptRunState'
+
+  /deviceManagement/reports/getDeviceManagementIntentPerSettingContributingProfiles:
+    post:
+      summary: Get intent setting contributing profiles
+      description: Identifies which profiles contribute to each intent setting on a device
+      operationId: GetIntentContributingProfiles
+      tags:
+        - Configuration Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                intentId:
+                  type: string
+                  description: Intent identifier
+                deviceId:
+                  type: string
+                  description: Device identifier
+      responses:
+        '200':
+          description: Contributing profiles report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntentSettingReport'
+
+  /deviceManagement/virtualEndpoint/cloudPCs:
+    get:
+      summary: List Cloud PCs
+      description: Retrieves all Windows 365 Cloud PCs in the organization
+      operationId: ListCloudPCs
+      tags:
+        - Cloud PC
+      parameters:
+        - name: $filter
+          in: query
+          description: Filter Cloud PCs (e.g., "status eq 'provisioned'")
+          schema:
+            type: string
+        - name: $select
+          in: query
+          description: Properties to return
+          schema:
+            type: string
+        - name: $top
+          in: query
+          description: Maximum results
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: List of Cloud PCs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CloudPC'
+
+  /deviceManagement/auditEvents:
+    get:
+      summary: Get audit events
+      description: Retrieves audit log entries for device management operations
+      operationId: GetAuditEvents
+      tags:
+        - Audit Logs
+      ExamplePrompt:
+        - "Show me recent Intune audit events"
+        - "Get audit logs for device management operations"
+        - "Show me audit events from last week"
+        - "List device management audit activities"
+      parameters:
+        - name: $filter
+          in: query
+          description: Filter audit events (e.g., "activityDateTime ge 2024-01-01")
+          schema:
+            type: string
+          examples:
+            lastWeek:
+              value: "activityDateTime ge 2024-01-15"
+            deviceActions:
+              value: "category eq 'Device'"
+        - name: $top
+          in: query
+          description: Maximum events to return
+          schema:
+            type: integer
+            default: 100
+            maximum: 999
+        - name: $orderby
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            example: "activityDateTime desc"
+      responses:
+        '200':
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEvent'
+
+  /deviceManagement/managedDevices/executeAction:
+    post:
+      summary: Execute device action
+      description: Performs bulk actions on multiple devices (sync, scan, lock, retire, wipe)
+      operationId: ExecuteDeviceAction
+      tags:
+        - Device Actions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - actionName
+                - deviceIds
+              properties:
+                actionName:
+                  type: string
+                  description: Action to perform
+                  enum:
+                    - remoteLock
+                    - resetPasscode
+                    - wipe
+                    - retire
+                    - delete
+                    - syncDevice
+                    - windowsDefenderScan
+                    - windowsDefenderUpdateSignatures
+                    - rotateBitLockerKeys
+                    - rotateFileVaultKey
+                deviceIds:
+                  type: array
+                  description: List of device IDs
+                  items:
+                    type: string
+                  minItems: 1
+                  maxItems: 100
+                notificationTitle:
+                  type: string
+                  description: Notification title for device user
+                notificationBody:
+                  type: string
+                  description: Notification message for device user
+                keepEnrollmentData:
+                  type: boolean
+                  description: For wipe action - keep enrollment data
+                  default: false
+                keepUserData:
+                  type: boolean
+                  description: For wipe action - keep user data
+                  default: false
+      responses:
+        '200':
+          description: Action initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkActionResult'
+
+components:
+  schemas:
+    ManagedDevice:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique device identifier
+        deviceName:
+          type: string
+          description: Device display name
+        userPrincipalName:
+          type: string
+          description: Primary user UPN
+        userDisplayName:
+          type: string
+          description: Primary user display name
+        complianceState:
+          type: string
+          description: Overall compliance status
+          enum: [unknown, compliant, noncompliant, conflict, error, inGracePeriod, configManager]
+        managementState:
+          type: string
+          description: Management state
+          enum: [managed, retirePending, wipePending, unhealthy, deletePending]
+        operatingSystem:
+          type: string
+          description: Operating system name
+        osVersion:
+          type: string
+          description: Operating system version
+        model:
+          type: string
+          description: Device model
+        manufacturer:
+          type: string
+          description: Device manufacturer
+        serialNumber:
+          type: string
+          description: Device serial number
+        isEncrypted:
+          type: boolean
+          description: Device encryption status
+        isSupervised:
+          type: boolean
+          description: Supervision status (iOS/macOS)
+        lastSyncDateTime:
+          type: string
+          format: date-time
+          description: Last successful sync
+        enrolledDateTime:
+          type: string
+          format: date-time
+          description: Enrollment date
+        complianceGracePeriodExpirationDateTime:
+          type: string
+          format: date-time
+          description: Grace period expiration
+        jailBroken:
+          type: string
+          description: Jailbreak/root status
+        managementAgent:
+          type: string
+          description: Management agent type
+          enum: [eas, mdm, easIntuneClient, intuneClient, jamf, googleCloudDevicePolicy]
+        azureADDeviceId:
+          type: string
+          description: Azure AD device ID
+        imei:
+          type: string
+          description: IMEI number
+        phoneNumber:
+          type: string
+          description: Phone number
+        wiFiMacAddress:
+          type: string
+          description: WiFi MAC address
+        ethernetMacAddress:
+          type: string
+          description: Ethernet MAC address
+        totalStorageSpaceInBytes:
+          type: integer
+          format: int64
+          description: Total storage capacity
+        freeStorageSpaceInBytes:
+          type: integer
+          format: int64
+          description: Available storage
+        physicalMemoryInBytes:
+          type: integer
+          format: int64
+          description: RAM size
+        deviceType:
+          type: string
+          description: Device type classification
+        ownerType:
+          type: string
+          description: Ownership type
+          enum: [unknown, company, personal]
+        exchangeAccessState:
+          type: string
+          description: Exchange ActiveSync state
+        exchangeAccessStateReason:
+          type: string
+          description: Reason for Exchange state
+        autopilotEnrolled:
+          type: boolean
+          description: Enrolled via Autopilot
+        notes:
+          type: string
+          description: Admin notes
+
+    WindowsProtectionState:
+      type: object
+      properties:
+        id:
+          type: string
+        malwareProtectionEnabled:
+          type: boolean
+          description: Antimalware enabled
+        deviceState:
+          type: string
+          description: Overall protection state
+          enum: [clean, fullScanPending, rebootPending, manualStepsPending, offlineScanPending, critical]
+        realTimeProtectionEnabled:
+          type: boolean
+          description: Real-time protection status
+        networkInspectionSystemEnabled:
+          type: boolean
+          description: Network inspection enabled
+        quickScanOverdue:
+          type: boolean
+          description: Quick scan overdue
+        fullScanOverdue:
+          type: boolean
+          description: Full scan overdue
+        signatureUpdateOverdue:
+          type: boolean
+          description: Signature update overdue
+        rebootRequired:
+          type: boolean
+          description: Reboot needed
+        fullScanRequired:
+          type: boolean
+          description: Full scan needed
+        engineVersion:
+          type: string
+          description: Antimalware engine version
+        signatureVersion:
+          type: string
+          description: Signature version
+        antiMalwareVersion:
+          type: string
+          description: Antimalware client version
+        lastQuickScanDateTime:
+          type: string
+          format: date-time
+          description: Last quick scan time
+        lastFullScanDateTime:
+          type: string
+          format: date-time
+          description: Last full scan time
+        lastQuickScanSignatureVersion:
+          type: string
+          description: Signatures at last quick scan
+        lastFullScanSignatureVersion:
+          type: string
+          description: Signatures at last full scan
+        lastReportedDateTime:
+          type: string
+          format: date-time
+          description: Last status report
+        productStatus:
+          type: string
+          description: Windows Defender status
+        tamperProtectionEnabled:
+          type: boolean
+          description: Tamper protection enabled
+
+    DetectedApp:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+          description: Application name
+        version:
+          type: string
+          description: Application version
+        sizeInByte:
+          type: integer
+          format: int64
+          description: Application size
+        publisher:
+          type: string
+          description: Application publisher
+        platform:
+          type: string
+          description: Platform type
+        deviceCount:
+          type: integer
+          description: Installation count
+
+    ComplianceReport:
+      type: object
+      properties:
+        reportName:
+          type: string
+        generatedDateTime:
+          type: string
+          format: date-time
+        totalDeviceCount:
+          type: integer
+        compliantDeviceCount:
+          type: integer
+        nonCompliantDeviceCount:
+          type: integer
+        errorDeviceCount:
+          type: integer
+        conflictDeviceCount:
+          type: integer
+        notApplicableDeviceCount:
+          type: integer
+        policyViolations:
+          type: array
+          items:
+            type: object
+            properties:
+              policyName:
+                type: string
+              policyId:
+                type: string
+              violationCount:
+                type: integer
+              violationType:
+                type: string
+
+    NonComplianceSummary:
+      type: object
+      properties:
+        reportDateTime:
+          type: string
+          format: date-time
+        totalPolicies:
+          type: integer
+        policiesWithIssues:
+          type: integer
+        totalDevices:
+          type: integer
+        affectedDevices:
+          type: integer
+        criticalIssues:
+          type: integer
+        policyDetails:
+          type: array
+          items:
+            type: object
+            properties:
+              policyName:
+                type: string
+              policyType:
+                type: string
+              nonCompliantDevices:
+                type: integer
+              errorDevices:
+                type: integer
+              severity:
+                type: string
+                enum: [critical, high, medium, low]
+
+    DeviceHealthScriptRunState:
+      type: object
+      properties:
+        id:
+          type: string
+        deviceId:
+          type: string
+        deviceName:
+          type: string
+        detectionState:
+          type: string
+          description: Detection result
+          enum: [unknown, success, fail, scriptError, pending, notApplicable]
+        lastStateUpdateDateTime:
+          type: string
+          format: date-time
+        lastSyncDateTime:
+          type: string
+          format: date-time
+        preRemediationDetectionScriptOutput:
+          type: string
+          description: Pre-remediation output
+        preRemediationDetectionScriptError:
+          type: string
+          description: Pre-remediation error
+        remediationScriptError:
+          type: string
+          description: Remediation error
+        postRemediationDetectionScriptOutput:
+          type: string
+          description: Post-remediation output
+
+    DeviceCompliancePolicyState:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+          description: Policy name
+        platformType:
+          type: string
+          description: Platform type
+        state:
+          type: string
+          description: Compliance state
+          enum: [unknown, notApplicable, compliant, remediated, nonCompliant, error, conflict, notAssigned]
+        settingCount:
+          type: integer
+          description: Number of settings
+        version:
+          type: integer
+          description: Policy version
+        settingStates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComplianceSettingState'
+
+    ComplianceSettingState:
+      type: object
+      properties:
+        setting:
+          type: string
+          description: Setting identifier
+        settingName:
+          type: string
+          description: Setting display name
+        state:
+          type: string
+          description: Setting compliance
+          enum: [unknown, notApplicable, compliant, remediated, nonCompliant, error, conflict, notAssigned]
+        errorCode:
+          type: integer
+          description: Error code if failed
+        errorDescription:
+          type: string
+          description: Error description
+
+    DeviceConfigurationState:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+          description: Configuration name
+        state:
+          type: string
+          description: Configuration state
+          enum: [unknown, notApplicable, applied, failed, pending, notAssigned]
+        version:
+          type: integer
+          description: Configuration version
+        settingCount:
+          type: integer
+          description: Number of settings
+        settingStates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigurationSettingState'
+
+    ConfigurationSettingState:
+      type: object
+      properties:
+        setting:
+          type: string
+        settingName:
+          type: string
+        state:
+          type: string
+          enum: [unknown, notApplicable, applied, failed, pending, notAssigned]
+        errorCode:
+          type: integer
+        errorDescription:
+          type: string
+
+    IntentSettingReport:
+      type: object
+      properties:
+        intentId:
+          type: string
+        intentName:
+          type: string
+        deviceId:
+          type: string
+        deviceName:
+          type: string
+        settings:
+          type: array
+          items:
+            type: object
+            properties:
+              settingName:
+                type: string
+              settingValue:
+                type: string
+              contributingProfiles:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    profileId:
+                      type: string
+                    profileName:
+                      type: string
+                    profileType:
+                      type: string
+
+    BulkActionResult:
+      type: object
+      properties:
+        actionId:
+          type: string
+          description: Action tracking ID
+        actionName:
+          type: string
+          description: Action performed
+        status:
+          type: string
+          description: Overall status
+          enum: [pending, inProgress, completed, failed, partiallySucceeded]
+        initiatedDateTime:
+          type: string
+          format: date-time
+        completedDateTime:
+          type: string
+          format: date-time
+        requestedDeviceCount:
+          type: integer
+        successfulDeviceCount:
+          type: integer
+        failedDeviceCount:
+          type: integer
+        pendingDeviceCount:
+          type: integer
+        notFoundDeviceCount:
+          type: integer
+
+    CloudPC:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+          description: Cloud PC name
+        userPrincipalName:
+          type: string
+          description: Assigned user
+        servicePlanName:
+          type: string
+          description: Service plan
+        servicePlanType:
+          type: string
+          description: Plan type
+        status:
+          type: string
+          description: Provisioning status
+          enum: [notProvisioned, provisioning, provisioned, upgrading, inGracePeriod, deprovisioning, deprovisioned, upgradePending, failed]
+        provisioningPolicyName:
+          type: string
+        imageDisplayName:
+          type: string
+          description: OS image name
+        lastModifiedDateTime:
+          type: string
+          format: date-time
+        gracePeriodEndDateTime:
+          type: string
+          format: date-time
+
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+          description: Action performed
+        activity:
+          type: string
+          description: Activity description
+        activityDateTime:
+          type: string
+          format: date-time
+          description: Event timestamp
+        activityOperationType:
+          type: string
+          description: Operation type
+          enum: [create, update, delete, action]
+        activityResult:
+          type: string
+          description: Result
+          enum: [success, failure, timeout, unknownError]
+        category:
+          type: string
+          description: Audit category
+        componentName:
+          type: string
+          description: Component name
+        correlationId:
+          type: string
+          description: Correlation ID for tracking
+        actor:
+          type: object
+          properties:
+            userId:
+              type: string
+            userPrincipalName:
+              type: string
+            applicationId:
+              type: string
+            applicationDisplayName:
+              type: string
+            ipAddress:
+              type: string
+        targetResources:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              displayName:
+                type: string
+              type:
+                type: string
+              modifiedProperties:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    displayName:
+                      type: string
+                    oldValue:
+                      type: string
+                    newValue:
+                      type: string
