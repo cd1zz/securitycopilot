@@ -216,6 +216,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WindowsUpdateReport'
+    get:
+      summary: List device management export jobs
+      description: |
+        Retrieves a list of all device management export jobs and their status, allowing you to track report generation progress and download completed reports
+        #ExamplePrompts Show me all export job statuses
+        #ExamplePrompts List device management export jobs
+        #ExamplePrompts Get status of my report generation jobs
+        #ExamplePrompts Show me completed export jobs
+        #ExamplePrompts Check if my Windows Update report is ready
+      operationId: ListDeviceManagementExportJobs
+      tags:
+        - Windows Update Reports
+      parameters:
+        - name: $filter
+          in: query
+          description: Filter export jobs (e.g., "status eq 'completed'" or "requestDateTime ge 2024-01-01T00:00:00Z")
+          schema:
+            type: string
+          examples:
+            completed:
+              value: "status eq 'completed'"
+            recent:
+              value: "requestDateTime ge 2024-01-01T00:00:00Z"
+            failed:
+              value: "status eq 'failed'"
+        - name: $select
+          in: query
+          description: Select specific properties to return
+          schema:
+            type: string
+            example: "id,reportName,status,requestDateTime,expirationDateTime,url"
+        - name: $top
+          in: query
+          description: Maximum number of jobs to return
+          schema:
+            type: integer
+            default: 50
+            maximum: 999
+        - name: $orderby
+          in: query
+          description: Sort order for results
+          schema:
+            type: string
+            example: "requestDateTime desc"
+      responses:
+        '200':
+          description: List of device management export jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeviceManagementExportJob'
 
   /deviceManagement/reports/getDeviceNonComplianceReport:
     post:
@@ -1480,3 +1536,43 @@ components:
           type: string
           description: How member was added to audience
           enum: [Direct, Inherited, Dynamic]
+
+    DeviceManagementExportJob:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the export job
+        reportName:
+          type: string
+          description: Name of the report that was requested
+        filter:
+          type: string
+          description: Filter that was applied to the report
+        select:
+          type: array
+          items:
+            type: string
+          description: Columns that were selected for the report
+        format:
+          type: string
+          description: Export format
+          enum: [csv, json, xml]
+        snapshotId:
+          type: string
+          description: Snapshot identifier
+        status:
+          type: string
+          description: Current status of the export job
+          enum: [unknown, notStarted, inProgress, completed, failed]
+        url:
+          type: string
+          description: Download URL for completed report (only available when status is completed)
+        requestDateTime:
+          type: string
+          format: date-time
+          description: When the export job was requested
+        expirationDateTime:
+          type: string
+          format: date-time
+          description: When the download URL expires (only set when status is completed)
