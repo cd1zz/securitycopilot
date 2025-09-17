@@ -2,13 +2,55 @@ openapi: 3.0.0
 info:
   title: Intune Device Reporting API for Security Copilot
   description: API plugin for Microsoft Security Copilot to query and report on Intune-managed devices
-  version: 1.0.0
+  version: "1.0.0"
 
 servers:
   - url: https://graph.microsoft.com/v1.0
     description: Microsoft Graph API v1.0
 
 paths:
+  /me:
+    get:
+      summary: Get current user information
+      description: |
+        Retrieves basic information about the currently authenticated user for testing authentication
+        #ExamplePrompts Test my authentication with Graph API
+        #ExamplePrompts Show me my user information
+        #ExamplePrompts Get my profile from Microsoft Graph
+        #ExamplePrompts Test the connection to Graph API
+      operationId: GetCurrentUser
+      tags:
+        - Authentication Test
+      responses:
+        '200':
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: User's unique identifier
+                  displayName:
+                    type: string
+                    description: User's display name
+                  userPrincipalName:
+                    type: string
+                    description: User's principal name (email)
+                  mail:
+                    type: string
+                    description: User's email address
+                  jobTitle:
+                    type: string
+                    description: User's job title
+                  department:
+                    type: string
+                    description: User's department
+                  officeLocation:
+                    type: string
+                    description: User's office location
+
   /deviceManagement/managedDevices:
     get:
       summary: List all managed devices
