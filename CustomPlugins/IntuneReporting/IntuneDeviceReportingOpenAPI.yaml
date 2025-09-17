@@ -190,32 +190,41 @@ paths:
               properties:
                 reportName:
                   type: string
-                  description: Type of Windows Update report to generate
-                  enum:
-                    - QualityUpdatePolicyStatusSummary
-                    - FeatureUpdatePolicyStatusSummary
-                    - DriverUpdatePolicyStatusSummary
-                    - QualityUpdateDeviceStatusByPolicy
-                    - FeatureUpdateDeviceState
-                    - WindowsUpdatePerPolicyPerDeviceStatus
+                  description: Name of the report to generate
+                  example: QualityUpdatePolicyStatusSummary
                 filter:
                   type: string
-                  description: Optional filter for specific policies or devices
+                  description: Filters applied on the report (e.g., policy-specific filters)
                 select:
                   type: array
                   items:
                     type: string
-                  description: Specific columns to include in the report
-                policyId:
+                  description: Columns selected from the report
+                format:
                   type: string
-                  description: Required for device-level reports (QualityUpdateDeviceStatusByPolicy, FeatureUpdateDeviceState)
+                  description: Format of the exported report
+                  enum:
+                    - csv
+                    - pdf
+                    - json
+                    - unknownFutureValue
+                  default: csv
+                snapshotId:
+                  type: string
+                  description: A snapshot is an identifiable subset of the dataset represented by the ReportName. A sessionId or CachedReportConfiguration id can be used here.
+                localizationType:
+                  type: string
+                  description: Configures how the requested export job is localized
+                  enum:
+                    - localizedValuesAsAdditionalColumn
+                    - replaceLocalizableValues
       responses:
-        '200':
-          description: Windows Update report generated successfully
+        '201':
+          description: Device management export job created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WindowsUpdateReport'
+                $ref: '#/components/schemas/DeviceManagementExportJob'
     get:
       summary: List device management export jobs
       description: |
@@ -1540,39 +1549,58 @@ components:
     DeviceManagementExportJob:
       type: object
       properties:
+        '@odata.type':
+          type: string
+          description: OData type identifier
+          example: "#microsoft.graph.deviceManagementExportJob"
         id:
           type: string
-          description: Unique identifier for the export job
+          description: Unique identifier for this entity
+          example: "9ddfb995-b995-9ddf-95b9-df9d95b9df9d"
         reportName:
           type: string
-          description: Name of the report that was requested
+          description: Name of the report
+          example: "QualityUpdatePolicyStatusSummary"
         filter:
           type: string
-          description: Filter that was applied to the report
+          description: Filters applied on the report
+          example: "PolicyId eq 'policy-guid'"
         select:
           type: array
           items:
             type: string
-          description: Columns that were selected for the report
+          description: Columns selected from the report
+          example: ["DeviceName", "PolicyStatus", "LastCheckInTime"]
         format:
           type: string
-          description: Export format
-          enum: [csv, json, xml]
+          description: Format of the exported report
+          enum: [csv, pdf, json, unknownFutureValue]
+          example: "csv"
         snapshotId:
           type: string
-          description: Snapshot identifier
+          description: A snapshot is an identifiable subset of the dataset represented by the ReportName
+          example: "snapshot-guid-12345"
+        localizationType:
+          type: string
+          description: Configures how the requested export job is localized
+          enum: [localizedValuesAsAdditionalColumn, replaceLocalizableValues]
+          example: "replaceLocalizableValues"
         status:
           type: string
-          description: Current status of the export job
+          description: Status of the export job
           enum: [unknown, notStarted, inProgress, completed, failed]
+          example: "completed"
         url:
           type: string
-          description: Download URL for completed report (only available when status is completed)
+          description: Temporary location of the exported report
+          example: "https://graph.microsoft.com/v1.0/deviceManagement/reports/exportJobs('id')/download"
         requestDateTime:
           type: string
           format: date-time
-          description: When the export job was requested
+          description: Time that the exported report was requested
+          example: "2024-01-15T10:30:00Z"
         expirationDateTime:
           type: string
           format: date-time
-          description: When the download URL expires (only set when status is completed)
+          description: Time that the exported report expires
+          example: "2024-01-22T10:30:00Z"
