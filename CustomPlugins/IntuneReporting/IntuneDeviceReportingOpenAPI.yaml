@@ -166,6 +166,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/WindowsProtectionState'
 
+  /deviceManagement/reports/exportJobs:
+    post:
+      summary: Generate Windows Update Policy Status Summary Report
+      description: |
+        Creates comprehensive Windows Update policy status reports including Quality Update, Feature Update, and Driver Update summaries
+        #ExamplePrompts Generate Windows Update policy status summary
+        #ExamplePrompts Show me Quality Update policy status across all devices
+        #ExamplePrompts Get Feature Update policy compliance summary
+        #ExamplePrompts Create Windows Update policy dashboard report
+        #ExamplePrompts Show me driver update policy status summary
+      operationId: GenerateWindowsUpdatePolicyReport
+      tags:
+        - Windows Update Reports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reportName
+              properties:
+                reportName:
+                  type: string
+                  description: Type of Windows Update report to generate
+                  enum:
+                    - QualityUpdatePolicyStatusSummary
+                    - FeatureUpdatePolicyStatusSummary
+                    - DriverUpdatePolicyStatusSummary
+                    - QualityUpdateDeviceStatusByPolicy
+                    - FeatureUpdateDeviceState
+                    - WindowsUpdatePerPolicyPerDeviceStatus
+                filter:
+                  type: string
+                  description: Optional filter for specific policies or devices
+                select:
+                  type: array
+                  items:
+                    type: string
+                  description: Specific columns to include in the report
+                policyId:
+                  type: string
+                  description: Required for device-level reports (QualityUpdateDeviceStatusByPolicy, FeatureUpdateDeviceState)
+      responses:
+        '200':
+          description: Windows Update report generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WindowsUpdateReport'
+
   /deviceManagement/reports/getDeviceNonComplianceReport:
     post:
       summary: Generate device non-compliance report
@@ -490,6 +541,153 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/AuditEvent'
+
+  /admin/windows/updates/updatableAssets:
+    get:
+      summary: List Windows Autopatch managed devices
+      description: |
+        Retrieves all devices managed by Windows Autopatch including Azure AD devices, groups, and enrollment errors
+        #ExamplePrompts Show me all Windows Autopatch devices
+        #ExamplePrompts List devices enrolled in Windows Update for Business deployment service
+        #ExamplePrompts Get Autopatch device enrollment status
+        #ExamplePrompts Show me Windows Update deployment service assets
+      operationId: GetAutopatchManagedDevices
+      tags:
+        - Windows Autopatch
+      parameters:
+        - name: $filter
+          in: query
+          description: OData filter for devices
+          schema:
+            type: string
+        - name: $select
+          in: query
+          description: Select specific properties
+          schema:
+            type: string
+        - name: $top
+          in: query
+          description: Maximum results to return
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: List of Autopatch managed devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AutopatchDevice'
+
+  /admin/windows/updates/deployments:
+    get:
+      summary: List Windows Update deployments
+      description: |
+        Retrieves all Windows Update deployments including feature, quality, and driver updates with their state and audience information
+        #ExamplePrompts Show me all Windows Update deployments
+        #ExamplePrompts List active Windows Update deployments
+        #ExamplePrompts Get Windows feature update deployments
+        #ExamplePrompts Show me quality update deployment status
+      operationId: GetWindowsUpdateDeployments
+      tags:
+        - Windows Autopatch
+      parameters:
+        - name: $filter
+          in: query
+          description: Filter by content type (e.g., "content/catalogItemType eq 'FeatureUpdate'")
+          schema:
+            type: string
+        - name: $select
+          in: query
+          description: Select specific properties
+          schema:
+            type: string
+        - name: $top
+          in: query
+          description: Maximum results to return
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: List of Windows Update deployments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WindowsUpdateDeployment'
+
+  /admin/windows/updates/deployments/{deploymentId}:
+    get:
+      summary: Get specific Windows Update deployment details
+      description: |
+        Retrieves detailed information about a specific Windows Update deployment including content, state, schedule, and audience
+        #ExamplePrompts Get details for deployment {deploymentId}
+        #ExamplePrompts Show me Windows Update deployment details
+        #ExamplePrompts Get deployment schedule and audience information
+      operationId: GetWindowsUpdateDeploymentDetails
+      tags:
+        - Windows Autopatch
+      parameters:
+        - name: deploymentId
+          in: path
+          required: true
+          description: Deployment identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Windows Update deployment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WindowsUpdateDeployment'
+
+  /admin/windows/updates/deploymentAudiences/{audienceId}/members:
+    get:
+      summary: Get deployment audience members
+      description: |
+        Lists all devices and groups included in a specific deployment audience
+        #ExamplePrompts Show me devices in deployment audience {audienceId}
+        #ExamplePrompts List members of Windows Update deployment audience
+        #ExamplePrompts Get devices targeted by deployment audience
+      operationId: GetDeploymentAudienceMembers
+      tags:
+        - Windows Autopatch
+      parameters:
+        - name: audienceId
+          in: path
+          required: true
+          description: Deployment audience identifier
+          schema:
+            type: string
+        - name: $top
+          in: query
+          description: Maximum results to return
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: List of audience members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeploymentAudienceMember'
 
   /deviceManagement/managedDevices/executeAction:
     post:
@@ -1100,3 +1298,185 @@ components:
                       type: string
                     newValue:
                       type: string
+
+    WindowsUpdateReport:
+      type: object
+      properties:
+        reportName:
+          type: string
+          description: Name of the generated report
+        generatedDateTime:
+          type: string
+          format: date-time
+          description: When the report was generated
+        reportData:
+          type: object
+          description: Report content varies by report type
+          properties:
+            policyStatusSummary:
+              type: array
+              items:
+                type: object
+                properties:
+                  policyId:
+                    type: string
+                    description: Update policy identifier
+                  policyName:
+                    type: string
+                    description: Policy display name
+                  totalDevices:
+                    type: integer
+                    description: Total devices assigned to policy
+                  successCount:
+                    type: integer
+                    description: Devices successfully updated
+                  inProgressCount:
+                    type: integer
+                    description: Devices currently updating
+                  errorCount:
+                    type: integer
+                    description: Devices with update errors
+                  pendingCount:
+                    type: integer
+                    description: Devices pending update
+                  notApplicableCount:
+                    type: integer
+                    description: Devices where update not applicable
+            deviceStatusDetails:
+              type: array
+              items:
+                type: object
+                properties:
+                  deviceId:
+                    type: string
+                    description: Device identifier
+                  deviceName:
+                    type: string
+                    description: Device display name
+                  policyId:
+                    type: string
+                    description: Applied policy ID
+                  updateStatus:
+                    type: string
+                    description: Current update status
+                    enum: [Success, InProgress, Error, Pending, NotApplicable]
+                  lastScanDateTime:
+                    type: string
+                    format: date-time
+                    description: Last update scan time
+                  currentBuild:
+                    type: string
+                    description: Current OS build/version
+                  targetBuild:
+                    type: string
+                    description: Target OS build/version
+                  errorCode:
+                    type: string
+                    description: Error code if update failed
+                  alertCount:
+                    type: integer
+                    description: Number of update-related alerts
+
+    AutopatchDevice:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Device identifier
+        azureAdDeviceId:
+          type: string
+          description: Azure AD device ID
+        displayName:
+          type: string
+          description: Device display name
+        enrollmentStatus:
+          type: string
+          description: Autopatch enrollment status
+          enum: [Enrolled, NotEnrolled, Error, Pending]
+        lastUpdated:
+          type: string
+          format: date-time
+          description: Last status update
+        deviceGroup:
+          type: string
+          description: Assigned device group for deployment rings
+        errors:
+          type: array
+          items:
+            type: string
+          description: Enrollment or update errors
+
+    WindowsUpdateDeployment:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Deployment identifier
+        displayName:
+          type: string
+          description: Deployment display name
+        state:
+          type: string
+          description: Current deployment state
+          enum: [Created, Scheduled, Offering, Monitoring, Completed, Faulted]
+        content:
+          type: object
+          properties:
+            catalogItemType:
+              type: string
+              description: Type of update content
+              enum: [FeatureUpdate, QualityUpdate, DriverUpdate]
+            displayName:
+              type: string
+              description: Update content name
+            version:
+              type: string
+              description: Update version
+        settings:
+          type: object
+          properties:
+            rollout:
+              type: object
+              properties:
+                startDateTime:
+                  type: string
+                  format: date-time
+                  description: Deployment start time
+                endDateTime:
+                  type: string
+                  format: date-time
+                  description: Deployment end time
+        audience:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Target audience identifier
+            memberCount:
+              type: integer
+              description: Number of devices in audience
+        createdDateTime:
+          type: string
+          format: date-time
+          description: When deployment was created
+
+    DeploymentAudienceMember:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Member identifier
+        odataType:
+          type: string
+          description: Member type
+          enum: ['#microsoft.graph.device', '#microsoft.graph.group']
+        displayName:
+          type: string
+          description: Member display name
+        azureAdDeviceId:
+          type: string
+          description: Azure AD device ID (for device members)
+        membershipType:
+          type: string
+          description: How member was added to audience
+          enum: [Direct, Inherited, Dynamic]
