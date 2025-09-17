@@ -754,6 +754,159 @@ paths:
                     items:
                       $ref: '#/components/schemas/DeploymentAudienceMember'
 
+  /deviceManagement/troubleshootingEvents:
+    get:
+      summary: List device management troubleshooting events
+      description: |
+        Retrieves troubleshooting events and diagnostic information for device management operations including enrollment failures, policy application issues, and sync problems
+        #ExamplePrompts Show me recent Intune troubleshooting events
+        #ExamplePrompts Get device management troubleshooting events from last week
+        #ExamplePrompts List enrollment failure events
+        #ExamplePrompts Show me policy application errors
+        #ExamplePrompts Get sync troubleshooting events
+      operationId: ListTroubleshootingEvents
+      tags:
+        - Device Diagnostics
+      parameters:
+        - name: $filter
+          in: query
+          description: Filter troubleshooting events (e.g., "eventDateTime ge 2024-01-01T00:00:00Z")
+          schema:
+            type: string
+          examples:
+            lastWeek:
+              value: "eventDateTime ge 2024-01-15T00:00:00Z"
+            enrollment:
+              value: "contains(eventType,'enrollment')"
+        - name: $top
+          in: query
+          description: Maximum events to return
+          schema:
+            type: integer
+            default: 100
+            maximum: 999
+        - name: $orderby
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            example: "eventDateTime desc"
+      responses:
+        '200':
+          description: Troubleshooting events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TroubleshootingEvent'
+
+  /deviceManagement/managedDevices/{deviceId}/getFileVaultKey:
+    get:
+      summary: Get FileVault recovery key
+      description: |
+        Retrieves the FileVault recovery key for a macOS device to help with device recovery and troubleshooting
+        #ExamplePrompts Get FileVault recovery key for device {deviceId}
+        #ExamplePrompts Show me FileVault key for macOS device
+        #ExamplePrompts Retrieve device recovery key for FileVault
+        #ExamplePrompts Get encryption recovery key for device
+      operationId: GetFileVaultKey
+      tags:
+        - Device Diagnostics
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: Device identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: FileVault recovery key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: string
+                    description: FileVault recovery key
+                    example: "XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+
+  /deviceManagement/managedDevices/{deviceId}/getBitLockerKeysForVolume:
+    get:
+      summary: Get BitLocker recovery keys
+      description: |
+        Retrieves BitLocker recovery keys for Windows device volumes to assist with device recovery and troubleshooting
+        #ExamplePrompts Get BitLocker recovery keys for device {deviceId}
+        #ExamplePrompts Show me BitLocker keys for Windows device
+        #ExamplePrompts Retrieve encryption recovery keys for device
+        #ExamplePrompts Get BitLocker volume recovery information
+      operationId: GetBitLockerKeys
+      tags:
+        - Device Diagnostics
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: Device identifier
+          schema:
+            type: string
+        - name: volumeType
+          in: query
+          description: Volume type to retrieve keys for
+          schema:
+            type: string
+            enum: [operatingSystemVolume, fixedDataVolume, removableDataVolume]
+            default: operatingSystemVolume
+      responses:
+        '200':
+          description: BitLocker recovery keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BitLockerRecoveryKey'
+
+  /deviceManagement/managedDevices/{deviceId}/logCollectionRequests:
+    get:
+      summary: List device log collection requests
+      description: |
+        Retrieves log collection requests for diagnostic purposes, showing status of remote log collection operations
+        #ExamplePrompts Show me log collection requests for device {deviceId}
+        #ExamplePrompts Get diagnostic log collection status
+        #ExamplePrompts List device log collection operations
+        #ExamplePrompts Show me remote diagnostics requests
+      operationId: ListLogCollectionRequests
+      tags:
+        - Device Diagnostics
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: Device identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Log collection requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LogCollectionRequest'
+
   /deviceManagement/managedDevices/executeAction:
     post:
       summary: Execute device action
@@ -1604,3 +1757,129 @@ components:
           format: date-time
           description: Time that the exported report expires
           example: "2024-01-22T10:30:00Z"
+
+    TroubleshootingEvent:
+      type: object
+      properties:
+        '@odata.type':
+          type: string
+          description: OData type identifier
+          example: "#microsoft.graph.deviceManagementTroubleshootingEvent"
+        id:
+          type: string
+          description: UUID for the troubleshooting event
+          example: "fb26dcee-dcee-fb26-eedc-26fbeedc26fb"
+        eventDateTime:
+          type: string
+          format: date-time
+          description: Time when the event occurred
+          example: "2024-01-15T14:30:00Z"
+        correlationId:
+          type: string
+          description: Id used for tracing the failure in the service
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        eventType:
+          type: string
+          description: Type of troubleshooting event
+          enum: [enrollment, policyApplication, deviceSync, appInstallation, certificateDeployment]
+          example: "enrollment"
+        deviceId:
+          type: string
+          description: Device identifier associated with the event
+          example: "device-guid-12345"
+        userId:
+          type: string
+          description: User identifier associated with the event
+          example: "user-guid-67890"
+        additionalInformation:
+          type: object
+          description: Additional diagnostic information
+          properties:
+            errorCode:
+              type: string
+              description: Error code if applicable
+            errorMessage:
+              type: string
+              description: Human-readable error message
+            resolution:
+              type: string
+              description: Suggested resolution steps
+
+    BitLockerRecoveryKey:
+      type: object
+      properties:
+        '@odata.type':
+          type: string
+          description: OData type identifier
+          example: "#microsoft.graph.bitlockerRecoveryKey"
+        id:
+          type: string
+          description: The unique identifier for the BitLocker recovery key
+          example: "recovery-key-guid-12345"
+        createdDateTime:
+          type: string
+          format: date-time
+          description: The date and time when the BitLocker recovery key was originally backed up to Azure Active Directory
+          example: "2024-01-15T10:30:00Z"
+        volumeType:
+          type: string
+          description: Indicates the type of volume the BitLocker key is associated with
+          enum: [operatingSystemVolume, fixedDataVolume, removableDataVolume]
+          example: "operatingSystemVolume"
+        deviceId:
+          type: string
+          description: The unique identifier for the device
+          example: "device-guid-12345"
+        key:
+          type: string
+          description: The BitLocker recovery key (48-digit numerical password)
+          example: "123456-789012-345678-901234-567890-123456-789012-345678"
+
+    LogCollectionRequest:
+      type: object
+      properties:
+        '@odata.type':
+          type: string
+          description: OData type identifier
+          example: "#microsoft.graph.deviceLogCollectionResponse"
+        id:
+          type: string
+          description: The unique identifier for the log collection request
+          example: "log-request-guid-12345"
+        status:
+          type: string
+          description: The status of the log collection request
+          enum: [pending, inProgress, completed, failed]
+          example: "completed"
+        managedDeviceId:
+          type: string
+          description: The unique identifier for the managed device
+          example: "device-guid-12345"
+        requestedDateTime:
+          type: string
+          format: date-time
+          description: The DateTime of the request
+          example: "2024-01-15T10:30:00Z"
+        receivedDateTime:
+          type: string
+          format: date-time
+          description: The DateTime the request was received
+          example: "2024-01-15T10:31:00Z"
+        initiatedByUserPrincipalName:
+          type: string
+          description: The UPN for who initiated the request
+          example: "admin@contoso.com"
+        expirationDateTimeUTC:
+          type: string
+          format: date-time
+          description: The DateTime of the expiration of the logs
+          example: "2024-01-22T10:30:00Z"
+        sizeInKB:
+          type: number
+          description: The size of the logs in KB
+          example: 1024.5
+        enrollmentState:
+          type: string
+          description: The device enrollment state
+          enum: [unknown, enrolled, pendingReset, failed, notContacted]
+          example: "enrolled"
