@@ -4,12 +4,12 @@ Descriptor:
   Description: Comprehensive device reporting plugin for Microsoft Intune that provides detailed insights into device compliance, configuration, security status, and management across your organization's managed device fleet.
   DescriptionForModel: This plugin provides comprehensive Intune device management capabilities including device inventory, compliance reporting, security status monitoring, application management, and configuration analysis. Use this plugin when users ask about Intune-managed devices, device compliance, security policies, or device management operations.
 
-SupportedAuthTypes:
-  - AADDelegated
+  SupportedAuthTypes:
+    - AADDelegated
 
-Authorization:
-  Type: AADDelegated
-  EntraScopes: https://graph.microsoft.com/.default
+  Authorization:
+    Type: AADDelegated
+    EntraScopes: https://graph.microsoft.com/.default
 
 SkillGroups:
   - Format: API
