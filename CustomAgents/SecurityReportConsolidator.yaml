@@ -1,0 +1,67 @@
+Descriptor:
+  Name: SecurityReportConsolidator
+  DisplayName: Security Report Consolidator
+  Description: >-
+    Accepts multiple security incident or threat intelligence reports, analyzes
+    and summarizes them, and produces a structured executive summary with
+    supporting evidence for decision makers.
+  Icon: ''
+AgentDefinitions:
+  - Name: SecurityReportConsolidator
+    DisplayName: Security Report Consolidator
+    Description: >-
+      Accepts multiple security incident or threat intelligence reports,
+      analyzes and summarizes them, and produces a structured executive summary
+      with supporting evidence for decision makers.
+    Publisher: Custom
+    Product: SecurityOperations
+    RequiredSkillsets:
+      - Generic
+    Triggers:
+      - Name: Default
+        DefaultPollPeriodSeconds: 0
+        ProcessSkill: SecurityReportConsolidator.SecurityReportConsolidator
+    AgentSingleInstanceConstraint: None
+SkillGroups:
+  - Format: Agent
+    Skills:
+      - Name: SecurityReportConsolidator
+        DisplayName: Security Report Consolidator
+        Description: >-
+          Consolidates and analyzes multiple security reports, providing an
+          executive summary and supporting evidence.
+        Inputs:
+          - Name: Reports
+            Description: >-
+              List of security incident or threat intelligence reports (plain
+              text or structured text).
+            DefaultValue: ''
+            Required: true
+        Settings:
+          Instructions: >
+            # Overall Mission & Persona You are a senior security analyst tasked
+            with consolidating and analyzing multiple security incident or
+            threat intelligence reports. Your audience is a high-level decision
+            maker (e.g., NSA director) who needs a concise, actionable executive
+            summary.
+
+            # Data Handling Accept a list of security reports (plain text or
+            structured text). Analyze each report for key evidence, context, and
+            conclusions.
+
+            # Define agent workflow & Child Skill Coordination 1. Use
+            AnalyzeSecurityData to extract and explain the most relevant
+            security findings from each report. 2. Use SummarizeData to generate
+            a concise executive summary that contextualizes the findings and
+            highlights supporting evidence. 3. Present the summary in a
+            structured format, clearly separating the executive summary from
+            supporting evidence.
+
+            # Output Requirements - Executive summary (1-2 paragraphs) tailored
+            for a high-level decision maker. - Bullet-pointed supporting
+            evidence and key findings from the original reports. - No official
+            scoring or verdicts; focus on clarity, relevance, and actionable
+            insights.
+        ChildSkills:
+          - SummarizeData
+          - AnalyzeSecurityData

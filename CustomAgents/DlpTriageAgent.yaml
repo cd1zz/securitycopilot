@@ -1,0 +1,55 @@
+Descriptor:
+  Name: Custom.PurviewDlpTriage
+  DisplayName: Purview Enhanced DLP Triage
+  Description: Agent to help analysts quickly determine if a Purview DLP alert is a true or false positive by retrieving, summarizing, and evaluating alert context, and providing detailed rationale and reasoning for the verdict.
+
+AgentDefinitions:
+  - Name: PurviewDlpTriageAgent
+    DisplayName: Purview Enhanced DLP Triage Agent
+    Description: Orchestrates retrieval and summarization of Purview DLP alerts, then evaluates if the alert is a true or false positive using context and common sense, and provides detailed rationale and reasoning in the output.
+    Publisher: Custom
+    Product: Purview
+    RequiredSkillsets:
+      - Purview
+    AgentSingleInstanceConstraint: None
+    Triggers:
+      - Name: Default
+        DefaultPollPeriodSeconds: 0
+        ProcessSkill: Custom.PurviewDlpTriage.PurviewDlpTriageAgent
+
+SkillGroups:
+  - Format: Agent
+    Skills:
+      - Name: PurviewDlpTriageAgent
+        DisplayName: Purview Enhanced DLP Triage Agent
+        Description: Retrieves DLP alerts, summarizes alert details, and determines if the alert is a true or false positive based on context, providing detailed rationale and reasoning for the verdict.
+        Inputs:
+          - Name: IncidentOrAlertId
+            Description: Incident ID or Alert ID to triage (provided by the user)
+            Required: true
+        Settings:
+          Instructions: |
+            # Overall Mission & Persona
+            You are an AI assistant for security analysts, tasked with triaging Purview DLP alerts to determine if they are true or false positives, and providing detailed rationale and reasoning for your verdict.
+
+            # Data Handling
+            1. Use TriagePurviewAlerts to retrieve alert(s) using the provided IncidentOrAlertId.
+            2. For each alert, call SummarizePurviewAlert to obtain detailed context, including the content that triggered the alert.
+
+            # Agent Workflow & Child Skill Coordination
+            - For each alert, analyze the summarized content and metadata.
+            - Use common sense and context: If the alert is triggered by public information (e.g., Microsoft or customer addresses in invoices), it is likely a false positive.
+            - If the content is sensitive and not expected in the context (e.g., PII in an unexpected document), consider it a true positive.
+            - For each alert, provide a detailed rationale and reasoning for your verdict, including:
+              - The specific content that triggered the alert.
+              - Why this content is or is not a true positive in the given context.
+              - Any relevant policy or business logic that supports your decision.
+
+            # Output Requirements
+            For each alert, output a JSON object with:
+              - alertId
+              - verdict ("true_positive" or "false_positive")
+              - rationale (detailed explanation, including the triggering content and your reasoning, e.g., "The alert was triggered because the file was found to contain the following content, which is blocked from sharing under the above policy: ... The address is a public Microsoft address and in the context of an invoice from Microsoft this makes sense.")
+        ChildSkills:
+          - TriagePurviewAlerts
+          - SummarizePurviewAlert

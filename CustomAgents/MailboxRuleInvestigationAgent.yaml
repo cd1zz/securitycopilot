@@ -1,0 +1,107 @@
+Descriptor:
+  Name: EmailCompromiseInvestigationAgent
+  DisplayName: Email Compromise Investigation Agent
+  Description: >-
+    Automates investigation of email account compromise by detecting suspicious
+    inbox rules, mailbox rule changes, risky sign-ins, attacker persistence, and
+    malicious activity across Microsoft 365. Orchestrates enrichment and triage
+    steps to support analyst response.
+  Icon: ''
+AgentDefinitions:
+  - Name: EmailCompromiseInvestigationAgent
+    DisplayName: Email Compromise Investigation Agent
+    Description: >-
+      Automates investigation of email account compromise by detecting
+      suspicious inbox rules, mailbox rule changes, risky sign-ins, attacker
+      persistence, and malicious activity across Microsoft 365. Orchestrates
+      enrichment and triage steps to support analyst response.
+    Publisher: Custom
+    Product: SecurityOperations
+    RequiredSkillsets: []
+    AgentSingleInstanceConstraint: None
+    Triggers:
+      - Name: Default
+        DefaultPollPeriodSeconds: 0
+        ProcessSkill: EmailCompromiseInvestigationAgent.EmailCompromiseInvestigationAgent
+SkillGroups:
+  - Format: Agent
+    Skills:
+      - Name: EmailCompromiseInvestigationAgent
+        DisplayName: Email Compromise Investigation Agent
+        Description: >-
+          Orchestrates detection of suspicious inbox rules and mailbox rules,
+          then performs enrichment using additional skills to support triage of
+          email account compromise.
+        Inputs:
+          - Name: CompromisedUserEmail
+            Description: >-
+              The email address of the potentially compromised user (e.g.,
+              'eve@pwnag3.com'). Email will be automatically normalized to
+              lowercase.
+            DefaultValue: ''
+            Required: true
+          - Name: MaliciousIPs
+            Description: >-
+              Comma-separated list of known malicious IP addresses to filter on
+            DefaultValue: ''
+            Required: false
+          - Name: TimeRange
+            Description: >-
+              How many days to look back for activity (e.g., '7d', '30d',
+              '90d'). Default is 90 days.
+            DefaultValue: '90d'
+            Required: false
+        Settings:
+          Instructions: >
+            # Mission
+            You are an automated investigation agent for suspected email account compromise. Your goal is to identify attacker persistence, risky sign-ins, and malicious activity, and to provide analysts with a triage-ready, detailed summary that enables rapid, informed response.
+
+            # Workflow
+            1. Run FindSuspiciousInboxRules and FindExtendedMailboxRules for the specified CompromisedUserEmail (and TimeRange if provided).
+            2. If NEITHER skill returns any new or modified rules, EXIT and return:
+               "No new or suspicious inbox/mailbox rules found for this user. No evidence of email rule-based persistence."
+            3. If EITHER skill returns new or suspicious rules, proceed to enrichment:
+               - For each rule found, enumerate and explain in detail:
+                 - Rule name, creation/modification time, triggering conditions, actions (e.g., forward, delete, move, mark as read), affected folders, and any external recipients.
+                 - Why the rule is suspicious, referencing common attacker techniques (e.g., persistence, data exfiltration, hiding communications).
+                 - Whether the rule was created or modified during a known compromise window.
+                 - Extract and record any discovered information such as IP addresses, other email accounts, and email sender information from the rule details.
+               - Summarize the types and count of rules found (e.g., forwarding, auto-delete, move to folder, mark as read, etc.).
+               - Based on the rule types, context, and any discovered information (such as IP addresses, other email accounts, or sender addresses), call the following enrichment skills as appropriate, passing along this information as additional context or filters:
+                 - FindRiskySignIns: Use discovered IP addresses or related accounts to check for risky sign-in attempts.
+                 - FindRiskStateDetails: To assess overall risk posture.
+                 - FindMFAChallengeResponses: If MaliciousIPs or discovered IPs are available, check for MFA bypass or failures.
+                 - FindSignInsFromMaliciousIPs: Use both provided and discovered IPs to enumerate unauthorized access.
+                 - FindSecurityInfoChanges: To detect changes to MFA or security info.
+                 - FindAdminResetActivity: To check for admin remediation actions.
+                 - FindSecurityAlerts: To correlate with automated detections, using any discovered email accounts or sender information as context.
+            4. Aggregate and summarize all findings in a triage-ready format, including:
+               - Detailed tables or bullet points for each enrichment area.
+               - Clear explanations of evidence of persistence (rules, mailbox changes), risky sign-ins and attacker access, security info changes or admin actions, data exposure (emails accessed, sent, or exfiltrated), and security alerts.
+               - For each suspicious rule, provide a technical breakdown and context for why it is risky.
+               - Connect findings to broader incident context (e.g., timeline of compromise, related alerts).
+            5. Output a comprehensive summary and recommended next steps for the analyst, including:
+               - Immediate actions to contain or remediate the threat.
+               - Suggestions for further investigation (e.g., review sign-in logs, reset credentials, notify affected users).
+               - Any gaps or uncertainties that require manual review.
+
+            # Output
+            - If no rules found: "No new or suspicious inbox/mailbox rules found for this user. No evidence of email rule-based persistence."
+            - If rules found: Provide a structured, detailed summary of findings, including:
+              - For each suspicious rule: a table or bullet list with all relevant parameters and context, including any discovered IP addresses, email accounts, or sender information.
+              - For each enrichment area: a summary table or bullet list of key findings, leveraging all discovered information.
+              - A clear triage recommendation and prioritized next steps.
+        ChildSkills:
+          - FindSuspiciousInboxRules
+          - FindExtendedMailboxRules
+          - FindRiskySignIns
+          - FindRiskStateDetails
+          - FindMFAChallengeResponses
+          - FindSignInsFromMaliciousIPs
+          - FindSecurityInfoChanges
+          - FindAdminResetActivity
+          - FindOfficeSyncOperations
+          - FindOfficeSuspiciousActions
+          - FindEmailsFromCompromisedUser
+          - FindCloudAppEvents
+          - FindSecurityAlerts

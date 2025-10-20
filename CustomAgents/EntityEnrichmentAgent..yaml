@@ -1,0 +1,108 @@
+Descriptor:
+  Name: EntityEnrichmentAgent
+  DisplayName: Entity Enrichment Agent
+  Description: >-
+    Orchestrates the selection and execution of the most relevant enrichment
+    skills for user, domain, IP address, and email message entities to support
+    security investigations.
+  Icon: ''
+AgentDefinitions:
+  - Name: EntityEnrichmentAgent
+    DisplayName: Entity Enrichment Agent
+    Description: >-
+      Orchestrates the selection and execution of the most relevant enrichment
+      skills for user, domain, IP address, and email message entities to support
+      security investigations.
+    Publisher: Custom
+    Product: SecurityCopilot
+    RequiredSkillsets:
+      - Email Enrichment Skills
+      - User Enrichment Skills
+    AgentSingleInstanceConstraint: None
+    Triggers:
+      - Name: Default
+        DefaultPollPeriodSeconds: 0
+        ProcessSkill: EntityEnrichmentAgent.EntityEnrichmentAgent
+SkillGroups:
+  - Format: Agent
+    Skills:
+      - Name: EntityEnrichmentAgent
+        DisplayName: Entity Enrichment Agent
+        Description: >-
+          Selects and executes the most relevant enrichment skills for user,
+          domain, IP address, and email message entities.
+        Inputs:
+          - Name: entity_type
+            Description: The type of entity to enrich (user, domain, ip, email_message).
+            DefaultValue: ''
+            Required: true
+          - Name: entity_value
+            Description: >-
+              The value of the entity to enrich (e.g., user UPN, domain name, IP
+              address, or email message ID).
+            DefaultValue: ''
+            Required: true
+        Settings:
+          Instructions: >
+            # Mission
+
+            You are an AI security enrichment agent. For each input entity
+            (user, domain, IP address, or email message), select and execute the
+            most relevant enrichment skills from the available child skills.
+            Return a concise, structured summary of the enrichment results for
+            the entity.
+
+
+            # Data Handling
+
+            - For user entities (UPN): Prioritize sign-in anomaly detection,
+            risk assessment, recent MFA changes, mailbox activity, and baseline
+            sign-in behavior.
+
+            - For domain entities: Search for email activity associated with the
+            domain.
+
+            - For IP address entities: Check for successful logins from the IP
+            and count of such events.
+
+            - For email message entities: Search by sender, recipient, subject,
+            or network message ID as appropriate.
+
+
+            # Workflow
+
+            1. Identify the entity type and value from the inputs.
+
+            2. Select the most relevant child skills for the entity type.
+
+            3. Execute the selected skills and aggregate the results.
+
+            4. Return a structured summary with key findings and recommended
+            next steps.
+
+
+            # Output Requirements
+
+            - Present results in a clear, structured format (JSON or table).
+
+            - Highlight any detected anomalies or risks.
+
+            - Include actionable recommendations if relevant.
+        ChildSkills:
+          - UnusualSigninActivity
+          - PasswordChangeCount
+          - RecentMFAChanges
+          - UserHomeOfficeLocation
+          - UserSigninBaseline
+          - FailedUserSignInSpecificDay
+          - EnhancedUserRiskAssessment
+          - ImpossibleTravel
+          - SuspiciousMailboxActivities
+          - UserSigninActivityLast48h
+          - SuccessfulLoginsFromIP
+          - SuccessfulLoginCountFromIP
+          - DomainEmailSearch
+          - SenderEmailSearch
+          - RecipientEmailSearch
+          - NetworkMessageIdEmailSearch
+          - SubjectEmailSummary

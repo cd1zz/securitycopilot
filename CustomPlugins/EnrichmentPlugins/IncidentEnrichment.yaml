@@ -112,4 +112,4 @@ SkillGroups:
             | extend ExtendedPropertiesJson = parse_json(ExtendedProperties)
             | extend EntitiesJson = parse_json(Entities)
             | where ExtendedPropertiesJson.IncidentId == "{{IncidentId}}"
-            | distinct TimeGenerated, SystemAlertId, AlertName, AlertSeverity
+            | distinct TimeGenerated, VendorOriginalId, AlertName, AlertSeverity, ProviderName, ProductName

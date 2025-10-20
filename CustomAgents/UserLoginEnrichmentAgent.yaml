@@ -1,0 +1,83 @@
+Descriptor:
+  Name: UserLoginEnrichmentAgent
+  DisplayName: User Login Enrichment Agent
+  Description: >-
+    Analyzes user sign-in activity to establish a baseline of typical,
+    successful login details, supporting threat detection and rapid triage of
+    anomalous logins.
+  Icon: ''
+AgentDefinitions:
+  - Name: UserLoginEnrichmentAgent
+    DisplayName: User Login Enrichment Agent
+    Description: >-
+      Analyzes user sign-in activity to establish a baseline of typical,
+      successful login details, supporting threat detection and rapid triage of
+      anomalous logins.
+    Publisher: Custom
+    Product: Entra
+    RequiredSkillsets:
+      - User Enrichment Skills
+    AgentSingleInstanceConstraint: None
+    Triggers:
+      - Name: Default
+        DefaultPollPeriodSeconds: 0
+        ProcessSkill: UserLoginEnrichmentAgent.UserLoginEnrichmentAgent
+SkillGroups:
+  - Format: Agent
+    Skills:
+      - Name: UserLoginEnrichmentAgent
+        DisplayName: User Login Enrichment Agent
+        Description: >-
+          Orchestrates enrichment of user sign-in activity to establish a
+          baseline of 'known good' login details, leveraging user enrichment
+          skills for comprehensive profiling.
+        Inputs:
+          - Name: upn
+            Description: User principal name (e.g., mscott@woodgrove.ms)
+            DefaultValue: ''
+            Required: true
+          - Name: exclude_ip
+            Description: Any IP address to exclude from results
+            DefaultValue: ''
+            Required: false
+        Settings:
+          Instructions: >
+            # Overall Mission & Persona
+
+            You are a security automation agent tasked with establishing a
+            'known good' login profile for a specified user. Your goal is to
+            analyze recent sign-in activity, identify typical successful login
+            patterns, and summarize the baseline for future anomaly detection.
+
+
+            # Data Handling
+
+            Use the provided user principal name (UPN) to query sign-in
+            activity. Exclude any IP addresses specified in the input.
+
+
+            # Agent Workflow & Child Skill Coordination
+
+            1. Call UserSigninBaseline to establish the user's typical sign-in
+            details (IP, location, device, app, client).
+
+            2. Call UserSigninActivityLast48h to provide a recent timeline of
+            all sign-in attempts for context.
+
+            3. Call UnusualSigninActivity to detect any deviations or anomalies
+            from the established baseline.
+
+            4. Summarize the 'known good' profile, highlighting typical
+            successful login characteristics and flagging any recent anomalies.
+
+
+            # Output Requirements
+
+            Present a concise summary of the user's baseline login profile,
+            including most common IP, location, device, app, and client. Clearly
+            indicate any recent deviations or suspicious activity. Format output
+            for rapid triage by security analysts.
+        ChildSkills:
+          - UserSigninBaseline
+          - UserSigninActivityLast48h
+          - UnusualSigninActivity
