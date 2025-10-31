@@ -1,9 +1,10 @@
-# Set the path to the atomics folder
-$PathToAtomicsFolder = "C:\Users\craig\atomic-red-team\atomics"
+# Set the path to the atomics folder using dynamic user profile
+$UserProfile = [Environment]::GetFolderPath('UserProfile')
+$PathToAtomicsFolder = "$UserProfile\atomic-red-team\atomics"
 
 # Add Microsoft Defender for Endpoint (MDE) exclusion
 # Exclude the atomic-red-team folder from Microsoft Defender scanning
-$atomicRedTeamPath = "C:\Users\$env:USERNAME\atomic-red-team"
+$atomicRedTeamPath = "$UserProfile\atomic-red-team"
 Add-MpPreference -ExclusionPath $atomicRedTeamPath
 
 # Get all folders under the atomics folder that start with "T" (e.g., T1059.001, T1087.001)

@@ -71,10 +71,20 @@ if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) {
 }
 
 # Install Atomic Red Team repository and related tools
-# Clone the Atomic Red Team repository
+# Set up paths in user profile directory
+$UserProfile = [Environment]::GetFolderPath('UserProfile')
+$atomicRedTeamPath = "$UserProfile\atomic-red-team"
+$invokeAtomicRedTeamPath = "$UserProfile\invoke-atomicredteam"
+
+# Clone the Atomic Red Team repository to user profile
 try {
-    git clone https://github.com/redcanaryco/atomic-red-team.git
-    cd atomic-red-team
+    if (Test-Path $atomicRedTeamPath) {
+        Write-Host "Atomic Red Team already exists at $atomicRedTeamPath, skipping clone." -ForegroundColor Yellow
+    } else {
+        Write-Host "Cloning Atomic Red Team to $atomicRedTeamPath" -ForegroundColor Cyan
+        Set-Location $UserProfile
+        git clone https://github.com/redcanaryco/atomic-red-team.git
+    }
 } catch {
     Write-Error "Failed to clone Atomic Red Team repository: $($_.Exception.Message)"
     exit
@@ -91,11 +101,15 @@ try {
     exit
 }
 
-# Go back and clone Invoke-AtomicRedTeam scripts repository
+# Clone Invoke-AtomicRedTeam scripts repository to user profile
 try {
-    cd ..
-    git clone https://github.com/redcanaryco/invoke-atomicredteam.git
-    cd invoke-atomicredteam
+    if (Test-Path $invokeAtomicRedTeamPath) {
+        Write-Host "Invoke-AtomicRedTeam already exists at $invokeAtomicRedTeamPath, skipping clone." -ForegroundColor Yellow
+    } else {
+        Write-Host "Cloning Invoke-AtomicRedTeam to $invokeAtomicRedTeamPath" -ForegroundColor Cyan
+        Set-Location $UserProfile
+        git clone https://github.com/redcanaryco/invoke-atomicredteam.git
+    }
 } catch {
     Write-Error "Failed to clone Invoke-AtomicRedTeam scripts repository: $($_.Exception.Message)"
     exit
@@ -103,6 +117,7 @@ try {
 
 # Import the Invoke-AtomicRedTeam module locally
 try {
+    Set-Location $invokeAtomicRedTeamPath
     Import-Module .\Invoke-AtomicRedTeam.psd1
 } catch {
     Write-Error "Failed to import Invoke-AtomicRedTeam module: $($_.Exception.Message)"
@@ -111,11 +126,10 @@ try {
 
 # Setup exclusions for Defender to avoid interference with Atomic Red Team
 try {
-    $atomicRedTeamPath = "C:\Users\$env:USERNAME\atomic-red-team"
+    Write-Host "Adding Defender exclusions for Atomic Red Team directories" -ForegroundColor Cyan
     Add-MpPreference -ExclusionPath $atomicRedTeamPath
-    
-    $invokeatomicRedTeamPath = "C:\Users\$env:USERNAME\invoke-atomicredteam"
-    Add-MpPreference -ExclusionPath $invokeatomicRedTeamPath
+    Add-MpPreference -ExclusionPath $invokeAtomicRedTeamPath
+    Write-Host "Defender exclusions added successfully" -ForegroundColor Green
 } catch {
     Write-Error "Failed to add exclusions to Defender: $($_.Exception.Message)"
 }
