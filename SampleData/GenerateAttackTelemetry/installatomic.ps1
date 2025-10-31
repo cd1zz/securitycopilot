@@ -20,12 +20,17 @@ try {
 
 # Install Chocolatey for Package Management
 try {
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
-    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-    # Verify Chocolatey installation
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-        Write-Error "Chocolatey installation failed. Exiting script."
-        exit
+        Write-Host "Installing Chocolatey..."
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+        iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+        # Verify Chocolatey installation
+        if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+            Write-Error "Chocolatey installation failed. Exiting script."
+            exit
+        }
+    } else {
+        Write-Host "Chocolatey already installed, skipping installation." -ForegroundColor Green
     }
 } catch {
     Write-Error "Failed to install Chocolatey: $($_.Exception.Message)"
@@ -35,11 +40,6 @@ try {
 # Install Git
 try {
     choco install git -y
-    # Verify Git installation
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        Write-Error "Git installation failed. Exiting script."
-        exit
-    }
 } catch {
     Write-Error "Failed to install Git: $($_.Exception.Message)"
     exit
@@ -48,11 +48,6 @@ try {
 # Install PowerShell Core (Optional, but recommended for more features and stability)
 try {
     choco install powershell-core -y
-    # Verify PowerShell Core installation
-    if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) {
-        Write-Error "PowerShell Core installation failed. Exiting script."
-        exit
-    }
 } catch {
     Write-Error "Failed to install PowerShell Core: $($_.Exception.Message)"
     exit
@@ -67,6 +62,12 @@ try {
 } catch {
     Write-Error "Failed to reload system environment variables: $($_.Exception.Message)"
     exit
+}
+
+# Verify PowerShell Core installation AFTER reloading environment
+if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) {
+    Write-Warning "PowerShell Core (pwsh) not found in PATH after installation. You may need to restart your shell."
+    Write-Warning "Continuing with installation..."
 }
 
 # Install Atomic Red Team repository and related tools
